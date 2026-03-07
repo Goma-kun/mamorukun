@@ -56,6 +56,7 @@
                 <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-6 font-bold text-slate-500 text-[11px] sm:text-base tracking-tighter">📄 レポート</button>
             </div>
             <div class="flex gap-1 sm:gap-2 mb-1">
+                <button id="calendar-btn" class="py-1.5 px-2 text-[11px] sm:text-sm font-bold text-emerald-300 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 hover:text-white transition-all active:scale-95 flex items-center gap-1 shrink-0">📅 <span class="hidden sm:inline">カレンダー</span></button>
                 <button id="clear-btn" class="py-1.5 px-2 text-[11px] sm:text-sm font-bold text-rose-300 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 hover:text-white transition-all active:scale-95 flex items-center shrink-0">🗑️ クリア</button>
                 <button id="copy-btn" class="py-1.5 px-2 text-[11px] sm:text-sm font-bold text-slate-300 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 hover:text-white transition-all active:scale-95 flex items-center gap-1 shrink-0">📋 <span id="copy-text">コピー</span></button>
             </div>
@@ -106,7 +107,7 @@
         } catch(e) {}
 
         let currentImageData = null; 
-        const startTime = new Date().toLocaleString('ja-JP');
+        let startDateTime = new Date();
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
 
@@ -138,7 +139,7 @@
                 chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. 情報元がある場合は、必ず完全なURL（https://...）を含めてください。ダミーのURL（#など）は絶対に出力しないでください。\n\nログ:\n${log}\n\n質問:${q}`,
                 chatDirect: (q) => `【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. 情報元がある場合は、必ず完全なURL（https://...）を含めてください。ダミーのURLは不可。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
-                exportReport: (start, end, log, chat) => `以下の内容から日本語で簡潔な報告書を作成してください。決定事項やToDoがあれば構造化してください。\n\n開始:${start}\n終了:${end}\nログ:${log}\nチャット:${chat}`,
+                exportReport: (timeText, log, chat) => `以下の内容から日本語で簡潔な報告書を作成してください。決定事項やToDoがあれば構造化してください。\n\n対応時間:${timeText}\nログ:${log}\nチャット:${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」「修正しました」「以下が修正後の文章です」「提案：」などの前置きや後書き、解説文は一切出力してはならない。\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対ログ記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
@@ -146,13 +147,13 @@
                 chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Always include full URLs (https://...) if there is a source. Do not use dummy URLs.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
                 chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Always include full URLs (https://...).\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
-                exportReport: (start, end, log, chat) => `Create a concise report in English based on the following.\n\nStart:${start}\nEnd:${end}\nLog:${log}\nChat:${chat}`,
+                exportReport: (timeText, log, chat) => `Create a concise report in English based on the following.\n\nTime:${timeText}\nLog:${log}\nChat:${chat}`,
                 exportClean: (log) => `Correct the following text in natural English.\n*IMPORTANT* Output ONLY the corrected text. Do NOT include any introductory or concluding remarks like "Here is the corrected text".\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ Operator Log ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
             }
         };
 
-        // === API通信処理（Google検索機能 完全復活版） ===
+        // === API通信処理 ===
         async function askAI(contentsArray) {
             const key = localStorage.getItem('mamoru_apiKey');
             if (!key) { 
@@ -169,7 +170,6 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ 
                         contents: contentsArray,
-                        // ★復活: Google検索グラウンディング機能（GCP課金済み用）
                         tools: [{ googleSearch: {} }] 
                     }) 
                 });
@@ -182,13 +182,11 @@
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     let responseText = data.candidates[0].content.parts[0].text;
                     
-                    // ★復活: Google検索結果から「本物のURLリスト」を抽出して末尾に付与するロジック
                     if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
                         const chunks = data.candidates[0].groundingMetadata.groundingChunks;
                         let links = [];
                         chunks.forEach(chunk => {
                             if (chunk.web && chunk.web.uri && chunk.web.title) {
-                                // 重複排除
                                 if (!links.some(l => l.uri === chunk.web.uri)) {
                                     links.push(chunk.web);
                                 }
@@ -203,16 +201,13 @@
                         }
                     }
                     
-                    // 内部システム用の不要なURL（vertexai等）を除外
                     responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "（※参考リンクは下部を参照）");
-
                     return responseText;
                 }
                 return "AIからの応答が空でした。";
             } catch (err) { return "通信失敗: " + err.toString(); }
         }
 
-        // === DOM要素の取得・状態保存 ===
         const summarizeBtn = document.getElementById('summarize-btn');
         const sendBtn = document.getElementById('send-btn');
         const chatInput = document.getElementById('chat-input');
@@ -274,7 +269,6 @@
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
         }
 
-        // === WakeLock（画面消灯防止機能）===
         let wakeLock = null;
         const requestWakeLock = async () => { 
             try { 
@@ -375,7 +369,12 @@
         // === レポート作成処理 ===
         summarizeBtn.onclick = async () => {
             if (!rawLogText) return;
-            const endTime = new Date().toLocaleString('ja-JP');
+            const endDateTime = new Date();
+            
+            const diffMs = endDateTime - startDateTime;
+            const diffMins = Math.floor(diffMs / 60000);
+            const timeText = `${startDateTime.toLocaleString('ja-JP')} 〜 ${endDateTime.toLocaleString('ja-JP')} (${diffMins}分間)`;
+            
             const t = i18n[currentLang];
             const p = aiPrompts[currentLang];
             
@@ -384,7 +383,7 @@
             summarizeBtn.disabled = true;
             
             summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
-            const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(startTime, endTime, rawLogText, chatHistoryForReport) }] }]);
+            const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }]);
             
             summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport2}</span>`;
             const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }]);
@@ -397,6 +396,68 @@
             summarizeBtn.innerHTML = originalHTML;
             summarizeBtn.disabled = false; 
         };
+
+        // === カレンダー連携（PWA対応 Share API ハイブリッド版） ===
+        document.getElementById('calendar-btn').onclick = async () => {
+            const reportText = document.getElementById('summary-area').innerText;
+            if (!reportText) {
+                alert("カレンダーに登録する内容がありません。先にレポートを作成してください。");
+                return;
+            }
+            
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 10, 0, 0);
+            const end = new Date(start.getTime() + 60*60*1000);
+            
+            const formatDate = (date) => date.toISOString().replace(/-|:|\.\d+/g, "").substring(0, 15) + "Z";
+
+            const icsContent = [
+                "BEGIN:VCALENDAR",
+                "VERSION:2.0",
+                "PRODID:-//Mamoru-kun//NONSGML v1.0//EN",
+                "BEGIN:VEVENT",
+                `DTSTART:${formatDate(start)}`,
+                `DTEND:${formatDate(end)}`,
+                `SUMMARY:まもるくん 応対・ToDo記録`,
+                `DESCRIPTION:${reportText.replace(/\n/g, "\\n")}`,
+                "END:VEVENT",
+                "END:VCALENDAR"
+            ].join("\n");
+
+            const filename = "mamorukun_todo.ics";
+            const file = new File([icsContent], filename, { type: "text/calendar" });
+
+            // iOS PWA対応: Web Share API が使える環境（モバイル等）なら共有メニューを出す
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        title: 'まもるくん 応対記録',
+                        files: [file]
+                    });
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        // 共有が失敗した場合（ユーザーキャンセル以外）は従来方式へフォールバック
+                        fallbackDownload(icsContent, filename);
+                    }
+                }
+            } else {
+                // PCブラウザなど、ShareAPI非対応の環境向け
+                fallbackDownload(icsContent, filename);
+            }
+        };
+
+        // 従来のダウンロード用フォールバック関数
+        function fallbackDownload(content, filename) {
+            const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
 
         // === コピー機能 ===
         document.getElementById('copy-btn').onclick = async () => {
@@ -431,11 +492,22 @@
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
         document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
 
-        // === URLリンク化処理 ===
+        // === URLリンク化処理（完全ガード版） ===
         function formatText(text) {
             let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>');
-            html = html.replace(/(^|[^"'])(https?:\/\/[^\s]+)/g, '$1<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$2</a>');
+            
+            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, title, url) {
+                let fullUrl = url.trim();
+                if (fullUrl !== '#' && !fullUrl.startsWith('http') && !fullUrl.startsWith('mailto:')) {
+                    fullUrl = 'https://' + fullUrl;
+                }
+                if (fullUrl === '#') {
+                     return `<strong>${title}</strong>`;
+                }
+                return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">${title}</a>`;
+            });
+
+            html = html.replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">$2</a>');
             html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
             return html;
         }
