@@ -1,61 +1,486 @@
-// askAI 関数の中の「★修正2」の部分を以下に差し替えてください
-async function askAI(contentsArray) {
-    const key = localStorage.getItem('mamoru_apiKey');
-    if (!key) { 
-        alert('APIキーが設定されていません。右上の⚙️から設定してください。'); 
-        apiModal.classList.remove('hidden');
-        return 'Error: API key missing'; 
-    }
-    
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
-    
-    try {
-        const res = await fetch(url, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ 
-                contents: contentsArray,
-                tools: [{ googleSearch: {} }] 
-            }) 
-        });
-        const data = await res.json();
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>まもるくん - AI応対ログ・アシスタント</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="まもるくん">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #0f172a; color: #e2e8f0; font-family: sans-serif; overscroll-behavior-y: none; }
+        .log-container::-webkit-scrollbar { width: 6px; }
+        .log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
         
-        if (!res.ok || data.error) {
-             const errorMsg = data.error ? data.error.message : 'Unknown API Error';
-             return `API Error: ${errorMsg}\n\n※GCPでのAPIキーの設定をご確認ください。`;
-        }
+        .ai-message { background-color: #1e1b4b; border-left: 4px solid #818cf8; padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem; word-break: break-all; overflow-wrap: anywhere; }
+        .user-message { background-color: #0f766e; border-left: 4px solid #2dd4bf; padding: 1rem; margin-bottom: 1rem; border-radius: 0.5rem; word-break: break-all; overflow-wrap: anywhere; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .whitespace-pre-wrap { white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; }
+        
+        button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        input, select, textarea { font-size: 16px !important; }
+    </style>
+</head>
+<body class="p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
+    <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full">
+        <header class="flex justify-between items-center mb-3 shrink-0">
+            <h1 id="app-title" class="text-xl sm:text-2xl font-extrabold text-sky-400 tracking-wider">🛡️ まもるくん</h1>
+            <div class="flex items-center gap-2 sm:gap-3">
+                <button id="settings-btn" class="bg-slate-800 p-2 rounded-lg border border-slate-700 hover:bg-slate-700 transition-all text-sm" title="API設定">⚙️ 設定</button>
+                <select id="lang-toggle" class="bg-slate-800 border border-slate-600 text-slate-200 text-sm rounded-lg px-2 py-1.5 cursor-pointer outline-none focus:border-sky-500">
+                    <option value="ja" selected>🇯🇵 日本語</option>
+                    <option value="en">🇺🇸 English</option>
+                </select>
+            </div>
+        </header>
 
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
-            let responseText = data.candidates[0].content.parts[0].text;
+        <div id="api-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+            <div class="bg-slate-800 p-6 rounded-xl border border-slate-600 w-full max-w-md shadow-2xl">
+                <h2 class="text-xl font-bold mb-4 text-sky-400">Gemini API設定</h2>
+                <p class="text-sm text-slate-400 mb-4">GCP等で発行したご自身のAPIキーを入力してください。</p>
+                <input type="password" id="api-key-input" placeholder="AIza..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 mb-4 text-white focus:ring-1 focus:ring-sky-500 outline-none">
+                <div class="flex gap-2">
+                    <button id="api-save-btn" class="flex-grow bg-sky-600 hover:bg-sky-500 py-3 rounded font-bold transition-all text-base">保存</button>
+                    <button id="api-close-btn" class="px-5 py-3 bg-slate-700 hover:bg-slate-600 rounded text-base">閉じる</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex border-b border-slate-700 mb-3 justify-between items-end shrink-0 w-full">
+            <div class="flex gap-0.5 sm:gap-2">
+                <button id="tab-btn-transcript" class="py-2 px-1.5 sm:px-6 font-bold text-sky-400 border-b-2 border-sky-400 text-[11px] sm:text-base tracking-tighter">🎙️ ログ</button>
+                <button id="tab-btn-chat" class="py-2 px-1.5 sm:px-6 font-bold text-slate-500 text-[11px] sm:text-base tracking-tighter">💬 AI回答</button>
+                <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-6 font-bold text-slate-500 text-[11px] sm:text-base tracking-tighter">📄 レポート</button>
+            </div>
+            <div class="flex gap-1 sm:gap-2 mb-1">
+                <button id="clear-btn" class="py-1.5 px-2 text-[11px] sm:text-sm font-bold text-rose-300 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 hover:text-white transition-all active:scale-95 flex items-center shrink-0">🗑️ クリア</button>
+                <button id="copy-btn" class="py-1.5 px-2 text-[11px] sm:text-sm font-bold text-slate-300 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 hover:text-white transition-all active:scale-95 flex items-center gap-1 shrink-0">📋 <span id="copy-text">コピー</span></button>
+            </div>
+        </div>
+
+        <div id="log-display" class="bg-slate-900/60 border border-slate-700 rounded-xl p-4 sm:p-6 flex-grow overflow-y-auto mb-3 shadow-2xl relative text-sm sm:text-base leading-relaxed">
+            <div id="content-transcript" class="tab-content active">
+                <div id="transcript-area" class="space-y-3"></div>
+                <div id="interim-text-area" class="text-slate-500 italic mt-2"></div>
+            </div>
+            <div id="content-chat" class="tab-content"><div id="chat-area"></div></div>
+            <div id="content-summary" class="tab-content"><div id="summary-area"></div></div>
+        </div>
+
+        <div class="flex flex-col gap-2 mb-3 bg-slate-800 p-2 sm:p-3 rounded-xl border border-slate-700 shrink-0">
+            <div id="image-preview-container" class="hidden relative inline-block w-20 h-20 sm:w-24 sm:h-24 ml-2 mt-1">
+                <img id="image-preview" class="w-full h-full object-cover rounded-lg border border-slate-600">
+                <button id="remove-image-btn" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg hover:bg-rose-400">×</button>
+            </div>
+            <div class="flex gap-2 w-full items-end">
+                <label for="image-upload" class="cursor-pointer bg-slate-700 hover:bg-slate-600 px-3 py-3 sm:px-4 sm:py-3 rounded-lg flex items-center justify-center transition-all shadow-inner text-xl sm:text-2xl mb-1 shrink-0" title="画像を添付">📸</label>
+                <input type="file" id="image-upload" accept="image/*;capture=camera" class="hidden">
+                <textarea id="chat-input" rows="2" placeholder="質問を入力..." class="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-white focus:ring-1 focus:ring-sky-500 outline-none resize-y"></textarea>
+                <button id="send-btn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-3 sm:px-6 sm:py-3 rounded-lg font-bold transition-all active:scale-95 mb-1 shrink-0 text-sm sm:text-base">送信</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 sm:gap-3 shrink-0">
+            <button id="toggle-btn" class="bg-sky-600 hover:bg-sky-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">🎙️</span><span>録音開始</span></button>
+            <button id="summarize-btn" class="bg-indigo-600 hover:bg-indigo-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">📄</span><span>レポート作成</span></button>
+        </div>
+    </div>
+
+    <script>
+        const apiModal = document.getElementById('api-modal');
+        const apiKeyInput = document.getElementById('api-key-input');
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('mamoru_apiKey')) {
+                apiModal.classList.remove('hidden');
+            }
+            if (rawLogText) {
+                rawLogText.split('\n').forEach(line => {
+                    if (line.trim()) {
+                        const p = document.createElement('p');
+                        p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1";
+                        p.textContent = line;
+                        document.getElementById('transcript-area').appendChild(p);
+                    }
+                });
+                autoScroll(true);
+            }
+            if (chatHistoryForReport) {
+                const div = document.createElement('div');
+                div.className = "ai-message opacity-75";
+                div.innerHTML = `<div class="text-[10px] font-bold text-rose-400 mb-1">※復元</div><div class="whitespace-pre-wrap">${formatText(chatHistoryForReport)}</div>`;
+                document.getElementById('chat-area').appendChild(div);
+            }
+            updateUIText();
+        });
+
+        document.getElementById('settings-btn').onclick = () => {
+            apiKeyInput.value = localStorage.getItem('mamoru_apiKey') || '';
+            apiModal.classList.remove('hidden');
+        };
+        document.getElementById('api-close-btn').onclick = () => apiModal.classList.add('hidden');
+        document.getElementById('api-save-btn').onclick = () => {
+            const key = apiKeyInput.value.trim();
+            if (key) {
+                localStorage.setItem('mamoru_apiKey', key);
+                apiModal.classList.add('hidden');
+                alert('APIキーを保存しました。');
+            } else {
+                alert('APIキーを入力してください。');
+            }
+        };
+
+        document.getElementById('clear-btn').onclick = () => {
+            if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
+                localStorage.removeItem('mamoru_rawLogText'); 
+                localStorage.removeItem('mamoru_chatHistory'); 
+                localStorage.removeItem('mamoru_aiContext');
+                location.reload();
+            }
+        };
+
+        let isRecording = false;
+        let manualStop = true; 
+        let recognition;
+        let rawLogText = localStorage.getItem('mamoru_rawLogText') || "";
+        let chatHistoryForReport = localStorage.getItem('mamoru_chatHistory') || "";
+        let aiChatContext = []; 
+        try {
+            const savedContext = localStorage.getItem('mamoru_aiContext');
+            if (savedContext) aiChatContext = JSON.parse(savedContext);
+        } catch(e) {}
+
+        let currentImageData = null; 
+        const startTime = new Date().toLocaleString('ja-JP');
+        let currentLang = 'ja';
+
+        const i18n = {
+            ja: {
+                title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 レポート",
+                placeholder: "質問を入力...", btnSend: "送信", btnStart: "録音開始",
+                btnStop: "録音停止", btnSummarize: "レポート作成",
+                btnCopy: "コピー", msgCopied: "コピー完了！",
+                statusReport1: "レポート作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
+                labelYou: "あなた", labelAI: "AI", labelSummary: "生成レポート", msgImageAttached: "[📷 画像添付]",
+                noChatHistory: "AIとのやり取りはありません。"
+            },
+            en: {
+                title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Report",
+                placeholder: "Type...", btnSend: "Send", btnStart: "Record",
+                btnStop: "Stop", btnSummarize: "Create Report",
+                btnCopy: "Copy", msgCopied: "Copied!",
+                statusReport1: "Creating Report (1/2)...", statusReport2: "Cleaning text (2/2)...",
+                labelYou: "You", labelAI: "AI", labelSummary: "Generated Report", msgImageAttached: "[📷 Image]",
+                noChatHistory: "No AI interactions."
+            }
+        };
+
+        const aiPrompts = {
+            ja: {
+                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要ルール】\n1. 「確認します」「検索します」などの途中経過の返事は絶対にしないでください。一度の回答で結論を出してください。\n2. 本文中にURLは絶対に書かないでください（システムが自動で末尾に参考リンクを付与します）。\n\nログ:\n${log}\n\n質問:${q}`,
+                chatDirect: (q) => `【超重要ルール】\n1. 「確認します」などの相槌はせず、すぐに最終的な回答を出してください。\n2. 本文中にURLは絶対に書かないでください。\n\n質問: ${q}`,
+                imageOnly: "添付した画像について分析・回答してください。(日本語で)",
+                exportReport: (start, end, log, chat) => `以下の内容から日本語で簡潔な報告書を作成してください。\n\n開始:${start}\n終了:${end}\nログ:${log}\nチャット:${chat}`,
+                exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n\n${log}`,
+                reportTemplate: (report, clean, chat) => `■■ 応対ログ記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`,
+            },
+            en: {
+                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check" or "I will search". Provide the final answer immediately.\n2. Do NOT write URLs in your text (the system will add them automatically).\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "I will check". Provide the answer immediately.\n2. Do NOT write URLs in your text.\n\nQuestion: ${q}`,
+                imageOnly: "Please analyze the attached image in English.",
+                exportReport: (start, end, log, chat) => `Create a concise report in English.\n\nStart:${start}\nEnd:${end}\nLog:${log}\nChat:${chat}`,
+                exportClean: (log) => `Correct the following text in natural English.\n\n${log}`,
+                reportTemplate: (report, clean, chat) => `■■ Operator Log ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`,
+            }
+        };
+
+        async function askAI(contentsArray) {
+            const key = localStorage.getItem('mamoru_apiKey');
+            if (!key) { 
+                alert('APIキーが設定されていません。右上の⚙️から設定してください。'); 
+                apiModal.classList.remove('hidden');
+                return 'Error: API key missing'; 
+            }
             
-            // 検索結果のメタデータからリンク集を作成
-            if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
-                const chunks = data.candidates[0].groundingMetadata.groundingChunks;
-                let links = [];
-                chunks.forEach(chunk => {
-                    if (chunk.web && chunk.web.uri) {
-                        if (!links.some(l => l.uri === chunk.web.uri)) {
-                            links.push({
-                                title: chunk.web.title || "参考ソース",
-                                uri: chunk.web.uri
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+            
+            try {
+                const res = await fetch(url, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
+                        contents: contentsArray,
+                        tools: [{ googleSearch: {} }] 
+                    }) 
+                });
+                const data = await res.json();
+                
+                if (!res.ok || data.error) {
+                     const errorMsg = data.error ? data.error.message : 'Unknown API Error';
+                     return `API Error: ${errorMsg}\n\n※GCPでのAPIキーの設定をご確認ください。`;
+                }
+
+                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    let responseText = data.candidates[0].content.parts[0].text;
+                    
+                    if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
+                        const chunks = data.candidates[0].groundingMetadata.groundingChunks;
+                        let links = [];
+                        chunks.forEach(chunk => {
+                            if (chunk.web && chunk.web.uri) {
+                                if (!links.some(l => l.uri === chunk.web.uri)) {
+                                    links.push({
+                                        title: chunk.web.title || "参考ソース",
+                                        uri: chunk.web.uri
+                                    });
+                                }
+                            }
+                        });
+                        
+                        if (links.length > 0) {
+                            responseText += "\n\n**【参考リンク】**\n";
+                            links.forEach(link => {
+                                responseText += `* [${link.title}](${link.uri})\n`;
                             });
                         }
                     }
-                });
-                
-                if (links.length > 0) {
-                    responseText += "\n\n**【参考リンク】**\n";
-                    links.forEach(link => {
-                        responseText += `* [${link.title}](${link.uri})\n`;
-                    });
+                    
+                    responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "(リンクは下部参照)");
+
+                    return responseText;
                 }
+                return "AIからの応答が空でした。";
+            } catch (err) { return "通信失敗: " + err.toString(); }
+        }
+
+        const summarizeBtn = document.getElementById('summarize-btn');
+        const sendBtn = document.getElementById('send-btn');
+        const chatInput = document.getElementById('chat-input');
+        const toggleBtn = document.getElementById('toggle-btn');
+        const langToggle = document.getElementById('lang-toggle');
+
+        function autoSave() {
+            localStorage.setItem('mamoru_rawLogText', rawLogText);
+            localStorage.setItem('mamoru_chatHistory', chatHistoryForReport);
+            localStorage.setItem('mamoru_aiContext', JSON.stringify(aiChatContext));
+        }
+
+        function updateUIText() {
+            const t = i18n[currentLang];
+            document.getElementById('app-title').innerText = t.title;
+            document.getElementById('tab-btn-transcript').innerText = t.tabTranscript;
+            document.getElementById('tab-btn-chat').innerText = t.tabChat;
+            document.getElementById('tab-btn-summary').innerText = t.tabSummary;
+            chatInput.placeholder = t.placeholder;
+            sendBtn.innerText = t.btnSend;
+            
+            if (isRecording) {
+                toggleBtn.className = "bg-rose-600 hover:bg-rose-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight animate-pulse shrink-0";
+                toggleBtn.innerHTML = `<span class="text-lg">⏹️</span><span>${t.btnStop}</span>`;
+            } else {
+                toggleBtn.className = "bg-sky-600 hover:bg-sky-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight shrink-0";
+                toggleBtn.innerHTML = `<span class="text-lg">🎙️</span><span>${t.btnStart}</span>`;
             }
             
-            // AIが本文中に出す「内部的なリダイレクトURL」だけを消去
-            responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "(リンクは下部参照)");
-
-            return responseText;
+            summarizeBtn.innerHTML = `<span class="text-lg">📄</span><span>${t.btnSummarize}</span>`;
+            document.getElementById('copy-text').innerText = t.btnCopy;
         }
-        return "AIからの応答が空でした。";
-    } catch (err) { return "通信失敗: " + err.toString(); }
-}
+
+        langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
+
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'ja-JP';
+            recognition.onresult = (e) => {
+                let interim = '', final = '';
+                for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    if (e.results[i].isFinal) final += e.results[i][0].transcript;
+                    else interim += e.results[i][0].transcript;
+                }
+                document.getElementById('interim-text-area').innerText = interim;
+                if (final) {
+                    rawLogText += final + "\n";
+                    const p = document.createElement('p');
+                    p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1";
+                    p.textContent = final;
+                    document.getElementById('transcript-area').appendChild(p);
+                    autoScroll(false); autoSave();
+                }
+            };
+            recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
+        }
+
+        let wakeLock = null;
+        const requestWakeLock = async () => { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} };
+        const releaseWakeLock = () => { if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; }); };
+
+        toggleBtn.onclick = () => {
+            if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); } 
+            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); }
+            updateUIText();
+        };
+
+        function handleImageUpload(file) {
+            if (!file || !file.type.startsWith('image/')) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800;
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    document.getElementById('image-preview').src = dataUrl;
+                    document.getElementById('image-preview-container').classList.remove('hidden');
+                    currentImageData = { mimeType: 'image/jpeg', data: dataUrl.split(',')[1] };
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById('image-upload').onchange = (e) => handleImageUpload(e.target.files[0]);
+        chatInput.onpaste = (e) => {
+            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+            for (let i in items) if (items[i].kind === 'file') handleImageUpload(items[i].getAsFile());
+        };
+        document.getElementById('remove-image-btn').onclick = () => { currentImageData = null; document.getElementById('image-preview-container').classList.add('hidden'); document.getElementById('image-upload').value = ''; };
+
+        const sendQuestion = async () => {
+            const q = chatInput.value.trim();
+            if (!q && !currentImageData) return;
+            const t = i18n[currentLang], p = aiPrompts[currentLang];
+            switchTab('chat'); sendBtn.disabled = true;
+            
+            const originalSendText = sendBtn.innerText;
+            sendBtn.innerText = "⏳思考中...";
+
+            let displayMsg = q + (currentImageData ? "\n"+t.msgImageAttached : "");
+            appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
+            chatInput.value = '';
+
+            let currentParts = [];
+            if (aiChatContext.length === 0) currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, q) });
+            else currentParts.push({ text: q ? p.chatDirect(q) : p.imageOnly });
+
+            if (currentImageData) { currentParts.push({ inlineData: { mimeType: currentImageData.mimeType, data: currentImageData.data } }); document.getElementById('remove-image-btn').click(); }
+
+            aiChatContext.push({ role: "user", parts: currentParts });
+            const res = await askAI(aiChatContext.slice(-10));
+            appendMsg('chat-area', t.labelAI, res, "ai-message");
+            aiChatContext.push({ role: "model", parts: [{ text: res }] });
+            chatHistoryForReport += `${t.labelYou}: ${displayMsg}\n${t.labelAI}: ${res}\n\n`;
+            autoSave(); 
+            
+            sendBtn.innerText = originalSendText;
+            sendBtn.disabled = false; 
+            
+            setTimeout(() => { const latestQ = document.querySelector('.latest-q'); if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+        };
+
+        sendBtn.onclick = sendQuestion;
+        chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendQuestion(); } };
+
+        summarizeBtn.onclick = async () => {
+            if (!rawLogText) return;
+            const endTime = new Date().toLocaleString('ja-JP'), t = i18n[currentLang], p = aiPrompts[currentLang];
+            
+            switchTab('summary'); 
+            const originalHTML = summarizeBtn.innerHTML;
+            summarizeBtn.disabled = true;
+            
+            summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
+            const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(startTime, endTime, rawLogText, chatHistoryForReport) }] }]);
+            
+            summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport2}</span>`;
+            const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }]);
+            
+            const fullContent = p.reportTemplate(finalReport, cleanLog, chatHistoryForReport || t.noChatHistory);
+            
+            document.getElementById('summary-area').innerHTML = "";
+            appendMsg('summary-area', t.labelSummary, fullContent, "ai-message");
+            
+            summarizeBtn.innerHTML = originalHTML;
+            summarizeBtn.disabled = false; 
+        };
+
+        document.getElementById('copy-btn').onclick = () => {
+            const activeTabId = document.querySelector('.tab-content.active').id;
+            let text = "";
+            if (activeTabId === 'content-transcript') text = rawLogText;
+            else if (activeTabId === 'content-chat') text = chatHistoryForReport;
+            else text = document.getElementById('summary-area').innerText;
+            navigator.clipboard.writeText(text);
+            const span = document.getElementById('copy-text'), old = span.innerText;
+            span.innerText = i18n[currentLang].msgCopied;
+            setTimeout(() => span.innerText = old, 2000);
+        };
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('content-' + id).classList.add('active');
+            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { b.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400'); b.classList.add('text-slate-500'); });
+            document.getElementById('tab-btn-' + id).classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
+            document.getElementById('log-display').scrollTop = 0;
+        }
+        document.getElementById('tab-btn-transcript').onclick = () => switchTab('transcript');
+        document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
+        document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
+
+        function formatText(text) {
+            let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>');
+            html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/(^|[^"'])(https?:\/\/[^\s]+)/g, '$1<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$2</a>');
+            return html;
+        }
+
+        function appendMsg(id, label, text, cls) {
+            const div = document.createElement('div'); div.className = cls;
+            if (cls === 'user-message') { document.querySelectorAll('.latest-q').forEach(e => e.classList.remove('latest-q')); div.classList.add('latest-q'); }
+            div.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-1">${label}</div><div class="whitespace-pre-wrap">${formatText(text)}</div>`;
+            document.getElementById(id).appendChild(div); 
+            if (id === 'transcript-area') autoScroll(true);
+        }
+
+        function autoScroll(force = false) {
+            const d = document.getElementById('log-display');
+            if (force || document.getElementById('content-transcript').classList.contains('active')) d.scrollTop = d.scrollHeight;
+        }
+
+        let lastAutoSelectedText = "";
+        function handleSelection() {
+            if (!apiModal.classList.contains('hidden')) return; 
+            if (document.activeElement === chatInput) return;
+
+            setTimeout(() => {
+                const sel = window.getSelection().toString().trim();
+                if (sel) { 
+                    if (chatInput.value === "" || chatInput.value === lastAutoSelectedText) {
+                        chatInput.value = sel; 
+                        lastAutoSelectedText = sel;
+                    }
+                }
+            }, 200); 
+        }
+        document.addEventListener('mouseup', handleSelection);
+        document.addEventListener('touchend', handleSelection);
+        document.addEventListener('selectionchange', handleSelection);
+
+        chatInput.addEventListener('paste', () => {
+            if (chatInput.value === lastAutoSelectedText) {
+                chatInput.value = ""; 
+            }
+        });
+    </script>
+</body>
+</html>
