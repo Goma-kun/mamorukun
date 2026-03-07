@@ -133,19 +133,19 @@
             }
         };
 
-        // === プロンプト設定 ===
+        // === ★修正：プロンプト指示の変更（本文にURLを出さない） ===
         const aiPrompts = {
             ja: {
-                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. 情報元がある場合は、必ず完全なURL（https://...）を含めてください。ダミーのURL（#など）は絶対に出力しないでください。\n\nログ:\n${log}\n\n質問:${q}`,
-                chatDirect: (q) => `【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. 情報元がある場合は、必ず完全なURL（https://...）を含めてください。ダミーのURLは不可。\n\n質問: ${q}`,
+                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. サイトを参照した場合は「サイト名」のみを記載し、本文中にURLは絶対に書かないでください。（システムが自動で末尾に正しいリンク集を生成します）\n\nログ:\n${log}\n\n質問:${q}`,
+                chatDirect: (q) => `【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. サイトを参照した場合は「サイト名」のみを記載し、本文中にURLは絶対に書かないでください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 exportReport: (timeText, log, chat) => `以下の内容から日本語で簡潔な報告書を作成してください。決定事項やToDoがあれば構造化してください。\n\n対応時間:${timeText}\nログ:${log}\nチャット:${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」「修正しました」「以下が修正後の文章です」「提案：」などの前置きや後書き、解説文は一切出力してはならない。\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対ログ記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
-                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Always include full URLs (https://...) if there is a source. Do not use dummy URLs.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Always include full URLs (https://...).\n\nQuestion: ${q}`,
+                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Do NOT include URLs in the main text. Just mention the site name.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Do NOT include URLs in the main text.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 exportReport: (timeText, log, chat) => `Create a concise report in English based on the following.\n\nTime:${timeText}\nLog:${log}\nChat:${chat}`,
                 exportClean: (log) => `Correct the following text in natural English.\n*IMPORTANT* Output ONLY the corrected text. Do NOT include any introductory or concluding remarks like "Here is the corrected text".\n\n${log}`,
@@ -182,6 +182,7 @@
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     let responseText = data.candidates[0].content.parts[0].text;
                     
+                    // 正しい参考リンクの抽出
                     if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
                         const chunks = data.candidates[0].groundingMetadata.groundingChunks;
                         let links = [];
@@ -201,7 +202,10 @@
                         }
                     }
                     
-                    responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "（※参考リンクは下部を参照）");
+                    // ★修正：内部システム用の不要なURL（vertexaisearch）を、Markdownリンクごと安全に完全除去
+                    responseText = responseText.replace(/\[([^\]\n]+)\]\(https:\/\/vertexaisearch\.cloud\.google\.com[^\)]+\)/g, "$1");
+                    responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "");
+
                     return responseText;
                 }
                 return "AIからの応答が空でした。";
@@ -285,7 +289,7 @@
             updateUIText();
         };
 
-        // === 画像アップロード（白背景合成） ===
+        // === 画像アップロード ===
         function handleImageUpload(file) {
             if (!file || !file.type.startsWith('image/')) return;
             const reader = new FileReader();
@@ -427,7 +431,6 @@
             const filename = "mamorukun_todo.ics";
             const file = new File([icsContent], filename, { type: "text/calendar" });
 
-            // iOS PWA対応: Web Share API が使える環境（モバイル等）なら共有メニューを出す
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
                 try {
                     await navigator.share({
@@ -436,17 +439,14 @@
                     });
                 } catch (err) {
                     if (err.name !== 'AbortError') {
-                        // 共有が失敗した場合（ユーザーキャンセル以外）は従来方式へフォールバック
                         fallbackDownload(icsContent, filename);
                     }
                 }
             } else {
-                // PCブラウザなど、ShareAPI非対応の環境向け
                 fallbackDownload(icsContent, filename);
             }
         };
 
-        // 従来のダウンロード用フォールバック関数
         function fallbackDownload(content, filename) {
             const blob = new Blob([content], { type: "text/calendar;charset=utf-8" });
             const url = URL.createObjectURL(blob);
@@ -492,22 +492,16 @@
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
         document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
 
-        // === URLリンク化処理（完全ガード版） ===
+        // === ★修正：URLリンク化処理の厳格化（崩壊防止ガード） ===
         function formatText(text) {
             let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
             
-            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, title, url) {
-                let fullUrl = url.trim();
-                if (fullUrl !== '#' && !fullUrl.startsWith('http') && !fullUrl.startsWith('mailto:')) {
-                    fullUrl = 'https://' + fullUrl;
-                }
-                if (fullUrl === '#') {
-                     return `<strong>${title}</strong>`;
-                }
-                return `<a href="${fullUrl}" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">${title}</a>`;
-            });
+            // Markdownリンクの変換：タイトルに改行を含まず、URLが正しくhttp/httpsから始まるものだけを安全にリンク化
+            html = html.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>');
 
+            // 生のURLの変換
             html = html.replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">$2</a>');
+            
             html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
             return html;
         }
