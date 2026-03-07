@@ -90,58 +90,10 @@
     </div>
 
     <script>
+        // === 初期設定と状態管理 ===
         const apiModal = document.getElementById('api-modal');
         const apiKeyInput = document.getElementById('api-key-input');
         
-        window.addEventListener('DOMContentLoaded', () => {
-            if (!localStorage.getItem('mamoru_apiKey')) {
-                apiModal.classList.remove('hidden');
-            }
-            if (rawLogText) {
-                rawLogText.split('\n').forEach(line => {
-                    if (line.trim()) {
-                        const p = document.createElement('p');
-                        p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1";
-                        p.textContent = line;
-                        document.getElementById('transcript-area').appendChild(p);
-                    }
-                });
-                autoScroll(true);
-            }
-            if (chatHistoryForReport) {
-                const div = document.createElement('div');
-                div.className = "ai-message opacity-75";
-                div.innerHTML = `<div class="text-[10px] font-bold text-rose-400 mb-1">※復元</div><div class="whitespace-pre-wrap">${formatText(chatHistoryForReport)}</div>`;
-                document.getElementById('chat-area').appendChild(div);
-            }
-            updateUIText();
-        });
-
-        document.getElementById('settings-btn').onclick = () => {
-            apiKeyInput.value = localStorage.getItem('mamoru_apiKey') || '';
-            apiModal.classList.remove('hidden');
-        };
-        document.getElementById('api-close-btn').onclick = () => apiModal.classList.add('hidden');
-        document.getElementById('api-save-btn').onclick = () => {
-            const key = apiKeyInput.value.trim();
-            if (key) {
-                localStorage.setItem('mamoru_apiKey', key);
-                apiModal.classList.add('hidden');
-                alert('APIキーを保存しました。');
-            } else {
-                alert('APIキーを入力してください。');
-            }
-        };
-
-        document.getElementById('clear-btn').onclick = () => {
-            if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
-                localStorage.removeItem('mamoru_rawLogText'); 
-                localStorage.removeItem('mamoru_chatHistory'); 
-                localStorage.removeItem('mamoru_aiContext');
-                location.reload();
-            }
-        };
-
         let isRecording = false;
         let manualStop = true; 
         let recognition;
@@ -156,7 +108,9 @@
         let currentImageData = null; 
         const startTime = new Date().toLocaleString('ja-JP');
         let currentLang = 'ja';
+        let lastAutoSelectedText = "";
 
+        // === 言語とUIテキスト ===
         const i18n = {
             ja: {
                 title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 レポート",
@@ -178,25 +132,27 @@
             }
         };
 
+        // === プロンプト設定 ===
         const aiPrompts = {
             ja: {
-                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要ルール】\n1. 「確認します」「検索します」などの途中経過の返事は絶対にしないでください。一度の回答で結論を出してください。\n2. 本文中にURLは絶対に書かないでください（システムが自動で末尾に参考リンクを付与します）。\n\nログ:\n${log}\n\n質問:${q}`,
-                chatDirect: (q) => `【超重要ルール】\n1. 「確認します」などの相槌はせず、すぐに最終的な回答を出してください。\n2. 本文中にURLは絶対に書かないでください。\n\n質問: ${q}`,
+                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. 情報元がある場合は、必ず完全なURL（https://...）を含めてください。ダミーのURL（#など）は絶対に出力しないでください。\n\nログ:\n${log}\n\n質問:${q}`,
+                chatDirect: (q) => `【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. 情報元がある場合は、必ず完全なURL（https://...）を含めてください。ダミーのURLは不可。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
-                exportReport: (start, end, log, chat) => `以下の内容から日本語で簡潔な報告書を作成してください。\n\n開始:${start}\n終了:${end}\nログ:${log}\nチャット:${chat}`,
-                exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n\n${log}`,
-                reportTemplate: (report, clean, chat) => `■■ 応対ログ記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`,
+                exportReport: (start, end, log, chat) => `以下の内容から日本語で簡潔な報告書を作成してください。決定事項やToDoがあれば構造化してください。\n\n開始:${start}\n終了:${end}\nログ:${log}\nチャット:${chat}`,
+                exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」「修正しました」「以下が修正後の文章です」「提案：」などの前置きや後書き、解説文は一切出力してはならない。\n\n${log}`,
+                reportTemplate: (report, clean, chat) => `■■ 応対ログ記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
-                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check" or "I will search". Provide the final answer immediately.\n2. Do NOT write URLs in your text (the system will add them automatically).\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "I will check". Provide the answer immediately.\n2. Do NOT write URLs in your text.\n\nQuestion: ${q}`,
+                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Always include full URLs (https://...) if there is a source. Do not use dummy URLs.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Always include full URLs (https://...).\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
-                exportReport: (start, end, log, chat) => `Create a concise report in English.\n\nStart:${start}\nEnd:${end}\nLog:${log}\nChat:${chat}`,
-                exportClean: (log) => `Correct the following text in natural English.\n\n${log}`,
-                reportTemplate: (report, clean, chat) => `■■ Operator Log ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`,
+                exportReport: (start, end, log, chat) => `Create a concise report in English based on the following.\n\nStart:${start}\nEnd:${end}\nLog:${log}\nChat:${chat}`,
+                exportClean: (log) => `Correct the following text in natural English.\n*IMPORTANT* Output ONLY the corrected text. Do NOT include any introductory or concluding remarks like "Here is the corrected text".\n\n${log}`,
+                reportTemplate: (report, clean, chat) => `■■ Operator Log ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
             }
         };
 
+        // === API通信処理（Google検索機能 完全復活版） ===
         async function askAI(contentsArray) {
             const key = localStorage.getItem('mamoru_apiKey');
             if (!key) { 
@@ -213,24 +169,26 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ 
                         contents: contentsArray,
+                        // ★復活: Google検索グラウンディング機能（GCP課金済み用）
                         tools: [{ googleSearch: {} }] 
                     }) 
                 });
                 const data = await res.json();
                 
                 if (!res.ok || data.error) {
-                     const errorMsg = data.error ? data.error.message : 'Unknown API Error';
-                     return `API Error: ${errorMsg}\n\n※GCPでのAPIキーの設定をご確認ください。`;
+                     return `API Error: ${data.error ? data.error.message : 'Unknown Error'}\n\n※GCPでのAPIキーの設定をご確認ください。`;
                 }
 
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     let responseText = data.candidates[0].content.parts[0].text;
                     
+                    // ★復活: Google検索結果から「本物のURLリスト」を抽出して末尾に付与するロジック
                     if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
                         const chunks = data.candidates[0].groundingMetadata.groundingChunks;
                         let links = [];
                         chunks.forEach(chunk => {
                             if (chunk.web && chunk.web.uri && chunk.web.title) {
+                                // 重複排除
                                 if (!links.some(l => l.uri === chunk.web.uri)) {
                                     links.push(chunk.web);
                                 }
@@ -245,6 +203,7 @@
                         }
                     }
                     
+                    // 内部システム用の不要なURL（vertexai等）を除外
                     responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "（※参考リンクは下部を参照）");
 
                     return responseText;
@@ -253,6 +212,7 @@
             } catch (err) { return "通信失敗: " + err.toString(); }
         }
 
+        // === DOM要素の取得・状態保存 ===
         const summarizeBtn = document.getElementById('summarize-btn');
         const sendBtn = document.getElementById('send-btn');
         const chatInput = document.getElementById('chat-input');
@@ -288,6 +248,7 @@
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
 
+        // === 音声認識処理 ===
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
             recognition = new SpeechRecognition();
@@ -313,9 +274,16 @@
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
         }
 
+        // === WakeLock（画面消灯防止機能）===
         let wakeLock = null;
-        const requestWakeLock = async () => { try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} };
-        const releaseWakeLock = () => { if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; }); };
+        const requestWakeLock = async () => { 
+            try { 
+                if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); 
+            } catch (err) { console.warn('WakeLock error:', err); } 
+        };
+        const releaseWakeLock = () => { 
+            if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; }); 
+        };
 
         toggleBtn.onclick = () => {
             if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); } 
@@ -323,6 +291,7 @@
             updateUIText();
         };
 
+        // === 画像アップロード（白背景合成） ===
         function handleImageUpload(file) {
             if (!file || !file.type.startsWith('image/')) return;
             const reader = new FileReader();
@@ -335,7 +304,6 @@
                     canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
                     const ctx = canvas.getContext('2d');
                     
-                    // ★修正：透過画像対策として白背景を合成する処理を追加（クラッシュガード）
                     ctx.fillStyle = "#FFFFFF";
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     
@@ -357,25 +325,33 @@
         };
         document.getElementById('remove-image-btn').onclick = () => { currentImageData = null; document.getElementById('image-preview-container').classList.add('hidden'); document.getElementById('image-upload').value = ''; };
 
+        // === チャット送信処理 ===
         const sendQuestion = async () => {
             const q = chatInput.value.trim();
             if (!q && !currentImageData) return;
             const t = i18n[currentLang], p = aiPrompts[currentLang];
-            switchTab('chat'); sendBtn.disabled = true;
             
+            switchTab('chat'); 
+            sendBtn.disabled = true;
             const originalSendText = sendBtn.innerText;
             sendBtn.innerText = "⏳思考中...";
 
             let displayMsg = q + (currentImageData ? "\n"+t.msgImageAttached : "");
             appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
             chatInput.value = '';
-            lastAutoSelectedText = ''; // 送信後に自動選択の記録をクリア
+            lastAutoSelectedText = '';
 
             let currentParts = [];
-            if (aiChatContext.length === 0) currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, q) });
-            else currentParts.push({ text: q ? p.chatDirect(q) : p.imageOnly });
+            if (aiChatContext.length === 0) {
+                currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, q) });
+            } else {
+                currentParts.push({ text: q ? p.chatDirect(q) : p.imageOnly });
+            }
 
-            if (currentImageData) { currentParts.push({ inlineData: { mimeType: currentImageData.mimeType, data: currentImageData.data } }); document.getElementById('remove-image-btn').click(); }
+            if (currentImageData) { 
+                currentParts.push({ inlineData: { mimeType: currentImageData.mimeType, data: currentImageData.data } }); 
+                document.getElementById('remove-image-btn').click(); 
+            }
 
             aiChatContext.push({ role: "user", parts: currentParts });
             const res = await askAI(aiChatContext.slice(-10));
@@ -387,15 +363,21 @@
             sendBtn.innerText = originalSendText;
             sendBtn.disabled = false; 
             
-            setTimeout(() => { const latestQ = document.querySelector('.latest-q'); if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 100);
+            setTimeout(() => { 
+                const latestQ = document.querySelector('.latest-q'); 
+                if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            }, 100);
         };
 
         sendBtn.onclick = sendQuestion;
         chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendQuestion(); } };
 
+        // === レポート作成処理 ===
         summarizeBtn.onclick = async () => {
             if (!rawLogText) return;
-            const endTime = new Date().toLocaleString('ja-JP'), t = i18n[currentLang], p = aiPrompts[currentLang];
+            const endTime = new Date().toLocaleString('ja-JP');
+            const t = i18n[currentLang];
+            const p = aiPrompts[currentLang];
             
             switchTab('summary'); 
             const originalHTML = summarizeBtn.innerHTML;
@@ -416,22 +398,32 @@
             summarizeBtn.disabled = false; 
         };
 
-        document.getElementById('copy-btn').onclick = () => {
+        // === コピー機能 ===
+        document.getElementById('copy-btn').onclick = async () => {
             const activeTabId = document.querySelector('.tab-content.active').id;
             let text = "";
             if (activeTabId === 'content-transcript') text = rawLogText;
             else if (activeTabId === 'content-chat') text = chatHistoryForReport;
             else text = document.getElementById('summary-area').innerText;
-            navigator.clipboard.writeText(text);
-            const span = document.getElementById('copy-text'), old = span.innerText;
-            span.innerText = i18n[currentLang].msgCopied;
-            setTimeout(() => span.innerText = old, 2000);
+            
+            try {
+                await navigator.clipboard.writeText(text);
+                const span = document.getElementById('copy-text'), old = span.innerText;
+                span.innerText = i18n[currentLang].msgCopied;
+                setTimeout(() => span.innerText = old, 2000);
+            } catch (err) {
+                alert("クリップボードへのアクセスが拒否されました。テキストを手動で選択してコピーしてください。");
+            }
         };
 
+        // === タブ切り替え ===
         function switchTab(id) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('content-' + id).classList.add('active');
-            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { b.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400'); b.classList.add('text-slate-500'); });
+            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { 
+                b.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400'); 
+                b.classList.add('text-slate-500'); 
+            });
             document.getElementById('tab-btn-' + id).classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
             document.getElementById('log-display').scrollTop = 0;
         }
@@ -439,23 +431,12 @@
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
         document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
 
-        // ★修正：URLリンクの正規表現を強化
+        // === URLリンク化処理 ===
         function formatText(text) {
             let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            
-            // AIが生成したダミーリンク [テキスト](#) は太字にするだけにし、
-            // 本物のURLが含まれる場合は正しく <a> タグに変換する処理に変更
-            html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, function(match, title, url) {
-                if (url === '#' || url.startsWith('vertexai')) {
-                    return `<strong>${title}</strong>`;
-                }
-                return `<a href="${url}" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">${title}</a>`;
-            });
-            
+            html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\)]+)\)/g, '<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>');
+            html = html.replace(/(^|[^"'])(https?:\/\/[^\s]+)/g, '$1<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$2</a>');
             html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
-            
-            // 生のURL文字列もリンク化
-            html = html.replace(/(^|[^"'])(https?:\/\/[^\s<]+)/g, '$1<a href="$2" target="_blank" class="text-sky-400 underline hover:text-sky-300 break-all">$2</a>');
             return html;
         }
 
@@ -472,7 +453,7 @@
             if (force || document.getElementById('content-transcript').classList.contains('active')) d.scrollTop = d.scrollHeight;
         }
 
-        let lastAutoSelectedText = "";
+        // === 選択テキストの自動入力 ===
         function handleSelection() {
             if (!apiModal.classList.contains('hidden')) return; 
             if (document.activeElement === chatInput) return;
@@ -491,18 +472,52 @@
         document.addEventListener('touchend', handleSelection);
         document.addEventListener('selectionchange', handleSelection);
 
-        // ★修正：手入力や貼り付けが行われたら自動選択のロックを解除して競合を防ぐ
         chatInput.addEventListener('input', () => {
-            if (chatInput.value !== lastAutoSelectedText) {
-                lastAutoSelectedText = ""; 
-            }
+            if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = "";
         });
         chatInput.addEventListener('paste', () => {
-            if (chatInput.value === lastAutoSelectedText) {
-                chatInput.value = ""; 
-                lastAutoSelectedText = ""; // ロック解除
-            }
+            lastAutoSelectedText = ""; 
         });
+
+        // === 初期化処理 ===
+        window.addEventListener('DOMContentLoaded', () => {
+            if (!localStorage.getItem('mamoru_apiKey')) {
+                apiModal.classList.remove('hidden');
+            }
+            if (rawLogText) {
+                rawLogText.split('\n').forEach(line => {
+                    if (line.trim()) {
+                        const p = document.createElement('p');
+                        p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1";
+                        p.textContent = line;
+                        document.getElementById('transcript-area').appendChild(p);
+                    }
+                });
+                autoScroll(true);
+            }
+            if (chatHistoryForReport) {
+                const div = document.createElement('div');
+                div.className = "ai-message opacity-75";
+                div.innerHTML = `<div class="text-[10px] font-bold text-rose-400 mb-1">※復元</div><div class="whitespace-pre-wrap">${formatText(chatHistoryForReport)}</div>`;
+                document.getElementById('chat-area').appendChild(div);
+            }
+            updateUIText();
+        });
+        document.getElementById('settings-btn').onclick = () => { apiKeyInput.value = localStorage.getItem('mamoru_apiKey') || ''; apiModal.classList.remove('hidden'); };
+        document.getElementById('api-close-btn').onclick = () => apiModal.classList.add('hidden');
+        document.getElementById('api-save-btn').onclick = () => {
+            const key = apiKeyInput.value.trim();
+            if (key) { localStorage.setItem('mamoru_apiKey', key); apiModal.classList.add('hidden'); alert('APIキーを保存しました。'); } 
+            else { alert('APIキーを入力してください。'); }
+        };
+        document.getElementById('clear-btn').onclick = () => {
+            if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
+                localStorage.removeItem('mamoru_rawLogText'); 
+                localStorage.removeItem('mamoru_chatHistory'); 
+                localStorage.removeItem('mamoru_aiContext');
+                location.reload();
+            }
+        };
     </script>
 </body>
 </html>
