@@ -78,14 +78,14 @@
             <div class="flex gap-2 w-full items-end">
                 <label for="image-upload" class="cursor-pointer bg-slate-700 hover:bg-slate-600 px-3 py-3 sm:px-4 sm:py-3 rounded-lg flex items-center justify-center transition-all shadow-inner text-xl sm:text-2xl mb-1 shrink-0" title="画像を添付">📸</label>
                 <input type="file" id="image-upload" accept="image/*;capture=camera" class="hidden">
-                <textarea id="chat-input" rows="2" placeholder="質問を入力..." class="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-white focus:ring-1 focus:ring-sky-500 outline-none resize-y"></textarea>
+                <textarea id="chat-input" rows="2" placeholder="質問を入力、または画像をペースト・添付..." class="flex-grow bg-slate-900 border border-slate-700 rounded-lg px-3 py-3 text-white focus:ring-1 focus:ring-sky-500 outline-none resize-y"></textarea>
                 <button id="send-btn" class="bg-indigo-600 hover:bg-indigo-500 px-4 py-3 sm:px-6 sm:py-3 rounded-lg font-bold transition-all active:scale-95 mb-1 shrink-0 text-sm sm:text-base">送信</button>
             </div>
         </div>
 
         <div class="grid grid-cols-3 gap-2 sm:gap-3 shrink-0">
             <button id="toggle-btn" class="bg-sky-600 hover:bg-sky-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">🎙️</span><span>録音開始</span></button>
-            <button id="advice-btn" class="bg-amber-600 hover:bg-amber-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">💡</span><span>助言を求める</span></button>
+            <button id="advice-btn" class="bg-amber-600 hover:bg-amber-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">💡</span><span>AIアドバイス</span></button>
             <button id="summarize-btn" class="bg-indigo-600 hover:bg-indigo-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">📄</span><span>要約作成</span></button>
         </div>
     </div>
@@ -108,6 +108,14 @@
 
         let currentImageData = null; 
         let startDateTime = new Date();
+        // ★修正：リロード時に過去の開始時間を復元する処理（対応時間がリセットされないようにするため）
+        const savedStartTime = localStorage.getItem('mamoru_startTime');
+        if (savedStartTime) {
+            startDateTime = new Date(savedStartTime);
+        } else {
+            localStorage.setItem('mamoru_startTime', startDateTime.toISOString());
+        }
+
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
 
@@ -115,8 +123,8 @@
         const i18n = {
             ja: {
                 title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 要約",
-                placeholder: "質問を入力...", btnSend: "送信", btnStart: "録音開始",
-                btnStop: "録音停止", btnAdvice: "助言を求める", btnSummarize: "要約作成",
+                placeholder: "質問を入力、または画像をペースト・添付...", btnSend: "送信", btnStart: "録音開始",
+                btnStop: "録音停止", btnAdvice: "AIアドバイス", btnSummarize: "要約作成",
                 btnCopy: "コピー", msgCopied: "コピー完了！",
                 statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
@@ -124,8 +132,8 @@
             },
             en: {
                 title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
-                placeholder: "Type...", btnSend: "Send", btnStart: "Record",
-                btnStop: "Stop", btnAdvice: "Get Advice", btnSummarize: "Create Summary",
+                placeholder: "Type a question or paste/attach an image...", btnSend: "Send", btnStart: "Record",
+                btnStop: "Stop", btnAdvice: "AI Advice", btnSummarize: "Create Summary",
                 btnCopy: "Copy", msgCopied: "Copied!",
                 statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
@@ -140,7 +148,8 @@
                 chatDirect: (q) => `【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
-                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で簡潔な要約を作成してください。\n\n【必須構成】\n1. 応対概要\n2. 決定事項\n3. ToDo（アクションアイテム）\n4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）\n\n対応時間:${timeText}\nログ:${log}\nチャット:${chat}`,
+                // ★修正：対応時間をレポート内に出力するようプロンプトを厳格化
+                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で簡潔な要約を作成してください。\n\n【必須構成】\n対応時間: ${timeText}\n\n1. 応対概要\n2. 決定事項\n3. ToDo（アクションアイテム）\n4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）\n\nログ:\n${log}\n\nチャット:\n${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
@@ -149,13 +158,13 @@
                 chatDirect: (q) => `*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
-                exportReport: (timeText, log, chat) => `Create a concise summary in English based on the following. Include: 1. Summary, 2. Decisions, 3. ToDo, 4. 💡AI Direction.\n\nTime:${timeText}\nLog:${log}\nChat:${chat}`,
+                exportReport: (timeText, log, chat) => `Create a concise summary in English based on the following. Include:\nTime: ${timeText}\n\n1. Summary, 2. Decisions, 3. ToDo, 4. 💡AI Direction.\n\nLog:\n${log}\n\nChat:\n${chat}`,
                 exportClean: (log) => `Correct the following text in natural English. Output ONLY the corrected text.\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ Operator Summary ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
             }
         };
 
-        // === API通信処理（タイムアウト追加） ===
+        // === API通信処理 ===
         async function askAI(contentsArray) {
             const key = localStorage.getItem('mamoru_apiKey');
             if (!key) { 
@@ -166,7 +175,7 @@
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒でタイムアウト
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
             
             try {
                 const res = await fetch(url, { 
@@ -212,9 +221,7 @@
                 }
                 return "AIからの応答が空でした。";
             } catch (err) { 
-                if (err.name === 'AbortError') {
-                    return "通信タイムアウト: AIの応答が長すぎます。電波状況を確認するか、少し待ってから再度お試しください。";
-                }
+                if (err.name === 'AbortError') return "通信タイムアウト: AIの応答が長すぎます。";
                 return "通信失敗: " + err.toString(); 
             }
         }
@@ -374,7 +381,7 @@
         sendBtn.onclick = sendQuestion;
         chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendQuestion(); } };
 
-        // === 💡助言を求める機能 ===
+        // === 💡AIアドバイス機能 ===
         document.getElementById('advice-btn').onclick = async () => {
             if (!rawLogText) {
                 alert("まだログがありません。少し録音してからお試しください。");
@@ -399,6 +406,12 @@
             
             btn.innerHTML = originalHTML;
             btn.disabled = false;
+
+            // ★修正：アドバイスが返ってきた直後に、最新のやり取りまで自動スクロールさせる
+            setTimeout(() => { 
+                const latestQ = document.querySelector('.latest-q'); 
+                if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            }, 100);
         };
 
         // === 要約作成処理 ===
@@ -534,6 +547,7 @@
         document.getElementById('clear-btn').onclick = () => {
             if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
                 localStorage.removeItem('mamoru_rawLogText'); localStorage.removeItem('mamoru_chatHistory'); localStorage.removeItem('mamoru_aiContext');
+                localStorage.removeItem('mamoru_startTime'); // 開始時間もリセット
                 location.reload();
             }
         };
