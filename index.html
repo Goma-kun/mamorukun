@@ -53,7 +53,7 @@
             <div class="flex gap-0.5 sm:gap-2">
                 <button id="tab-btn-transcript" class="py-2 px-1.5 sm:px-6 font-bold text-sky-400 border-b-2 border-sky-400 text-[11px] sm:text-base tracking-tighter">🎙️ ログ</button>
                 <button id="tab-btn-chat" class="py-2 px-1.5 sm:px-6 font-bold text-slate-500 text-[11px] sm:text-base tracking-tighter">💬 AI回答</button>
-                <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-6 font-bold text-slate-500 text-[11px] sm:text-base tracking-tighter">📄 レポート</button>
+                <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-6 font-bold text-slate-500 text-[11px] sm:text-base tracking-tighter">📄 要約</button>
             </div>
             <div class="flex gap-1 sm:gap-2 mb-1">
                 <button id="clear-btn" class="py-1.5 px-2 text-[11px] sm:text-sm font-bold text-rose-300 bg-slate-800 border border-slate-600 rounded hover:bg-slate-700 hover:text-white transition-all active:scale-95 flex items-center shrink-0">🗑️ クリア</button>
@@ -83,9 +83,10 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 sm:gap-3 shrink-0">
+        <div class="grid grid-cols-3 gap-2 sm:gap-3 shrink-0">
             <button id="toggle-btn" class="bg-sky-600 hover:bg-sky-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">🎙️</span><span>録音開始</span></button>
-            <button id="summarize-btn" class="bg-indigo-600 hover:bg-indigo-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">📄</span><span>レポート作成</span></button>
+            <button id="advice-btn" class="bg-amber-600 hover:bg-amber-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">💡</span><span>助言を求める</span></button>
+            <button id="summarize-btn" class="bg-indigo-600 hover:bg-indigo-500 py-3 sm:py-4 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-base flex flex-col items-center justify-center gap-1 leading-tight"><span class="text-lg">📄</span><span>要約作成</span></button>
         </div>
     </div>
 
@@ -113,46 +114,48 @@
         // === 言語とUIテキスト ===
         const i18n = {
             ja: {
-                title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 レポート",
+                title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 要約",
                 placeholder: "質問を入力...", btnSend: "送信", btnStart: "録音開始",
-                btnStop: "録音停止", btnSummarize: "レポート作成",
+                btnStop: "録音停止", btnAdvice: "助言を求める", btnSummarize: "要約作成",
                 btnCopy: "コピー", msgCopied: "コピー完了！",
-                statusReport1: "レポート作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
-                labelYou: "あなた", labelAI: "AI", labelSummary: "生成レポート", msgImageAttached: "[📷 画像添付]",
+                statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
+                labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
                 noChatHistory: "AIとのやり取りはありません。"
             },
             en: {
-                title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Report",
+                title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
                 placeholder: "Type...", btnSend: "Send", btnStart: "Record",
-                btnStop: "Stop", btnSummarize: "Create Report",
+                btnStop: "Stop", btnAdvice: "Get Advice", btnSummarize: "Create Summary",
                 btnCopy: "Copy", msgCopied: "Copied!",
-                statusReport1: "Creating Report (1/2)...", statusReport2: "Cleaning text (2/2)...",
-                labelYou: "You", labelAI: "AI", labelSummary: "Generated Report", msgImageAttached: "[📷 Image]",
+                statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
+                labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
                 noChatHistory: "No AI interactions."
             }
         };
 
-        // === ★修正：プロンプト指示の変更（ToDoと不足情報の指摘機能を追加） ===
+        // === プロンプト設定 ===
         const aiPrompts = {
             ja: {
-                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. サイトを参照した場合は「サイト名」のみを記載し、本文中にURLは絶対に書かないでください。（システムが自動で末尾に正しいリンク集を生成します）\n\nログ:\n${log}\n\n質問:${q}`,
-                chatDirect: (q) => `【超重要】\n1. 「確認します」等の相槌はせず、すぐに回答を出してください。\n2. サイトを参照した場合は「サイト名」のみを記載し、本文中にURLは絶対に書かないでください。\n\n質問: ${q}`,
+                chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。\n\nログ:\n${log}\n\n質問:${q}`,
+                chatDirect: (q) => `【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
-                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で簡潔な報告書を作成してください。\n\n【必須構成】\n1. 応対概要\n2. 決定事項\n3. ToDo（アクションアイテム）\n4. 💡AIディレクション（ヘルプデスクのプロとして、ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」「潜在的リスク」を1〜2点、厳しく指摘してください）\n\n対応時間:${timeText}\nログ:${log}\nチャット:${chat}`,
-                exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」「修正しました」「以下が修正後の文章です」「提案：」などの前置きや後書き、解説文は一切出力してはならない。\n\n${log}`,
-                reportTemplate: (report, clean, chat) => `■■ 応対ログ記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
+                advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
+                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で簡潔な要約を作成してください。\n\n【必須構成】\n1. 応対概要\n2. 決定事項\n3. ToDo（アクションアイテム）\n4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）\n\n対応時間:${timeText}\nログ:${log}\nチャット:${chat}`,
+                exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
+                reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
-                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Do NOT include URLs in the main text. Just mention the site name.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `*IMPORTANT*\n1. Do NOT say "Let me check". Provide the answer immediately.\n2. Do NOT include URLs in the main text.\n\nQuestion: ${q}`,
+                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
-                exportReport: (timeText, log, chat) => `Create a concise report in English based on the following. Include: 1. Summary, 2. Decisions, 3. ToDo, 4. 💡AI Direction (Point out missing info or next troubleshooting steps).\n\nTime:${timeText}\nLog:${log}\nChat:${chat}`,
-                exportClean: (log) => `Correct the following text in natural English.\n*IMPORTANT* Output ONLY the corrected text. Do NOT include any introductory or concluding remarks like "Here is the corrected text".\n\n${log}`,
-                reportTemplate: (report, clean, chat) => `■■ Operator Log ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
+                advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
+                exportReport: (timeText, log, chat) => `Create a concise summary in English based on the following. Include: 1. Summary, 2. Decisions, 3. ToDo, 4. 💡AI Direction.\n\nTime:${timeText}\nLog:${log}\nChat:${chat}`,
+                exportClean: (log) => `Correct the following text in natural English. Output ONLY the corrected text.\n\n${log}`,
+                reportTemplate: (report, clean, chat) => `■■ Operator Summary ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
             }
         };
 
-        // === API通信処理 ===
+        // === API通信処理（タイムアウト追加） ===
         async function askAI(contentsArray) {
             const key = localStorage.getItem('mamoru_apiKey');
             if (!key) { 
@@ -162,6 +165,8 @@
             }
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30秒でタイムアウト
             
             try {
                 const res = await fetch(url, { 
@@ -170,8 +175,10 @@
                     body: JSON.stringify({ 
                         contents: contentsArray,
                         tools: [{ googleSearch: {} }] 
-                    }) 
+                    }),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
                 const data = await res.json();
                 
                 if (!res.ok || data.error) {
@@ -181,15 +188,12 @@
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
                     let responseText = data.candidates[0].content.parts[0].text;
                     
-                    // 正しい参考リンクの抽出
                     if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
                         const chunks = data.candidates[0].groundingMetadata.groundingChunks;
                         let links = [];
                         chunks.forEach(chunk => {
                             if (chunk.web && chunk.web.uri && chunk.web.title) {
-                                if (!links.some(l => l.uri === chunk.web.uri)) {
-                                    links.push(chunk.web);
-                                }
+                                if (!links.some(l => l.uri === chunk.web.uri)) links.push(chunk.web);
                             }
                         });
                         
@@ -201,14 +205,18 @@
                         }
                     }
                     
-                    // 内部システム用の不要なURL（vertexaisearch）を除去
                     responseText = responseText.replace(/\[([^\]\n]+)\]\(https:\/\/vertexaisearch\.cloud\.google\.com[^\)]+\)/g, "$1");
                     responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "");
 
                     return responseText;
                 }
                 return "AIからの応答が空でした。";
-            } catch (err) { return "通信失敗: " + err.toString(); }
+            } catch (err) { 
+                if (err.name === 'AbortError') {
+                    return "通信タイムアウト: AIの応答が長すぎます。電波状況を確認するか、少し待ってから再度お試しください。";
+                }
+                return "通信失敗: " + err.toString(); 
+            }
         }
 
         const summarizeBtn = document.getElementById('summarize-btn');
@@ -240,6 +248,7 @@
                 toggleBtn.innerHTML = `<span class="text-lg">🎙️</span><span>${t.btnStart}</span>`;
             }
             
+            document.getElementById('advice-btn').innerHTML = `<span class="text-lg">💡</span><span>${t.btnAdvice}</span>`;
             summarizeBtn.innerHTML = `<span class="text-lg">📄</span><span>${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
         }
@@ -274,9 +283,7 @@
 
         let wakeLock = null;
         const requestWakeLock = async () => { 
-            try { 
-                if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); 
-            } catch (err) { console.warn('WakeLock error:', err); } 
+            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} 
         };
         const releaseWakeLock = () => { 
             if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; }); 
@@ -296,14 +303,10 @@
                 const img = new Image();
                 img.onload = () => {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 800;
-                    const scaleSize = MAX_WIDTH / img.width;
-                    canvas.width = MAX_WIDTH; canvas.height = img.height * scaleSize;
+                    const scaleSize = 800 / img.width;
+                    canvas.width = 800; canvas.height = img.height * scaleSize;
                     const ctx = canvas.getContext('2d');
-                    
-                    ctx.fillStyle = "#FFFFFF";
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    
+                    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                     document.getElementById('image-preview').src = dataUrl;
@@ -336,7 +339,6 @@
             let displayMsg = q + (currentImageData ? "\n"+t.msgImageAttached : "");
             appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
             
-            // ★修正：送信後に確実に入力欄と選択状態をクリア
             chatInput.value = '';
             lastAutoSelectedText = '';
             window.getSelection().removeAllRanges();
@@ -372,7 +374,34 @@
         sendBtn.onclick = sendQuestion;
         chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendQuestion(); } };
 
-        // === レポート作成処理 ===
+        // === 💡助言を求める機能 ===
+        document.getElementById('advice-btn').onclick = async () => {
+            if (!rawLogText) {
+                alert("まだログがありません。少し録音してからお試しください。");
+                return;
+            }
+            const t = i18n[currentLang], p = aiPrompts[currentLang];
+            switchTab('chat');
+            
+            const btn = document.getElementById('advice-btn');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<span class="text-lg">⏳</span><span>思考中</span>`;
+            
+            let displayMsg = "現在の状況から、ヒアリング漏れや次に確認すべきことを教えてください。";
+            appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
+            
+            const res = await askAI([{ role: "user", parts: [{ text: p.advice(rawLogText) }] }]);
+            appendMsg('chat-area', t.labelAI, res, "ai-message");
+            
+            chatHistoryForReport += `${t.labelYou}: ${displayMsg}\n${t.labelAI}: ${res}\n\n`;
+            autoSave();
+            
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        };
+
+        // === 要約作成処理 ===
         summarizeBtn.onclick = async () => {
             if (!rawLogText) return;
             const endDateTime = new Date();
@@ -417,7 +446,7 @@
                 span.innerText = i18n[currentLang].msgCopied;
                 setTimeout(() => span.innerText = old, 2000);
             } catch (err) {
-                alert("クリップボードへのアクセスが拒否されました。テキストを手動で選択してコピーしてください。");
+                alert("テキストを手動で選択してコピーしてください。");
             }
         };
 
@@ -436,16 +465,11 @@
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
         document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
 
-        // === ★修正：URLリンク化処理の厳格化 ===
+        // === URLリンク化処理 ===
         function formatText(text) {
             let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            
-            // 1. Markdownリンクを安全に変換
             html = html.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>');
-
-            // 2. まだ <a> タグになっていない生のURLのみを変換（否定後読みを使用）
             html = html.replace(/(?<!href=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-sky-400 underline hover:text-sky-300 break-all">$1</a>');
-            
             html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
             return html;
         }
@@ -467,14 +491,10 @@
         function handleSelection() {
             if (!apiModal.classList.contains('hidden')) return; 
             if (document.activeElement === chatInput) return;
-
             setTimeout(() => {
                 const sel = window.getSelection().toString().trim();
-                if (sel) { 
-                    if (chatInput.value === "" || chatInput.value === lastAutoSelectedText) {
-                        chatInput.value = sel; 
-                        lastAutoSelectedText = sel;
-                    }
+                if (sel && (chatInput.value === "" || chatInput.value === lastAutoSelectedText)) {
+                    chatInput.value = sel; lastAutoSelectedText = sel;
                 }
             }, 200); 
         }
@@ -482,32 +502,23 @@
         document.addEventListener('touchend', handleSelection);
         document.addEventListener('selectionchange', handleSelection);
 
-        chatInput.addEventListener('input', () => {
-            if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = "";
-        });
-        chatInput.addEventListener('paste', () => {
-            lastAutoSelectedText = ""; 
-        });
+        chatInput.addEventListener('input', () => { if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = ""; });
+        chatInput.addEventListener('paste', () => { lastAutoSelectedText = ""; });
 
         // === 初期化処理 ===
         window.addEventListener('DOMContentLoaded', () => {
-            if (!localStorage.getItem('mamoru_apiKey')) {
-                apiModal.classList.remove('hidden');
-            }
+            if (!localStorage.getItem('mamoru_apiKey')) apiModal.classList.remove('hidden');
             if (rawLogText) {
                 rawLogText.split('\n').forEach(line => {
                     if (line.trim()) {
-                        const p = document.createElement('p');
-                        p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1";
-                        p.textContent = line;
+                        const p = document.createElement('p'); p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1"; p.textContent = line;
                         document.getElementById('transcript-area').appendChild(p);
                     }
                 });
                 autoScroll(true);
             }
             if (chatHistoryForReport) {
-                const div = document.createElement('div');
-                div.className = "ai-message opacity-75";
+                const div = document.createElement('div'); div.className = "ai-message opacity-75";
                 div.innerHTML = `<div class="text-[10px] font-bold text-rose-400 mb-1">※復元</div><div class="whitespace-pre-wrap">${formatText(chatHistoryForReport)}</div>`;
                 document.getElementById('chat-area').appendChild(div);
             }
@@ -518,13 +529,11 @@
         document.getElementById('api-save-btn').onclick = () => {
             const key = apiKeyInput.value.trim();
             if (key) { localStorage.setItem('mamoru_apiKey', key); apiModal.classList.add('hidden'); alert('APIキーを保存しました。'); } 
-            else { alert('APIキーを入力してください。'); }
+            else alert('APIキーを入力してください。');
         };
         document.getElementById('clear-btn').onclick = () => {
             if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
-                localStorage.removeItem('mamoru_rawLogText'); 
-                localStorage.removeItem('mamoru_chatHistory'); 
-                localStorage.removeItem('mamoru_aiContext');
+                localStorage.removeItem('mamoru_rawLogText'); localStorage.removeItem('mamoru_chatHistory'); localStorage.removeItem('mamoru_aiContext');
                 location.reload();
             }
         };
