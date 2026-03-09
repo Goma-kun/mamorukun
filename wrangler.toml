@@ -1,0 +1,12 @@
+name = "mamoru-kun-worker"
+main = "src/index.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+# Cloudflare ダッシュボード上で GEMINI_API_KEY を設定してください。
+# GEMINI_API_KEY = "YOUR_KEY_HERE"
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+
