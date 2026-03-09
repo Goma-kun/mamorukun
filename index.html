@@ -37,6 +37,13 @@
             </div>
         </header>
 
+        <div id="error-banner" class="hidden mb-3">
+            <div class="bg-rose-600 text-white text-xs sm:text-sm px-3 py-2 rounded-lg flex justify-between items-start gap-2 shadow-lg">
+                <div id="error-banner-message" class="whitespace-pre-wrap"></div>
+                <button id="error-banner-close" class="text-white/80 hover:text-white text-lg leading-none px-1">×</button>
+            </div>
+        </div>
+
         <div id="api-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
             <div class="bg-slate-800 p-6 rounded-xl border border-slate-600 w-full max-w-md shadow-2xl">
                 <h2 class="text-xl font-bold mb-4 text-sky-400">Gemini API設定</h2>
@@ -119,6 +126,20 @@
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
 
+        const errorBanner = document.getElementById('error-banner');
+        const errorBannerMessage = document.getElementById('error-banner-message');
+        const errorBannerClose = document.getElementById('error-banner-close');
+
+        function showError(message) {
+            if (!errorBanner || !errorBannerMessage) return;
+            errorBannerMessage.textContent = message;
+            errorBanner.classList.remove('hidden');
+        }
+
+        if (errorBannerClose) {
+            errorBannerClose.onclick = () => errorBanner.classList.add('hidden');
+        }
+
         // === 言語とUIテキスト ===
         const i18n = {
             ja: {
@@ -168,9 +189,12 @@
         async function askAI(contentsArray) {
             const key = localStorage.getItem('mamoru_apiKey');
             if (!key) { 
-                alert('APIキーが設定されていません。右上の⚙️から設定してください。'); 
+                const msg = (currentLang === 'en')
+                    ? 'API key is not set. Please open ⚙️ Settings and enter your key.'
+                    : 'APIキーが設定されていません。右上の⚙️から設定してください。';
+                showError(msg);
                 apiModal.classList.remove('hidden');
-                return 'Error: API key missing'; 
+                return msg; 
             }
             
             const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
@@ -191,7 +215,11 @@
                 const data = await res.json();
                 
                 if (!res.ok || data.error) {
-                     return `API Error: ${data.error ? data.error.message : 'Unknown Error'}\n\n※GCPでのAPIキーの設定をご確認ください。`;
+                    const errMsg = (currentLang === 'en')
+                        ? `API Error: ${data.error ? data.error.message : 'Unknown Error'}\n\nPlease check your API key and Gemini API settings on GCP.`
+                        : `API Error: ${data.error ? data.error.message : 'Unknown Error'}\n\n※GCPでのAPIキーの設定をご確認ください。`;
+                    showError(errMsg);
+                    return errMsg;
                 }
 
                 if (data.candidates && data.candidates[0].content.parts[0].text) {
@@ -219,10 +247,20 @@
 
                     return responseText;
                 }
-                return "AIからの応答が空でした。";
+                return (currentLang === 'en') ? "Response from AI was empty." : "AIからの応答が空でした。";
             } catch (err) { 
-                if (err.name === 'AbortError') return "通信タイムアウト: AIの応答が長すぎます。";
-                return "通信失敗: " + err.toString(); 
+                let msg;
+                if (err.name === 'AbortError') {
+                    msg = (currentLang === 'en')
+                        ? "Request timeout: no response from AI for over 30 seconds.\nPlease wait a bit and press \"Send\" again to retry."
+                        : "通信タイムアウト: 30秒以上応答がありません。\n少し待ってから、もう一度「送信」ボタンを押してリトライしてください。";
+                } else {
+                    msg = (currentLang === 'en')
+                        ? "Network error: " + err.toString()
+                        : "通信失敗: " + err.toString();
+                }
+                showError(msg);
+                return msg; 
             }
         }
 
@@ -286,6 +324,12 @@
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
+            recognition.onerror = (e) => {
+                const msg = (currentLang === 'en')
+                    ? `Speech recognition error: ${e.error || 'unknown error'}`
+                    : `音声認識エラーが発生しました: ${e.error || '不明なエラー'}`;
+                showError(msg);
+            };
         }
 
         let wakeLock = null;
