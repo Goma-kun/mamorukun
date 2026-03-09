@@ -82,26 +82,26 @@
         <div class="flex flex-col flex-1 min-h-0 gap-2 sm:gap-3 mt-0 sm:mt-2">
             <!-- 文字起こし / ログ & レポート カード -->
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div class="grid grid-cols-5 border-b border-slate-700/80 w-full shrink-0">
-                    <button id="tab-btn-transcript" class="py-2.5 sm:py-3 px-0.5 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[3rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform">
-                        <span class="text-base leading-none">🎙️</span>
-                        <span class="text-base whitespace-nowrap leading-tight">ログ</span>
+                <div class="grid grid-cols-5 gap-0 border-b border-slate-700/80 w-full shrink-0 min-w-0">
+                    <button id="tab-btn-transcript" class="py-2 sm:py-3 px-0.5 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-xs sm:text-base leading-none">🎙️</span>
+                        <span class="text-xs sm:text-base whitespace-nowrap leading-tight">ログ</span>
                     </button>
-                    <button id="tab-btn-chat" class="py-2.5 sm:py-3 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[3rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform">
-                        <span class="text-base leading-none">💬</span>
-                        <span class="text-base whitespace-nowrap leading-tight">AI回答</span>
+                    <button id="tab-btn-chat" class="py-2 sm:py-3 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-xs sm:text-base leading-none">💬</span>
+                        <span class="text-xs sm:text-base whitespace-nowrap leading-tight">AI回答</span>
                     </button>
-                    <button id="tab-btn-summary" class="py-2.5 sm:py-3 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[3rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform">
-                        <span class="text-base leading-none">📄</span>
-                        <span class="text-base whitespace-nowrap leading-tight">要約</span>
+                    <button id="tab-btn-summary" class="py-2 sm:py-3 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-xs sm:text-base leading-none">📄</span>
+                        <span class="text-xs sm:text-base whitespace-nowrap leading-tight">要約</span>
                     </button>
-                    <button id="copy-btn" class="py-2.5 sm:py-3 px-0.5 font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 hover:bg-slate-800 hover:text-white transition-all flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[3rem] sm:min-h-[3.25rem] active:scale-[0.98] shadow-sm shadow-slate-900/40 rounded-lg">
-                        <span class="text-base leading-none">📋</span>
-                        <span id="copy-text" class="text-base whitespace-nowrap leading-tight">コピー</span>
+                    <button id="copy-btn" class="py-2 sm:py-3 px-0.5 font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 hover:bg-slate-800 hover:text-white transition-all flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] shadow-sm shadow-slate-900/40 rounded-lg overflow-hidden">
+                        <span class="text-xs sm:text-base leading-none">📋</span>
+                        <span id="copy-text" class="text-xs sm:text-base whitespace-nowrap leading-tight">コピー</span>
                     </button>
-                    <button id="clear-btn" class="py-2.5 sm:py-3 px-0.5 font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-100 transition-all flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[3rem] sm:min-h-[3.25rem] active:scale-[0.98] shadow-sm shadow-rose-900/40 rounded-lg">
-                        <span class="text-base leading-none">🗑️</span>
-                        <span class="text-base whitespace-nowrap leading-tight">クリア</span>
+                    <button id="clear-btn" class="py-2 sm:py-3 px-0.5 font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-100 transition-all flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] shadow-sm shadow-rose-900/40 rounded-lg overflow-hidden">
+                        <span class="text-xs sm:text-base leading-none">🗑️</span>
+                        <span id="clear-text" class="text-xs sm:text-base whitespace-nowrap leading-tight">クリア</span>
                     </button>
                 </div>
 
@@ -146,7 +146,7 @@
                     </button>
                     <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-amber-900/60 hover:shadow-amber-400/60 hover:-translate-y-[1px]">
                         <span class="text-xl sm:text-2xl">💡</span>
-                        <span>AIアドバイス</span>
+                        <span>ヒアリング確認</span>
                     </button>
                     <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 shadow-lg shadow-indigo-900/60 hover:shadow-indigo-400/60 hover:-translate-y-[1px]">
                         <span class="text-xl sm:text-2xl">📄</span>
@@ -205,8 +205,8 @@
                 title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 要約",
                 tabTranscriptLabel: "ログ", tabChatLabel: "AI回答", tabSummaryLabel: "要約",
                 placeholder: "質問を入力、または画像をペースト・添付...", btnSend: "送信", btnStart: "録音開始",
-                btnStop: "録音停止", btnAdvice: "AIアドバイス", btnSummarize: "要約作成",
-                btnCopy: "コピー", msgCopied: "コピー完了！",
+                btnStop: "録音停止", btnAdvice: "ヒアリング確認", btnSummarize: "要約作成",
+                btnCopy: "コピー", btnClear: "クリア", msgCopied: "コピー完了！",
                 statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
                 noChatHistory: "AIとのやり取りはありません。"
@@ -215,8 +215,8 @@
                 title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
                 tabTranscriptLabel: "Log", tabChatLabel: "AI", tabSummaryLabel: "Summary",
                 placeholder: "Type a question or paste/attach an image...", btnSend: "Send", btnStart: "Record",
-                btnStop: "Stop", btnAdvice: "AI Advice", btnSummarize: "Create Summary",
-                btnCopy: "Copy", msgCopied: "Copied!",
+                btnStop: "Stop", btnAdvice: "Hearing Check", btnSummarize: "Create Summary",
+                btnCopy: "Copy", btnClear: "Clear", msgCopied: "Copied!",
                 statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
                 noChatHistory: "No AI interactions."
@@ -357,9 +357,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
         function updateUIText() {
             const t = i18n[currentLang];
             document.getElementById('app-title').innerText = t.title;
-            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-base leading-none">🎙️</span><span class="text-base whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
-            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-base leading-none">💬</span><span class="text-base whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
-            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-base leading-none">📄</span><span class="text-base whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
+            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-xs sm:text-base leading-none">🎙️</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
+            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-xs sm:text-base leading-none">💬</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
+            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-xs sm:text-base leading-none">📄</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
             chatInput.placeholder = t.placeholder;
             sendBtn.innerText = t.btnSend;
             
@@ -374,6 +374,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             document.getElementById('advice-btn').innerHTML = `<span class="text-xl sm:text-2xl">💡</span><span>${t.btnAdvice}</span>`;
             summarizeBtn.innerHTML = `<span class="text-xl sm:text-2xl">📄</span><span>${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
+            document.getElementById('clear-text').innerText = t.btnClear;
         }
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
@@ -541,6 +542,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             switchTab('summary'); 
             const originalHTML = summarizeBtn.innerHTML;
             summarizeBtn.disabled = true;
+            summarizeBtn.classList.add('animate-pulse');
             
             summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
             const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }]);
@@ -553,6 +555,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             document.getElementById('summary-area').innerHTML = "";
             appendMsg('summary-area', t.labelSummary, fullContent, "ai-message");
             
+            summarizeBtn.classList.remove('animate-pulse');
             summarizeBtn.innerHTML = originalHTML;
             summarizeBtn.disabled = false; 
         };
@@ -708,8 +711,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 要約",
                 tabTranscriptLabel: "ログ", tabChatLabel: "AI回答", tabSummaryLabel: "要約",
                 placeholder: "質問を入力、または画像をペースト・添付...", btnSend: "送信", btnStart: "録音開始",
-                btnStop: "録音停止", btnAdvice: "AIアドバイス", btnSummarize: "要約作成",
-                btnCopy: "コピー", msgCopied: "コピー完了！",
+                btnStop: "録音停止", btnAdvice: "ヒアリング確認", btnSummarize: "要約作成",
+                btnCopy: "コピー", btnClear: "クリア", msgCopied: "コピー完了！",
                 statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
                 noChatHistory: "AIとのやり取りはありません。"
@@ -718,8 +721,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
                 tabTranscriptLabel: "Log", tabChatLabel: "AI", tabSummaryLabel: "Summary",
                 placeholder: "Type a question or paste/attach an image...", btnSend: "Send", btnStart: "Record",
-                btnStop: "Stop", btnAdvice: "AI Advice", btnSummarize: "Create Summary",
-                btnCopy: "Copy", msgCopied: "Copied!",
+                btnStop: "Stop", btnAdvice: "Hearing Check", btnSummarize: "Create Summary",
+                btnCopy: "Copy", btnClear: "Clear", msgCopied: "Copied!",
                 statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
                 noChatHistory: "No AI interactions."
@@ -860,9 +863,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
         function updateUIText() {
             const t = i18n[currentLang];
             document.getElementById('app-title').innerText = t.title;
-            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-base leading-none">🎙️</span><span class="text-base whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
-            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-base leading-none">💬</span><span class="text-base whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
-            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-base leading-none">📄</span><span class="text-base whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
+            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-xs sm:text-base leading-none">🎙️</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
+            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-xs sm:text-base leading-none">💬</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
+            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-xs sm:text-base leading-none">📄</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
             chatInput.placeholder = t.placeholder;
             sendBtn.innerText = t.btnSend;
             
@@ -877,6 +880,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             document.getElementById('advice-btn').innerHTML = `<span class="text-xl sm:text-2xl">💡</span><span>${t.btnAdvice}</span>`;
             summarizeBtn.innerHTML = `<span class="text-xl sm:text-2xl">📄</span><span>${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
+            document.getElementById('clear-text').innerText = t.btnClear;
         }
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
@@ -1044,6 +1048,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             switchTab('summary'); 
             const originalHTML = summarizeBtn.innerHTML;
             summarizeBtn.disabled = true;
+            summarizeBtn.classList.add('animate-pulse');
             
             summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
             const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }]);
@@ -1056,6 +1061,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             document.getElementById('summary-area').innerHTML = "";
             appendMsg('summary-area', t.labelSummary, fullContent, "ai-message");
             
+            summarizeBtn.classList.remove('animate-pulse');
             summarizeBtn.innerHTML = originalHTML;
             summarizeBtn.disabled = false; 
         };
