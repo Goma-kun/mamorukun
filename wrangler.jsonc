@@ -1,12 +1,14 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "mamorukun",
+  "main": "src/index.js",
   "compatibility_date": "2025-09-27",
   "observability": {
     "enabled": true
   },
   "assets": {
-    "directory": "."
+    "directory": "public",
+    "binding": "ASSETS"
   },
   "compatibility_flags": [
     "nodejs_compat"
