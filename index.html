@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="ja" class="bg-slate-900">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -14,9 +14,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        html { background-color: #0f172a; }
         body {
-            background:
-                radial-gradient(circle at top left, #1f2937 0, #020617 55%, #000000 100%);
+            background-color: #0f172a;
+            background-image: radial-gradient(circle at top left, #1f2937 0, #020617 55%, #000000 100%);
             color: #e5e7eb;
             font-family: system-ui, -apple-system, BlinkMacSystemFont,
                 "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
@@ -56,7 +57,7 @@
         input, select, textarea { font-size: 16px !important; }
     </style>
 </head>
-<body class="p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
+<body class="bg-slate-900 p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
     <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full gap-1.5 sm:gap-5">
         <header class="flex justify-between items-center mb-0 sm:mb-2 shrink-0 bg-slate-900/70 border border-slate-800 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur">
             <h1 id="app-title" class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wider text-sky-400 drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]">
@@ -99,26 +100,26 @@
         <div class="flex flex-col flex-1 min-h-0 gap-2 sm:gap-3 mt-0 sm:mt-2">
             <!-- 文字起こし / ログ & レポート カード -->
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div class="flex border-b border-slate-700/80 px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 justify-between items-end w-full shrink-0">
-                    <div class="flex gap-0.5 sm:gap-2">
-                        <button id="tab-btn-transcript" class="py-2 px-1.5 sm:px-4 font-bold text-sky-400 border-b-2 border-sky-400 text-base tracking-tight flex flex-col items-center justify-center gap-0.5 min-w-0">
-                            <span class="text-lg leading-none">🎙️</span>
-                            <span class="text-xs sm:text-sm whitespace-nowrap leading-tight">ログ</span>
+                <div class="flex border-b border-slate-700/80 px-1.5 sm:px-5 pt-2 sm:pt-4 pb-1.5 sm:pb-3 justify-between items-end w-full shrink-0 gap-1 min-w-0">
+                    <div class="flex gap-0 sm:gap-2 min-w-0 shrink">
+                        <button id="tab-btn-transcript" class="py-1.5 sm:py-2 px-0.5 sm:px-4 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0 min-w-0 shrink-0">
+                            <span class="text-sm sm:text-base leading-none">🎙️</span>
+                            <span class="text-sm sm:text-base whitespace-nowrap leading-tight">ログ</span>
                         </button>
-                        <button id="tab-btn-chat" class="py-2 px-1.5 sm:px-4 font-bold text-slate-400 hover:text-slate-100/90 text-base tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0">
-                            <span class="text-lg leading-none">💬</span>
-                            <span class="text-xs sm:text-sm whitespace-nowrap leading-tight">AI回答</span>
+                        <button id="tab-btn-chat" class="py-1.5 sm:py-2 px-0.5 sm:px-4 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 shrink-0">
+                            <span class="text-sm sm:text-base leading-none">💬</span>
+                            <span class="text-sm sm:text-base whitespace-nowrap leading-tight">AI回答</span>
                         </button>
-                        <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-4 font-bold text-slate-400 hover:text-slate-100/90 text-base tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0">
-                            <span class="text-lg leading-none">📄</span>
-                            <span class="text-xs sm:text-sm whitespace-nowrap leading-tight">要約</span>
+                        <button id="tab-btn-summary" class="py-1.5 sm:py-2 px-0.5 sm:px-4 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 shrink-0">
+                            <span class="text-sm sm:text-base leading-none">📄</span>
+                            <span class="text-sm sm:text-base whitespace-nowrap leading-tight">要約</span>
                         </button>
                     </div>
-                    <div class="flex gap-1.5 sm:gap-2 mb-0.5">
-                        <button id="clear-btn" class="py-1.5 px-2.5 text-[11px] sm:text-xs font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 rounded-full hover:bg-rose-500/20 hover:text-rose-100 transition-all active:scale-95 flex items-center shrink-0 shadow-sm shadow-rose-900/40">
+                    <div class="flex gap-0.5 sm:gap-2 mb-0.5 shrink-0">
+                        <button id="clear-btn" class="py-1 px-1.5 sm:px-2.5 text-[11px] sm:text-xs font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 rounded-full hover:bg-rose-500/20 hover:text-rose-100 transition-all active:scale-95 flex items-center shrink-0 shadow-sm shadow-rose-900/40 whitespace-nowrap">
                             🗑️ クリア
                         </button>
-                        <button id="copy-btn" class="py-1.5 px-2.5 text-[11px] sm:text-xs font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 rounded-full hover:bg-slate-800 hover:text-white transition-all active:scale-95 flex items-center gap-1 shrink-0 shadow-sm shadow-slate-900/40">
+                        <button id="copy-btn" class="py-1 px-1.5 sm:px-2.5 text-[11px] sm:text-xs font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 rounded-full hover:bg-slate-800 hover:text-white transition-all active:scale-95 flex items-center gap-0.5 shrink-0 shadow-sm shadow-slate-900/40 whitespace-nowrap">
                             📋 <span id="copy-text">コピー</span>
                         </button>
                     </div>
@@ -362,9 +363,9 @@
         function updateUIText() {
             const t = i18n[currentLang];
             document.getElementById('app-title').innerText = t.title;
-            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-lg leading-none">🎙️</span><span class="text-xs sm:text-sm whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
-            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-lg leading-none">💬</span><span class="text-xs sm:text-sm whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
-            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-lg leading-none">📄</span><span class="text-xs sm:text-sm whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
+            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-sm sm:text-base leading-none">🎙️</span><span class="text-sm sm:text-base whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
+            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-sm sm:text-base leading-none">💬</span><span class="text-sm sm:text-base whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
+            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-sm sm:text-base leading-none">📄</span><span class="text-sm sm:text-base whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
             chatInput.placeholder = t.placeholder;
             sendBtn.innerText = t.btnSend;
             
