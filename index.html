@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>まもるくん - AI応対ログ・アシスタント</title>
+    <!-- ステータスバー・アドレスバーを黒系に（iOS Safari / PWA / Android Chrome） -->
+    <meta name="theme-color" content="#0f172a">
+    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="まもるくん">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
     <meta name="msapplication-navbutton-color" content="#0f172a">
+    <meta name="mobile-web-app-capable" content="yes">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body {
@@ -99,14 +101,17 @@
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
                 <div class="flex border-b border-slate-700/80 px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 justify-between items-end w-full shrink-0">
                     <div class="flex gap-0.5 sm:gap-2">
-                        <button id="tab-btn-transcript" class="py-2 px-1.5 sm:px-5 font-bold text-sky-400 border-b-2 border-sky-400 text-base tracking-tight">
-                            🎙️ ログ
+                        <button id="tab-btn-transcript" class="py-2 px-1.5 sm:px-4 font-bold text-sky-400 border-b-2 border-sky-400 text-base tracking-tight flex flex-col items-center justify-center gap-0.5 min-w-0">
+                            <span class="text-lg leading-none">🎙️</span>
+                            <span class="text-xs sm:text-sm whitespace-nowrap leading-tight">ログ</span>
                         </button>
-                        <button id="tab-btn-chat" class="py-2 px-1.5 sm:px-5 font-bold text-slate-400 hover:text-slate-100/90 text-base tracking-tight transition-colors">
-                            💬 AI回答
+                        <button id="tab-btn-chat" class="py-2 px-1.5 sm:px-4 font-bold text-slate-400 hover:text-slate-100/90 text-base tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0">
+                            <span class="text-lg leading-none">💬</span>
+                            <span class="text-xs sm:text-sm whitespace-nowrap leading-tight">AI回答</span>
                         </button>
-                        <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-5 font-bold text-slate-400 hover:text-slate-100/90 text-base tracking-tight transition-colors">
-                            📄 要約
+                        <button id="tab-btn-summary" class="py-2 px-1.5 sm:px-4 font-bold text-slate-400 hover:text-slate-100/90 text-base tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0">
+                            <span class="text-lg leading-none">📄</span>
+                            <span class="text-xs sm:text-sm whitespace-nowrap leading-tight">要約</span>
                         </button>
                     </div>
                     <div class="flex gap-1.5 sm:gap-2 mb-0.5">
@@ -220,6 +225,7 @@
         const i18n = {
             ja: {
                 title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 要約",
+                tabTranscriptLabel: "ログ", tabChatLabel: "AI回答", tabSummaryLabel: "要約",
                 placeholder: "質問を入力、または画像をペースト・添付...", btnSend: "送信", btnStart: "録音開始",
                 btnStop: "録音停止", btnAdvice: "AIアドバイス", btnSummarize: "要約作成",
                 btnCopy: "コピー", msgCopied: "コピー完了！",
@@ -229,6 +235,7 @@
             },
             en: {
                 title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
+                tabTranscriptLabel: "Log", tabChatLabel: "AI", tabSummaryLabel: "Summary",
                 placeholder: "Type a question or paste/attach an image...", btnSend: "Send", btnStart: "Record",
                 btnStop: "Stop", btnAdvice: "AI Advice", btnSummarize: "Create Summary",
                 btnCopy: "Copy", msgCopied: "Copied!",
@@ -355,9 +362,9 @@
         function updateUIText() {
             const t = i18n[currentLang];
             document.getElementById('app-title').innerText = t.title;
-            document.getElementById('tab-btn-transcript').innerText = t.tabTranscript;
-            document.getElementById('tab-btn-chat').innerText = t.tabChat;
-            document.getElementById('tab-btn-summary').innerText = t.tabSummary;
+            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-lg leading-none">🎙️</span><span class="text-xs sm:text-sm whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
+            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-lg leading-none">💬</span><span class="text-xs sm:text-sm whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
+            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-lg leading-none">📄</span><span class="text-xs sm:text-sm whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
             chatInput.placeholder = t.placeholder;
             sendBtn.innerText = t.btnSend;
             
