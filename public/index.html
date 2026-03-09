@@ -319,6 +319,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     
                     responseText = responseText.replace(/\[([^\]\n]+)\]\(https:\/\/vertexaisearch\.cloud\.google\.com[^\)]+\)/g, "$1");
                     responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "");
+                    // 【参考リンク】およびそれに続くURLリストを表示前に削除
+                    responseText = responseText.replace(/\s*【参考リンク】[\s\S]*$/g, "").trim();
 
                     return responseText;
                 }
@@ -604,11 +606,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
             document.getElementById(id).appendChild(div);
             if (id === 'transcript-area') autoScroll(true);
             if (id === 'chat-area' && cls === 'ai-message') {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        div.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
-                });
+                setTimeout(() => {
+                    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
             }
         }
 
@@ -822,6 +822,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     
                     responseText = responseText.replace(/\[([^\]\n]+)\]\(https:\/\/vertexaisearch\.cloud\.google\.com[^\)]+\)/g, "$1");
                     responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "");
+                    // 【参考リンク】およびそれに続くURLリストを表示前に削除
+                    responseText = responseText.replace(/\s*【参考リンク】[\s\S]*$/g, "").trim();
 
                     return responseText;
                 }
@@ -1107,11 +1109,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
             document.getElementById(id).appendChild(div);
             if (id === 'transcript-area') autoScroll(true);
             if (id === 'chat-area' && cls === 'ai-message') {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        div.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                    });
-                });
+                setTimeout(() => {
+                    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
             }
         }
 
