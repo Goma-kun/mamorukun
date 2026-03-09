@@ -55,6 +55,7 @@
         
         button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         input, select, textarea { font-size: 16px !important; }
+        #chat-input { resize: vertical; min-height: 2.5rem; }
     </style>
 </head>
 <body class="bg-slate-900 p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
@@ -466,9 +467,10 @@
             sendBtn.innerText = originalSendText;
             sendBtn.disabled = false; 
             
-            setTimeout(() => { 
-                const latestQ = document.querySelector('.latest-q'); 
-                if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            setTimeout(() => {
+                const chatArea = document.getElementById('chat-area');
+                const lastMsg = chatArea && chatArea.lastElementChild;
+                if (lastMsg) lastMsg.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         };
 
@@ -501,10 +503,10 @@
             btn.innerHTML = originalHTML;
             btn.disabled = false;
 
-            // ★修正：アドバイスが返ってきた直後に、最新のやり取りまで自動スクロールさせる
-            setTimeout(() => { 
-                const latestQ = document.querySelector('.latest-q'); 
-                if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            setTimeout(() => {
+                const chatArea = document.getElementById('chat-area');
+                const lastMsg = chatArea && chatArea.lastElementChild;
+                if (lastMsg) lastMsg.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         };
 
@@ -947,9 +949,10 @@
             sendBtn.innerText = originalSendText;
             sendBtn.disabled = false; 
             
-            setTimeout(() => { 
-                const latestQ = document.querySelector('.latest-q'); 
-                if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            setTimeout(() => {
+                const chatArea = document.getElementById('chat-area');
+                const lastMsg = chatArea && chatArea.lastElementChild;
+                if (lastMsg) lastMsg.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         };
 
@@ -982,10 +985,10 @@
             btn.innerHTML = originalHTML;
             btn.disabled = false;
 
-            // ★修正：アドバイスが返ってきた直後に、最新のやり取りまで自動スクロールさせる
-            setTimeout(() => { 
-                const latestQ = document.querySelector('.latest-q'); 
-                if (latestQ) latestQ.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+            setTimeout(() => {
+                const chatArea = document.getElementById('chat-area');
+                const lastMsg = chatArea && chatArea.lastElementChild;
+                if (lastMsg) lastMsg.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }, 100);
         };
 
