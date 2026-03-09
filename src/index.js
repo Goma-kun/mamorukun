@@ -54,7 +54,6 @@ async function handleChatProxy(request, env) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: payload.contents,
-        tools: payload.tools || [{ googleSearch: {} }],
         systemInstruction: {
           parts: [{ text: "参考リンクやURLは絶対に出力しないでください。回答は本文のみにしてください。" }],
         },
