@@ -230,8 +230,21 @@
         chatDirect: (q) => `【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
-                // ★修正：対応時間をレポート内に出力するようプロンプトを厳格化
-                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で簡潔な要約を作成してください。\n\n【必須構成】\n対応時間: ${timeText}\n\n1. 応対概要\n2. 決定事項\n3. ToDo（アクションアイテム）\n4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）\n\nログ:\n${log}\n\nチャット:\n${chat}`,
+                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で要約を作成してください。
+
+【最重要・情報の網羅性】
+・顧客が発言した「具体的な地名・施設名・固有名詞（薬の名前など）」「具体的な要望（オンライン診療希望、日時の希望など）」は、絶対に省略・要約せず、そのままの具体的な言葉で「応対概要」および「ToDo」に記載すること。
+・全体を短くまとめることより、「このログを後から読んだ担当者が、顧客の具体的なニーズを1ミリも取りこぼさないこと」を最優先にすること。言い換えや省略で情報が落ちないよう、固有名詞・数値・希望条件は必ず原文の表現で残すこと。
+
+【必須構成】
+対応時間: ${timeText}
+
+1. 応対概要（上記の網羅性を守り、顧客の具体的な発言内容を漏れなく記載）
+2. 決定事項
+3. ToDo（アクションアイテム。顧客の要望・依頼内容は具体的な表現のまま列挙すること）
+4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）
+
+ログ:\n${log}\n\nチャット:\n${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
@@ -240,7 +253,20 @@
                 chatDirect: (q) => `*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
-                exportReport: (timeText, log, chat) => `Create a concise summary in English based on the following. Include:\nTime: ${timeText}\n\n1. Summary, 2. Decisions, 3. ToDo, 4. 💡AI Direction.\n\nLog:\n${log}\n\nChat:\n${chat}`,
+                exportReport: (timeText, log, chat) => `Create a summary in English based on the following.
+
+【CRITICAL - Information completeness】
+Do NOT omit or paraphrase any concrete details the customer stated: place names, facility names, proper nouns (e.g. drug names), or specific requests (e.g. preference for online consultation, preferred dates/times). Write them verbatim in "Summary" and "ToDo".
+Prioritize "a staff reading this log later must not miss a single concrete customer need" over keeping the summary short. Preserve exact wording for proper nouns, numbers, and conditions.
+
+【Required structure】
+Time: ${timeText}
+1. Summary (include all concrete details from the customer, no omission)
+2. Decisions
+3. ToDo (list customer requests in their concrete wording)
+4. 💡AI Direction (gaps in hearing, next steps to confirm)
+
+Log:\n${log}\n\nChat:\n${chat}`,
                 exportClean: (log) => `Correct the following text in natural English. Output ONLY the corrected text.\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ Operator Summary ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
             }
@@ -707,8 +733,21 @@
         chatDirect: (q) => `【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
-                // ★修正：対応時間をレポート内に出力するようプロンプトを厳格化
-                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で簡潔な要約を作成してください。\n\n【必須構成】\n対応時間: ${timeText}\n\n1. 応対概要\n2. 決定事項\n3. ToDo（アクションアイテム）\n4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）\n\nログ:\n${log}\n\nチャット:\n${chat}`,
+                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で要約を作成してください。
+
+【最重要・情報の網羅性】
+・顧客が発言した「具体的な地名・施設名・固有名詞（薬の名前など）」「具体的な要望（オンライン診療希望、日時の希望など）」は、絶対に省略・要約せず、そのままの具体的な言葉で「応対概要」および「ToDo」に記載すること。
+・全体を短くまとめることより、「このログを後から読んだ担当者が、顧客の具体的なニーズを1ミリも取りこぼさないこと」を最優先にすること。言い換えや省略で情報が落ちないよう、固有名詞・数値・希望条件は必ず原文の表現で残すこと。
+
+【必須構成】
+対応時間: ${timeText}
+
+1. 応対概要（上記の網羅性を守り、顧客の具体的な発言内容を漏れなく記載）
+2. 決定事項
+3. ToDo（アクションアイテム。顧客の要望・依頼内容は具体的な表現のまま列挙すること）
+4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）
+
+ログ:\n${log}\n\nチャット:\n${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
@@ -717,7 +756,20 @@
                 chatDirect: (q) => `*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
-                exportReport: (timeText, log, chat) => `Create a concise summary in English based on the following. Include:\nTime: ${timeText}\n\n1. Summary, 2. Decisions, 3. ToDo, 4. 💡AI Direction.\n\nLog:\n${log}\n\nChat:\n${chat}`,
+                exportReport: (timeText, log, chat) => `Create a summary in English based on the following.
+
+【CRITICAL - Information completeness】
+Do NOT omit or paraphrase any concrete details the customer stated: place names, facility names, proper nouns (e.g. drug names), or specific requests (e.g. preference for online consultation, preferred dates/times). Write them verbatim in "Summary" and "ToDo".
+Prioritize "a staff reading this log later must not miss a single concrete customer need" over keeping the summary short. Preserve exact wording for proper nouns, numbers, and conditions.
+
+【Required structure】
+Time: ${timeText}
+1. Summary (include all concrete details from the customer, no omission)
+2. Decisions
+3. ToDo (list customer requests in their concrete wording)
+4. 💡AI Direction (gaps in hearing, next steps to confirm)
+
+Log:\n${log}\n\nChat:\n${chat}`,
                 exportClean: (log) => `Correct the following text in natural English. Output ONLY the corrected text.\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ Operator Summary ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
             }
