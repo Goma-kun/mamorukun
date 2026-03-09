@@ -130,7 +130,7 @@
                         📸
                     </label>
                     <input type="file" id="image-upload" accept="image/*;capture=camera" class="hidden">
-                    <textarea id="chat-input" rows="2" placeholder="質問を入力、または画像をペースト・添付..." class="flex-grow bg-slate-950/80 border border-slate-700 rounded-2xl px-3.5 py-3 text-slate-100 focus:ring-1 focus:ring-sky-500 outline-none resize-y shadow-inner shadow-black/60"></textarea>
+                    <textarea id="chat-input" rows="2" placeholder="質問を入力、または画像をペースト・添付..." class="flex-grow bg-slate-950/80 border border-slate-700 rounded-2xl px-3.5 py-3 text-slate-100 focus:ring-1 focus:ring-sky-500 outline-none resize-y shadow-inner shadow-black/60 max-h-40 overflow-y-auto"></textarea>
                     <button id="send-btn" class="bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 px-4 py-3 sm:px-5 sm:py-3 rounded-2xl font-bold text-xs sm:text-sm text-slate-50 tracking-wide shadow-lg shadow-sky-900/60 hover:shadow-sky-500/60 transition-all active:scale-95 mb-1 shrink-0 hover:-translate-y-[1px]">
                         送信
                     </button>
@@ -620,6 +620,18 @@ Log:\n${log}\n\nChat:\n${chat}`,
             if (force || document.getElementById('content-transcript').classList.contains('active')) d.scrollTop = d.scrollHeight;
         }
 
+        // === テキストエリア オートリサイズ（スマホで resize が効かないため） ===
+        function resizeChatInput(ta) {
+            ta.style.height = 'auto';
+            const maxH = 160; // max-h-40 に合わせる (10rem)
+            ta.style.height = Math.min(ta.scrollHeight, maxH) + 'px';
+        }
+        chatInput.addEventListener('input', function() {
+            if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = "";
+            resizeChatInput(this);
+        });
+        chatInput.addEventListener('paste', () => { lastAutoSelectedText = ""; setTimeout(() => resizeChatInput(chatInput), 0); });
+
         // === 選択テキストの自動入力 ===
         function handleSelection() {
             if (document.activeElement === chatInput) return;
@@ -627,15 +639,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 const sel = window.getSelection().toString().trim();
                 if (sel && (chatInput.value === "" || chatInput.value === lastAutoSelectedText)) {
                     chatInput.value = sel; lastAutoSelectedText = sel;
+                    resizeChatInput(chatInput);
                 }
             }, 200); 
         }
         document.addEventListener('mouseup', handleSelection);
         document.addEventListener('touchend', handleSelection);
         document.addEventListener('selectionchange', handleSelection);
-
-        chatInput.addEventListener('input', () => { if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = ""; });
-        chatInput.addEventListener('paste', () => { lastAutoSelectedText = ""; });
 
         // === 初期化処理 ===
         window.addEventListener('DOMContentLoaded', () => {
@@ -1126,6 +1136,18 @@ Log:\n${log}\n\nChat:\n${chat}`,
             if (force || document.getElementById('content-transcript').classList.contains('active')) d.scrollTop = d.scrollHeight;
         }
 
+        // === テキストエリア オートリサイズ（スマホで resize が効かないため） ===
+        function resizeChatInput(ta) {
+            ta.style.height = 'auto';
+            const maxH = 160; // max-h-40 に合わせる (10rem)
+            ta.style.height = Math.min(ta.scrollHeight, maxH) + 'px';
+        }
+        chatInput.addEventListener('input', function() {
+            if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = "";
+            resizeChatInput(this);
+        });
+        chatInput.addEventListener('paste', () => { lastAutoSelectedText = ""; setTimeout(() => resizeChatInput(chatInput), 0); });
+
         // === 選択テキストの自動入力 ===
         function handleSelection() {
             if (document.activeElement === chatInput) return;
@@ -1133,15 +1155,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 const sel = window.getSelection().toString().trim();
                 if (sel && (chatInput.value === "" || chatInput.value === lastAutoSelectedText)) {
                     chatInput.value = sel; lastAutoSelectedText = sel;
+                    resizeChatInput(chatInput);
                 }
             }, 200); 
         }
         document.addEventListener('mouseup', handleSelection);
         document.addEventListener('touchend', handleSelection);
         document.addEventListener('selectionchange', handleSelection);
-
-        chatInput.addEventListener('input', () => { if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = ""; });
-        chatInput.addEventListener('paste', () => { lastAutoSelectedText = ""; });
 
         // === 初期化処理 ===
         window.addEventListener('DOMContentLoaded', () => {
