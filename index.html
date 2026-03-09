@@ -37,7 +37,7 @@
             </div>
         </header>
 
-        <div id="error-banner" class="hidden mb-3">
+        <div id="error-banner" class="hidden mb-3 relative z-[60]">
             <div class="bg-rose-600 text-white text-xs sm:text-sm px-3 py-2 rounded-lg flex justify-between items-start gap-2 shadow-lg">
                 <div id="error-banner-message" class="whitespace-pre-wrap"></div>
                 <button id="error-banner-close" class="text-white/80 hover:text-white text-lg leading-none px-1">×</button>
@@ -137,7 +137,9 @@
         }
 
         if (errorBannerClose) {
-            errorBannerClose.onclick = () => errorBanner.classList.add('hidden');
+            errorBannerClose.onclick = () => {
+                if (errorBanner) errorBanner.classList.add('hidden');
+            };
         }
 
         // === 言語とUIテキスト ===
