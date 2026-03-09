@@ -63,14 +63,7 @@
             <h1 id="app-title" class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wider text-sky-400 drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]">
                 🛡️ まもるくん
             </h1>
-            <div class="flex items-center gap-2 sm:gap-3">
-                <button
-                    id="settings-btn"
-                    class="bg-gradient-to-r from-slate-700 to-slate-600 hover:from-slate-600 hover:to-slate-500 text-xs sm:text-sm px-3 py-2 rounded-xl border border-slate-500/60 shadow-lg shadow-sky-900/40 hover:shadow-sky-500/50 transition-all duration-200 hover:-translate-y-[1px]"
-                    title="API設定"
-                >
-                    ⚙️ 設定
-                </button>
+            <div class="flex items-center">
                 <select id="lang-toggle" class="bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
                     <option value="ja" selected>🇯🇵 日本語</option>
                     <option value="en">🇺🇸 English</option>
@@ -82,18 +75,6 @@
             <div class="bg-rose-600 text-white text-xs sm:text-sm px-3 py-2 rounded-lg flex justify-between items-start gap-2 shadow-lg">
                 <div id="error-banner-message" class="whitespace-pre-wrap"></div>
                 <button id="error-banner-close" class="text-white/80 hover:text-white text-lg leading-none px-1">×</button>
-            </div>
-        </div>
-
-        <div id="api-modal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-            <div class="bg-slate-800 p-6 rounded-xl border border-slate-600 w-full max-w-md shadow-2xl">
-                <h2 class="text-xl font-bold mb-4 text-sky-400">Gemini API設定</h2>
-                <p class="text-sm text-slate-400 mb-4">GCP等で発行したご自身のAPIキーを入力してください。</p>
-                <input type="password" id="api-key-input" placeholder="AIza..." class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 mb-4 text-white focus:ring-1 focus:ring-sky-500 outline-none">
-                <div class="flex gap-2">
-                    <button id="api-save-btn" class="flex-grow bg-sky-600 hover:bg-sky-500 py-3 rounded font-bold transition-all text-base">保存</button>
-                    <button id="api-close-btn" class="px-5 py-3 bg-slate-700 hover:bg-slate-600 rounded text-base">閉じる</button>
-                </div>
             </div>
         </div>
 
@@ -177,9 +158,6 @@
 
     <script>
         // === 初期設定と状態管理 ===
-        const apiModal = document.getElementById('api-modal');
-        const apiKeyInput = document.getElementById('api-key-input');
-        
         let isRecording = false;
         let manualStop = true; 
         let recognition;
@@ -267,29 +245,17 @@
             }
         };
 
-        // === API通信処理 ===
+        // === API通信処理（Cloudflare Pages Functions 経由） ===
         async function askAI(contentsArray) {
-            const key = localStorage.getItem('mamoru_apiKey');
-            if (!key) { 
-                const msg = (currentLang === 'en')
-                    ? 'API key is not set. Please open ⚙️ Settings and enter your key.'
-                    : 'APIキーが設定されていません。右上の⚙️から設定してください。';
-                showError(msg);
-                apiModal.classList.remove('hidden');
-                return msg; 
-            }
-            
-            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
             
             try {
-                const res = await fetch(url, { 
+                const res = await fetch('/api/chat', { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ 
-                        contents: contentsArray,
-                        tools: [{ googleSearch: {} }] 
+                        contents: contentsArray 
                     }),
                     signal: controller.signal
                 });
@@ -298,13 +264,13 @@
                 
                 if (!res.ok || data.error) {
                     const errMsg = (currentLang === 'en')
-                        ? `API Error: ${data.error ? data.error.message : 'Unknown Error'}\n\nPlease check your API key and Gemini API settings on GCP.`
-                        : `API Error: ${data.error ? data.error.message : 'Unknown Error'}\n\n※GCPでのAPIキーの設定をご確認ください。`;
+                        ? `API Error: ${data.error ? data.error.message : 'Unknown Error'}`
+                        : `APIエラーが発生しました: ${data.error ? data.error.message : '不明なエラー'}`;
                     showError(errMsg);
                     return errMsg;
                 }
 
-                if (data.candidates && data.candidates[0].content.parts[0].text) {
+                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
                     let responseText = data.candidates[0].content.parts[0].text;
                     
                     if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
@@ -331,6 +297,7 @@
                 }
                 return (currentLang === 'en') ? "Response from AI was empty." : "AIからの応答が空でした。";
             } catch (err) { 
+                clearTimeout(timeoutId);
                 let msg;
                 if (err.name === 'AbortError') {
                     msg = (currentLang === 'en')
@@ -629,7 +596,6 @@
 
         // === 選択テキストの自動入力 ===
         function handleSelection() {
-            if (!apiModal.classList.contains('hidden')) return; 
             if (document.activeElement === chatInput) return;
             setTimeout(() => {
                 const sel = window.getSelection().toString().trim();
@@ -647,7 +613,6 @@
 
         // === 初期化処理 ===
         window.addEventListener('DOMContentLoaded', () => {
-            if (!localStorage.getItem('mamoru_apiKey')) apiModal.classList.remove('hidden');
             if (rawLogText) {
                 rawLogText.split('\n').forEach(line => {
                     if (line.trim()) {
@@ -664,13 +629,6 @@
             }
             updateUIText();
         });
-        document.getElementById('settings-btn').onclick = () => { apiKeyInput.value = localStorage.getItem('mamoru_apiKey') || ''; apiModal.classList.remove('hidden'); };
-        document.getElementById('api-close-btn').onclick = () => apiModal.classList.add('hidden');
-        document.getElementById('api-save-btn').onclick = () => {
-            const key = apiKeyInput.value.trim();
-            if (key) { localStorage.setItem('mamoru_apiKey', key); apiModal.classList.add('hidden'); alert('APIキーを保存しました。'); } 
-            else alert('APIキーを入力してください。');
-        };
         document.getElementById('clear-btn').onclick = () => {
             if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
                 localStorage.removeItem('mamoru_rawLogText'); localStorage.removeItem('mamoru_chatHistory'); localStorage.removeItem('mamoru_aiContext');
