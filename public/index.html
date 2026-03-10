@@ -138,18 +138,18 @@
             </div>
 
             <!-- アクションボタン / レポート カード -->
-            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-5 py-3 sm:py-4 shrink-0">
+            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-5 py-2 sm:py-3 shrink-0">
                 <div class="grid grid-cols-3 gap-2.5 sm:gap-4">
-                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]">
-                        <span class="text-xl sm:text-2xl">🎙️</span>
+                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]">
+                        <span class="text-lg sm:text-xl">🎙️</span>
                         <span>録音開始</span>
                     </button>
-                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-amber-900/60 hover:shadow-amber-400/60 hover:-translate-y-[1px]">
-                        <span class="text-xl sm:text-2xl">💡</span>
+                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-amber-900/60 hover:shadow-amber-400/60 hover:-translate-y-[1px]">
+                        <span class="text-lg sm:text-xl">💡</span>
                         <span>ヒアリング確認</span>
                     </button>
-                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 shadow-lg shadow-indigo-900/60 hover:shadow-indigo-400/60 hover:-translate-y-[1px]">
-                        <span class="text-xl sm:text-2xl">📄</span>
+                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 shadow-lg shadow-indigo-900/60 hover:shadow-indigo-400/60 hover:-translate-y-[1px]">
+                        <span class="text-lg sm:text-xl">📄</span>
                         <span>要約作成</span>
                     </button>
                 </div>
@@ -364,15 +364,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
             sendBtn.innerText = t.btnSend;
             
             if (isRecording) {
-                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 animate-pulse shrink-0 shadow-lg shadow-rose-900/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-xl sm:text-2xl">⏹️</span><span>${t.btnStop}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 animate-pulse shrink-0 shadow-lg shadow-rose-900/60 hover:-translate-y-[1px]";
+                toggleBtn.innerHTML = `<span class="text-lg sm:text-xl">⏹️</span><span>${t.btnStop}</span>`;
             } else {
-                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shrink-0 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-xl sm:text-2xl">🎙️</span><span>${t.btnStart}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shrink-0 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]";
+                toggleBtn.innerHTML = `<span class="text-lg sm:text-xl">🎙️</span><span>${t.btnStart}</span>`;
             }
             
-            document.getElementById('advice-btn').innerHTML = `<span class="text-xl sm:text-2xl">💡</span><span>${t.btnAdvice}</span>`;
-            summarizeBtn.innerHTML = `<span class="text-xl sm:text-2xl">📄</span><span>${t.btnSummarize}</span>`;
+            document.getElementById('advice-btn').innerHTML = `<span class="text-lg sm:text-xl">💡</span><span>${t.btnAdvice}</span>`;
+            summarizeBtn.innerHTML = `<span class="text-lg sm:text-xl">📄</span><span>${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
             document.getElementById('clear-text').innerText = t.btnClear;
         }
@@ -880,15 +880,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
             sendBtn.innerText = t.btnSend;
             
             if (isRecording) {
-                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 animate-pulse shrink-0 shadow-lg shadow-rose-900/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-xl sm:text-2xl">⏹️</span><span>${t.btnStop}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 animate-pulse shrink-0 shadow-lg shadow-rose-900/60 hover:-translate-y-[1px]";
+                toggleBtn.innerHTML = `<span class="text-lg sm:text-xl">⏹️</span><span>${t.btnStop}</span>`;
             } else {
-                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-3 sm:py-4 rounded-2xl font-bold transition-all active:scale-95 text-base sm:text-lg flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shrink-0 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-xl sm:text-2xl">🎙️</span><span>${t.btnStart}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shrink-0 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]";
+                toggleBtn.innerHTML = `<span class="text-lg sm:text-xl">🎙️</span><span>${t.btnStart}</span>`;
             }
             
-            document.getElementById('advice-btn').innerHTML = `<span class="text-xl sm:text-2xl">💡</span><span>${t.btnAdvice}</span>`;
-            summarizeBtn.innerHTML = `<span class="text-xl sm:text-2xl">📄</span><span>${t.btnSummarize}</span>`;
+            document.getElementById('advice-btn').innerHTML = `<span class="text-lg sm:text-xl">💡</span><span>${t.btnAdvice}</span>`;
+            summarizeBtn.innerHTML = `<span class="text-lg sm:text-xl">📄</span><span>${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
             document.getElementById('clear-text').innerText = t.btnClear;
         }
