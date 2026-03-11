@@ -345,6 +345,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
         }
 
         const summarizeBtn = document.getElementById('summarize-btn');
+        let summarizeBlinkTimer = null;
+        let summarizeBlinkTimer = null;
         const sendBtn = document.getElementById('send-btn');
         const chatInput = document.getElementById('chat-input');
         const toggleBtn = document.getElementById('toggle-btn');
@@ -544,7 +546,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
             switchTab('summary'); 
             const originalHTML = summarizeBtn.innerHTML;
             summarizeBtn.disabled = true;
-            summarizeBtn.classList.add('animate-pulse');
+            
+            // 手動点滅アニメーション（opacity を往復させる）
+            let dimmed = false;
+            summarizeBtn.style.transition = 'opacity 0.4s ease-in-out';
+            summarizeBtn.style.opacity = '0.6';
+            summarizeBlinkTimer = setInterval(() => {
+                dimmed = !dimmed;
+                summarizeBtn.style.opacity = dimmed ? '0.6' : '1';
+            }, 400);
 
             try {
                 summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
@@ -558,7 +568,11 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 document.getElementById('summary-area').innerHTML = "";
                 appendMsg('summary-area', t.labelSummary, fullContent, "ai-message");
             } finally {
-                summarizeBtn.classList.remove('animate-pulse');
+                if (summarizeBlinkTimer) {
+                    clearInterval(summarizeBlinkTimer);
+                    summarizeBlinkTimer = null;
+                }
+                summarizeBtn.style.opacity = '1';
                 summarizeBtn.innerHTML = originalHTML;
                 summarizeBtn.disabled = false;
             }
@@ -1064,7 +1078,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
             switchTab('summary'); 
             const originalHTML = summarizeBtn.innerHTML;
             summarizeBtn.disabled = true;
-            summarizeBtn.classList.add('animate-pulse');
+            
+            // 手動点滅アニメーション（opacity を往復させる）
+            let dimmed = false;
+            summarizeBtn.style.transition = 'opacity 0.4s ease-in-out';
+            summarizeBtn.style.opacity = '0.6';
+            summarizeBlinkTimer = setInterval(() => {
+                dimmed = !dimmed;
+                summarizeBtn.style.opacity = dimmed ? '0.6' : '1';
+            }, 400);
 
             try {
                 summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
@@ -1078,7 +1100,11 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 document.getElementById('summary-area').innerHTML = "";
                 appendMsg('summary-area', t.labelSummary, fullContent, "ai-message");
             } finally {
-                summarizeBtn.classList.remove('animate-pulse');
+                if (summarizeBlinkTimer) {
+                    clearInterval(summarizeBlinkTimer);
+                    summarizeBlinkTimer = null;
+                }
+                summarizeBtn.style.opacity = '1';
                 summarizeBtn.innerHTML = originalHTML;
                 summarizeBtn.disabled = false;
             }
