@@ -553,7 +553,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             summarizeBlinkTimer = setInterval(() => {
                 dimmed = !dimmed;
                 summarizeBtn.style.opacity = dimmed ? '0.6' : '1';
-            }, 400);
+            }, 1000);
 
             try {
                 summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
