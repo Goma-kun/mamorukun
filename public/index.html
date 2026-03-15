@@ -56,6 +56,8 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         input, select, textarea { font-size: 16px !important; }
         #chat-input { resize: vertical; min-height: 2.5rem; }
+        #sentiment-badge { transition: all 0.5s ease; }
+        #history-panel { transition: transform 0.25s ease; }
     </style>
 </head>
 <body class="bg-slate-900 p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
@@ -64,7 +66,9 @@
             <h1 id="app-title" class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wider text-sky-400 drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]">
                 🛡️ まもるくん
             </h1>
-            <div class="flex items-center">
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <span id="sentiment-badge" class="hidden text-xs px-2 py-1 rounded-xl border font-bold border-slate-600 text-slate-400 bg-slate-800/50 whitespace-nowrap"></span>
+                <button id="history-btn" class="bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
                 <select id="lang-toggle" class="bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
                     <option value="ja" selected>🇯🇵 日本語</option>
                     <option value="en">🇺🇸 English</option>
@@ -157,6 +161,22 @@
         </div>
     </div>
 
+    <!-- 履歴パネル -->
+    <div id="history-overlay" class="hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onclick="closeHistoryPanel()"></div>
+    <div id="history-panel" class="hidden fixed top-0 right-0 w-full sm:w-96 h-full bg-slate-900 border-l border-slate-700/80 z-50 flex flex-col shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
+            <h2 class="font-bold text-sky-400 text-sm">📂 セッション履歴</h2>
+            <button onclick="closeHistoryPanel()" class="text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition-all">×</button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-3 log-container">
+            <div id="session-list-view">
+                <p class="text-xs text-slate-500 mb-3">過去の通話セッションを確認・復元できます（最大20件）</p>
+                <div id="session-list" class="flex flex-col gap-2"></div>
+            </div>
+            <div id="session-detail" class="hidden"></div>
+        </div>
+    </div>
+
     <script>
         // === 初期設定と状態管理 ===
         let isRecording = false;
@@ -182,6 +202,8 @@
 
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
+        let lastSentimentLogLength = 0;
+        let sentimentCheckInProgress = false;
 
         const errorBanner = document.getElementById('error-banner');
         const errorBannerMessage = document.getElementById('error-banner-message');
@@ -404,6 +426,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     p.textContent = final;
                     document.getElementById('transcript-area').appendChild(p);
                     autoScroll(false); autoSave();
+                    checkSentiment();
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
@@ -683,12 +706,158 @@ Log:\n${log}\n\nChat:\n${chat}`,
             updateUIText();
         });
         document.getElementById('clear-btn').onclick = () => {
-            if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？')) {
+            if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？\n（現在のセッションは履歴に自動保存されます）')) {
+                saveCurrentSession();
                 localStorage.removeItem('mamoru_rawLogText'); localStorage.removeItem('mamoru_chatHistory'); localStorage.removeItem('mamoru_aiContext');
-                localStorage.removeItem('mamoru_startTime'); // 開始時間もリセット
+                localStorage.removeItem('mamoru_startTime');
                 location.reload();
             }
         };
+        // ============================================================
+        // セッション履歴管理
+        // ============================================================
+        function getSessions() {
+            try { return JSON.parse(localStorage.getItem('mamoru_sessions') || '[]'); } catch(e) { return []; }
+        }
+
+        function saveCurrentSession() {
+            if (!rawLogText.trim()) return;
+            const sessions = getSessions();
+            const session = {
+                id: Date.now(),
+                startTime: startDateTime.toISOString(),
+                endTime: new Date().toISOString(),
+                rawLogText,
+                chatHistory: chatHistoryForReport,
+                aiContext: JSON.stringify(aiChatContext),
+                summary: document.getElementById('summary-area').innerText || ''
+            };
+            sessions.unshift(session);
+            if (sessions.length > 20) sessions.pop();
+            localStorage.setItem('mamoru_sessions', JSON.stringify(sessions));
+        }
+
+        function openHistoryPanel() {
+            renderSessionList();
+            document.getElementById('history-panel').classList.remove('hidden');
+            document.getElementById('history-overlay').classList.remove('hidden');
+        }
+
+        function closeHistoryPanel() {
+            document.getElementById('history-panel').classList.add('hidden');
+            document.getElementById('history-overlay').classList.add('hidden');
+        }
+
+        function renderSessionList() {
+            const sessions = getSessions();
+            const list = document.getElementById('session-list');
+            document.getElementById('session-detail').classList.add('hidden');
+            document.getElementById('session-list-view').classList.remove('hidden');
+            if (sessions.length === 0) {
+                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">保存された履歴はありません</p>';
+                return;
+            }
+            list.innerHTML = sessions.map(s => {
+                const start = new Date(s.startTime);
+                const end = new Date(s.endTime);
+                const diffMins = Math.floor((end - start) / 60000);
+                const preview = (s.rawLogText || '').slice(0, 60).replace(/\n/g, ' ');
+                return `<div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 cursor-pointer hover:border-sky-500/60 transition-all active:scale-[0.98]" onclick="viewSession(${s.id})">
+                    <div class="flex justify-between items-start gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-xs text-sky-400 font-bold mb-0.5">${start.toLocaleDateString('ja-JP')} ${start.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})}〜 (${diffMins}分)</div>
+                            <div class="text-xs text-slate-300 truncate">${preview || '(ログなし)'}</div>
+                        </div>
+                        <button class="text-slate-500 hover:text-rose-400 text-lg leading-none shrink-0 w-7 h-7 flex items-center justify-center" onclick="event.stopPropagation();if(confirm('この履歴を削除しますか？'))deleteSession(${s.id})">×</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function deleteSession(id) {
+            const sessions = getSessions().filter(s => s.id !== id);
+            localStorage.setItem('mamoru_sessions', JSON.stringify(sessions));
+            renderSessionList();
+        }
+
+        function viewSession(id) {
+            const session = getSessions().find(s => s.id === id);
+            if (!session) return;
+            const start = new Date(session.startTime);
+            const end = new Date(session.endTime);
+            const diffMins = Math.floor((end - start) / 60000);
+            const timeText = `${start.toLocaleString('ja-JP')} 〜 ${end.toLocaleString('ja-JP')} (${diffMins}分間)`;
+            const detail = document.getElementById('session-detail');
+            detail.innerHTML = `
+                <div class="flex items-center justify-between mb-3">
+                    <button onclick="renderSessionList()" class="text-sky-400 hover:text-sky-300 text-xs flex items-center gap-1">← 一覧に戻る</button>
+                    <span class="text-xs text-slate-400">${diffMins}分間</span>
+                </div>
+                <div class="text-xs text-slate-500 mb-3">${timeText}</div>
+                <div class="text-xs font-bold text-slate-400 mb-1">ログ:</div>
+                <div class="bg-slate-950/60 rounded-lg p-2 mb-3 max-h-36 overflow-y-auto text-xs text-slate-300 whitespace-pre-wrap log-container">${session.rawLogText || '(なし)'}</div>
+                ${session.summary ? `<div class="text-xs font-bold text-slate-400 mb-1">要約:</div>
+                <div class="bg-slate-950/60 rounded-lg p-2 mb-3 max-h-36 overflow-y-auto text-xs text-slate-300 whitespace-pre-wrap log-container">${session.summary}</div>` : ''}
+                <button onclick="restoreSession(${id})" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">このセッションを復元</button>`;
+            document.getElementById('session-list-view').classList.add('hidden');
+            detail.classList.remove('hidden');
+        }
+
+        function restoreSession(id) {
+            const session = getSessions().find(s => s.id === id);
+            if (!session) return;
+            if (!confirm('現在のセッションを履歴に保存して、このセッションを復元しますか？')) return;
+            saveCurrentSession();
+            localStorage.setItem('mamoru_rawLogText', session.rawLogText);
+            localStorage.setItem('mamoru_chatHistory', session.chatHistory);
+            localStorage.setItem('mamoru_aiContext', session.aiContext || '[]');
+            localStorage.setItem('mamoru_startTime', session.startTime);
+            closeHistoryPanel();
+            location.reload();
+        }
+
+        document.getElementById('history-btn').onclick = openHistoryPanel;
+
+        // ============================================================
+        // 感情分析・通話品質スコア
+        // ============================================================
+        async function checkSentiment() {
+            if (sentimentCheckInProgress) return;
+            if (rawLogText.length - lastSentimentLogLength < 120) return;
+            sentimentCheckInProgress = true;
+            lastSentimentLogLength = rawLogText.length;
+            const recentLog = rawLogText.slice(-500);
+            const prompt = currentLang === 'ja'
+                ? `以下の応対ログから顧客の感情状態を分析してください。必ずJSONのみを返してください（説明文不要）:\n{"sentiment":"positive","score":75,"label":"😊 満足"}\nsentimentは"positive","neutral","negative"のいずれか。scoreは0-100の整数。labelは"😊 満足","😐 中立","😡 不満"のいずれか。\n\nログ:\n${recentLog}`
+                : `Analyze the customer sentiment from the transcript. Return ONLY JSON (no explanation):\n{"sentiment":"positive","score":75,"label":"😊 Satisfied"}\nsentiment: "positive","neutral","negative". score: 0-100 integer. label: "😊 Satisfied","😐 Neutral","😡 Frustrated".\n\nTranscript:\n${recentLog}`;
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
+                });
+                const data = await res.json();
+                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+                    const text = data.candidates[0].content.parts[0].text.trim();
+                    const match = text.match(/\{[^}]+\}/);
+                    if (match) updateSentimentDisplay(JSON.parse(match[0]));
+                }
+            } catch(e) {}
+            sentimentCheckInProgress = false;
+        }
+
+        function updateSentimentDisplay(data) {
+            const badge = document.getElementById('sentiment-badge');
+            if (!badge || !data || !data.sentiment) return;
+            const colors = {
+                positive: 'text-xs px-2 py-1 rounded-xl border font-bold bg-emerald-500/20 border-emerald-500/50 text-emerald-300 whitespace-nowrap',
+                neutral:  'text-xs px-2 py-1 rounded-xl border font-bold bg-slate-500/20 border-slate-500/50 text-slate-300 whitespace-nowrap',
+                negative: 'text-xs px-2 py-1 rounded-xl border font-bold bg-rose-500/20 border-rose-500/50 text-rose-300 whitespace-nowrap'
+            };
+            badge.className = colors[data.sentiment] || colors.neutral;
+            badge.textContent = `${data.label} ${data.score}`;
+            badge.title = `顧客感情スコア: ${data.score}/100`;
+        }
     </script>
 </body>
 </html>
