@@ -69,6 +69,7 @@
             <div class="flex items-center gap-1.5 sm:gap-2">
                 <span id="sentiment-badge" class="hidden text-xs px-2 py-1 rounded-xl border font-bold border-slate-600 text-slate-400 bg-slate-800/50 whitespace-nowrap"></span>
                 <button id="history-btn" class="bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
+                <button id="kb-btn" class="bg-slate-800/90 border border-emerald-600/60 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-emerald-900/40 transition-all shadow-inner shadow-black/40" title="知識ベース管理">📚</button>
                 <select id="lang-toggle" class="bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
                     <option value="ja" selected>🇯🇵 日本語</option>
                     <option value="en">🇺🇸 English</option>
@@ -158,6 +159,30 @@
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- KB管理パネル -->
+    <div id="kb-overlay" class="hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onclick="closeKBPanel()"></div>
+    <div id="kb-panel" class="hidden fixed top-0 left-0 w-full sm:w-[30rem] h-full bg-slate-900 border-r border-slate-700/80 z-50 flex flex-col shadow-2xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
+            <h2 class="font-bold text-emerald-400 text-sm">📚 知識ベース管理</h2>
+            <button onclick="closeKBPanel()" class="text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition-all">×</button>
+        </div>
+        <div class="flex flex-col gap-2 px-3 py-2.5 border-b border-slate-700/60 shrink-0">
+            <button onclick="showKBAddForm()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-1.5 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                <span>＋</span><span>エントリを手動追加</span>
+            </button>
+            <button onclick="showKBBatchImport()" class="bg-slate-800/80 border border-slate-600 hover:bg-slate-700 py-1.5 rounded-xl font-bold text-xs text-slate-300 transition-all active:scale-95 flex items-center justify-center gap-1.5">
+                <span>📋</span><span>テキストから一括登録（NotebookLMエクスポート等）</span>
+            </button>
+        </div>
+        <div id="kb-panel-content" class="flex-1 overflow-y-auto p-3 log-container">
+            <div id="kb-list-view">
+                <p class="text-xs text-slate-500 mb-3">NotebookLMからエクスポートした内容を登録すると、ヒアリング確認時に関連情報を自動サジェストします</p>
+                <div id="kb-entry-list" class="flex flex-col gap-2"></div>
+            </div>
+            <div id="kb-form-view" class="hidden"></div>
         </div>
     </div>
 
@@ -534,21 +559,25 @@ Log:\n${log}\n\nChat:\n${chat}`,
             }
             const t = i18n[currentLang], p = aiPrompts[currentLang];
             switchTab('chat');
-            
+
             const btn = document.getElementById('advice-btn');
             const originalHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = `<span class="text-lg">⏳</span><span>思考中</span>`;
-            
+
             let displayMsg = "現在の状況から、ヒアリング漏れや次に確認すべきことを教えてください。";
             appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
-            
-            const res = await askAI([{ role: "user", parts: [{ text: p.advice(rawLogText) }] }]);
+
+            // AIアドバイスとKB検索を並列実行
+            const [res] = await Promise.all([
+                askAI([{ role: "user", parts: [{ text: p.advice(rawLogText) }] }]),
+                searchKBForSuggestions(rawLogText)
+            ]);
             appendMsg('chat-area', t.labelAI, res, "ai-message");
-            
+
             chatHistoryForReport += `${t.labelYou}: ${displayMsg}\n${t.labelAI}: ${res}\n\n`;
             autoSave();
-            
+
             btn.innerHTML = originalHTML;
             btn.disabled = false;
         };
@@ -713,6 +742,259 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 location.reload();
             }
         };
+        // ============================================================
+        // 知識ベース管理（KB）
+        // ============================================================
+        function getKBEntries() {
+            try { return JSON.parse(localStorage.getItem('mamoru_kb') || '[]'); } catch(e) { return []; }
+        }
+        function saveKBEntries(entries) {
+            localStorage.setItem('mamoru_kb', JSON.stringify(entries));
+        }
+
+        function openKBPanel() {
+            renderKBList();
+            document.getElementById('kb-panel').classList.remove('hidden');
+            document.getElementById('kb-overlay').classList.remove('hidden');
+        }
+        function closeKBPanel() {
+            document.getElementById('kb-panel').classList.add('hidden');
+            document.getElementById('kb-overlay').classList.add('hidden');
+        }
+
+        function renderKBList() {
+            const entries = getKBEntries();
+            document.getElementById('kb-form-view').classList.add('hidden');
+            document.getElementById('kb-list-view').classList.remove('hidden');
+            const list = document.getElementById('kb-entry-list');
+            if (entries.length === 0) {
+                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">知識ベースにエントリがありません</p>';
+                return;
+            }
+            list.innerHTML = entries.map(e => `
+                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
+                    <div class="flex justify-between items-start gap-2 mb-1">
+                        <div class="text-xs font-bold text-emerald-300 flex-1 min-w-0 truncate">📄 ${e.title}</div>
+                        <div class="flex gap-1 shrink-0">
+                            <button onclick="showKBEditForm(${e.id})" class="text-slate-400 hover:text-sky-400 text-xs px-1.5 py-0.5 rounded border border-slate-600 hover:border-sky-500 transition-all">編集</button>
+                            <button onclick="deleteKBEntry(${e.id})" class="text-slate-400 hover:text-rose-400 text-xs px-1.5 py-0.5 rounded border border-slate-600 hover:border-rose-500 transition-all">削除</button>
+                        </div>
+                    </div>
+                    ${e.source ? `<div class="text-xs text-slate-500 mb-1">出典: ${e.source}</div>` : ''}
+                    <div class="text-xs text-slate-400 line-clamp-2">${e.content.slice(0, 100)}${e.content.length > 100 ? '…' : ''}</div>
+                </div>`).join('');
+        }
+
+        function showKBAddForm(prefill = {}) {
+            document.getElementById('kb-list-view').classList.add('hidden');
+            const form = document.getElementById('kb-form-view');
+            form.classList.remove('hidden');
+            form.innerHTML = `
+                <div class="flex items-center gap-2 mb-3">
+                    <button onclick="renderKBList()" class="text-sky-400 hover:text-sky-300 text-xs">← 一覧に戻る</button>
+                    <span class="text-xs font-bold text-slate-300">新規エントリ追加</span>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div>
+                        <label class="text-xs text-slate-400 mb-0.5 block">タイトル <span class="text-rose-400">*</span></label>
+                        <input id="kb-title-input" type="text" value="${prefill.title || ''}" placeholder="例: パスワードリセット手順" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-0.5 block">出典（NotebookLMのソース名など）</label>
+                        <input id="kb-source-input" type="text" value="${prefill.source || ''}" placeholder="例: NotebookLM - 社内マニュアル2024" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-0.5 block">内容 <span class="text-rose-400">*</span></label>
+                        <textarea id="kb-content-input" rows="6" placeholder="NotebookLMからコピーした内容を貼り付けてください" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 resize-y">${prefill.content || ''}</textarea>
+                    </div>
+                    <button onclick="submitKBAdd()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">保存</button>
+                </div>`;
+        }
+
+        function showKBEditForm(id) {
+            const entry = getKBEntries().find(e => e.id === id);
+            if (!entry) return;
+            document.getElementById('kb-list-view').classList.add('hidden');
+            const form = document.getElementById('kb-form-view');
+            form.classList.remove('hidden');
+            form.innerHTML = `
+                <div class="flex items-center gap-2 mb-3">
+                    <button onclick="renderKBList()" class="text-sky-400 hover:text-sky-300 text-xs">← 一覧に戻る</button>
+                    <span class="text-xs font-bold text-slate-300">エントリ編集</span>
+                </div>
+                <div class="flex flex-col gap-2">
+                    <div>
+                        <label class="text-xs text-slate-400 mb-0.5 block">タイトル</label>
+                        <input id="kb-title-input" type="text" value="${entry.title}" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-0.5 block">出典</label>
+                        <input id="kb-source-input" type="text" value="${entry.source || ''}" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="text-xs text-slate-400 mb-0.5 block">内容</label>
+                        <textarea id="kb-content-input" rows="6" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 resize-y">${entry.content}</textarea>
+                    </div>
+                    <button onclick="submitKBEdit(${id})" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">更新</button>
+                </div>`;
+        }
+
+        function submitKBAdd() {
+            const title = document.getElementById('kb-title-input').value.trim();
+            const content = document.getElementById('kb-content-input').value.trim();
+            const source = document.getElementById('kb-source-input').value.trim();
+            if (!title || !content) { alert('タイトルと内容は必須です'); return; }
+            const entries = getKBEntries();
+            entries.unshift({ id: Date.now(), title, content, source, createdAt: new Date().toISOString() });
+            saveKBEntries(entries);
+            renderKBList();
+        }
+
+        function submitKBEdit(id) {
+            const title = document.getElementById('kb-title-input').value.trim();
+            const content = document.getElementById('kb-content-input').value.trim();
+            const source = document.getElementById('kb-source-input').value.trim();
+            if (!title || !content) { alert('タイトルと内容は必須です'); return; }
+            const entries = getKBEntries().map(e => e.id === id ? { ...e, title, content, source } : e);
+            saveKBEntries(entries);
+            renderKBList();
+        }
+
+        function deleteKBEntry(id) {
+            if (!confirm('このエントリを削除しますか？')) return;
+            saveKBEntries(getKBEntries().filter(e => e.id !== id));
+            renderKBList();
+        }
+
+        function showKBBatchImport() {
+            document.getElementById('kb-list-view').classList.add('hidden');
+            const form = document.getElementById('kb-form-view');
+            form.classList.remove('hidden');
+            form.innerHTML = `
+                <div class="flex items-center gap-2 mb-3">
+                    <button onclick="renderKBList()" class="text-sky-400 hover:text-sky-300 text-xs">← 一覧に戻る</button>
+                    <span class="text-xs font-bold text-slate-300">テキストから一括登録</span>
+                </div>
+                <p class="text-xs text-slate-400 mb-2">NotebookLMからエクスポートしたテキスト、または会社のマニュアル・FAQをそのまま貼り付けてください。AIが自動でトピックごとに分割して登録します。</p>
+                <div>
+                    <label class="text-xs text-slate-400 mb-0.5 block">出典名</label>
+                    <input id="kb-batch-source" type="text" placeholder="例: NotebookLM - 社内マニュアル2024" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 mb-2">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-400 mb-0.5 block">テキスト <span class="text-rose-400">*</span></label>
+                    <textarea id="kb-batch-input" rows="10" placeholder="ここにテキストを貼り付け..." class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 resize-y"></textarea>
+                </div>
+                <button id="kb-batch-btn" onclick="submitKBBatchImport()" class="mt-2 w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">AIで自動分割して登録</button>`;
+        }
+
+        async function submitKBBatchImport() {
+            const text = document.getElementById('kb-batch-input').value.trim();
+            const source = document.getElementById('kb-batch-source').value.trim();
+            if (!text) { alert('テキストを入力してください'); return; }
+            const btn = document.getElementById('kb-batch-btn');
+            btn.disabled = true;
+            btn.textContent = '⏳ AI処理中...';
+            const prompt = `以下のテキストをトピックごとのナレッジエントリに分割してください。
+JSONのみを返してください（説明文不要）:
+[{"title":"タイトル1","content":"内容1"},{"title":"タイトル2","content":"内容2"}]
+
+・各エントリはオペレーターが通話中に参照できる形で簡潔にまとめてください
+・1つのエントリは独立した手順・ポリシー・FAQの単位にしてください
+・10エントリを上限とします
+
+テキスト:
+${text.slice(0, 3000)}`;
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
+                });
+                const data = await res.json();
+                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+                    const raw = data.candidates[0].content.parts[0].text.trim();
+                    const match = raw.match(/\[[\s\S]*\]/);
+                    if (match) {
+                        const parsed = JSON.parse(match[0]);
+                        const entries = getKBEntries();
+                        const now = Date.now();
+                        parsed.forEach((item, i) => {
+                            if (item.title && item.content) {
+                                entries.unshift({ id: now + i, title: item.title, content: item.content, source, createdAt: new Date().toISOString() });
+                            }
+                        });
+                        saveKBEntries(entries);
+                        alert(`${parsed.length}件のエントリを登録しました`);
+                        renderKBList();
+                        return;
+                    }
+                }
+                alert('AIの応答を解析できませんでした。手動追加をお試しください。');
+            } catch(e) {
+                alert('エラーが発生しました: ' + e.message);
+            }
+            btn.disabled = false;
+            btn.textContent = 'AIで自動分割して登録';
+        }
+
+        document.getElementById('kb-btn').onclick = openKBPanel;
+
+        // ============================================================
+        // KB検索・サジェスト（ヒアリング確認時）
+        // ============================================================
+        async function searchKBForSuggestions(transcript) {
+            const entries = getKBEntries();
+            if (entries.length === 0) return;
+            const summaries = entries.map((e, i) => `[${i}] ${e.title}: ${e.content.slice(0, 120)}`).join('\n');
+            const prompt = `以下の応対ログと知識ベースを照合し、現在の会話内容に関連するエントリのインデックス番号を返してください。
+JSONのみを返してください（説明文不要）:
+{"relevant":[0,2],"none":false}
+関連するものが一切なければ: {"relevant":[],"none":true}
+
+応対ログ（最新500文字）:
+${transcript.slice(-500)}
+
+知識ベース（全${entries.length}件）:
+${summaries}`;
+            try {
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
+                });
+                const data = await res.json();
+                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
+                    const raw = data.candidates[0].content.parts[0].text.trim();
+                    const match = raw.match(/\{[\s\S]*?\}/);
+                    if (match) {
+                        const json = JSON.parse(match[0]);
+                        if (!json.none && json.relevant && json.relevant.length > 0) {
+                            const relevant = json.relevant.map(i => entries[i]).filter(Boolean);
+                            displayKBSuggestions(relevant);
+                        }
+                    }
+                }
+            } catch(e) {}
+        }
+
+        function displayKBSuggestions(entries) {
+            const cards = entries.map(e => `
+                <div class="bg-slate-800/60 border border-emerald-500/30 rounded-lg p-2.5 mb-2">
+                    <div class="text-xs font-bold text-emerald-300 mb-0.5">📄 ${e.title}</div>
+                    ${e.source ? `<div class="text-[10px] text-slate-400 mb-1">出典: ${e.source}</div>` : ''}
+                    <div class="text-xs text-slate-300 whitespace-pre-wrap">${e.content.slice(0, 250)}${e.content.length > 250 ? '…' : ''}</div>
+                </div>`).join('');
+            const container = document.createElement('div');
+            container.className = 'ai-message';
+            container.style.background = 'linear-gradient(135deg, rgba(5,46,22,0.9), rgba(6,78,59,0.8))';
+            container.style.borderColor = 'rgba(52,211,153,0.4)';
+            container.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-2">📚 関連する知識ベース</div>${cards}`;
+            document.getElementById('chat-area').appendChild(container);
+            setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+            chatHistoryForReport += `AI: 📚 関連KB:\n${entries.map(e => `・${e.title}（${e.source || '出典未設定'}）`).join('\n')}\n\n`;
+            autoSave();
+        }
+
         // ============================================================
         // セッション履歴管理
         // ============================================================
