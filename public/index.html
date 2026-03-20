@@ -235,6 +235,8 @@
 
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
+        /** 疑問文検知用: 直近30秒以内に確定した final テキスト（言い淀みの分割をまたぐ文脈用） */
+        let transcriptFinalTimeSegments = [];
         // sentiment 関連は削除（感情スコア表示を完全にオフ）
 
         // === マニュアル管理（IndexedDB） ===
@@ -428,8 +430,8 @@
         // === プロンプト設定 ===
         const aiPrompts = {
     ja: {
-        chatContext: (date, log, q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\nあなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
-        chatDirect: (q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
+        chatContext: (date, log, q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【絶対厳守】「〜という質問ですね」「〜ということですね」などと質問を繰り返すことは禁止。必ず即座に回答内容から始めること。\n\nあなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
+        chatDirect: (q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【絶対厳守】「〜という質問ですね」「〜ということですね」などと質問を繰り返すことは禁止。必ず即座に回答内容から始めること。\n\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
                 exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で真の要約を作成してください。
@@ -453,8 +455,8 @@
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
-                chatContext: (date, log, q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\nYou are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
+                chatContext: (date, log, q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*ABSOLUTE RULE* Never open by restating or echoing the question (e.g. "So you're asking..." / "I understand you want to know..."). Start immediately with the substantive answer.\n\nYou are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*ABSOLUTE RULE* Never open by restating or echoing the question (e.g. "So you're asking..." / "I understand you want to know..."). Start immediately with the substantive answer.\n\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
                 exportReport: (timeText, log, chat) => `Create a summary in English based on the following.
@@ -775,9 +777,16 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     p.textContent = final;
                     document.getElementById('transcript-area').appendChild(p);
                     autoScroll(false); autoSave();
+                    const nowTs = Date.now();
+                    transcriptFinalTimeSegments.push({ t: nowTs, text: final });
+                    transcriptFinalTimeSegments = transcriptFinalTimeSegments.filter(s => nowTs - s.t <= 30000);
+                    const window30s = transcriptFinalTimeSegments.map(s => s.text).join('\n');
+                    const tail300 = rawLogText.slice(-300);
+                    const detectionBlob = (window30s + '\n' + tail300).replace(/\n{3,}/g, '\n\n').trim();
                     console.log('[DEBUG] final:', final);
-                    console.log('[DEBUG] candidates:', extractQuestionCandidates(final));
-                    maybeNotifyAutoQuestion(final);
+                    console.log('[DEBUG] detectionBlob:', detectionBlob);
+                    console.log('[DEBUG] candidates:', extractQuestionCandidates(detectionBlob));
+                    maybeNotifyAutoQuestion(detectionBlob);
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
