@@ -428,8 +428,8 @@
         // === プロンプト設定 ===
         const aiPrompts = {
     ja: {
-        chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
-        chatDirect: (q) => `【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
+        chatContext: (date, log, q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\nあなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
+        chatDirect: (q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
                 exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で真の要約を作成してください。
@@ -453,8 +453,8 @@
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
-                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
+                chatContext: (date, log, q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\nYou are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
                 exportReport: (timeText, log, chat) => `Create a summary in English based on the following.
@@ -589,7 +589,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
 
         // === 疑問文の半自動AI送信（通知→承認） ===
-        const AUTO_QUESTION_APPROVAL_MS = 4000; // 数秒以内（要望に合わせて短め）
+        const AUTO_QUESTION_APPROVAL_MS = 8000; // 承認までの猶予（秒読み）
         const AUTO_QUESTION_SUPPRESS_MS = 10000; // 同じ候補の連打抑止
 
         const autoQuestionToastEl = document.getElementById('auto-question-toast');
@@ -657,7 +657,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             const t = i18n[currentLang];
             const p = aiPrompts[currentLang];
 
-            switchTab('chat');
+            switchTab('chat', { scrollToBottom: true });
             sendBtn.disabled = true;
             const originalSendText = sendBtn.innerText;
             sendBtn.innerText = currentLang === 'en' ? "Thinking..." : "⏳思考中...";
@@ -839,7 +839,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             if (!q && !currentImageData) return;
             const t = i18n[currentLang], p = aiPrompts[currentLang];
             
-            switchTab('chat'); 
+            switchTab('chat', { scrollToBottom: true }); 
             sendBtn.disabled = true;
             const originalSendText = sendBtn.innerText;
             sendBtn.innerText = "⏳思考中...";
@@ -884,7 +884,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 return;
             }
             const t = i18n[currentLang], p = aiPrompts[currentLang];
-            switchTab('chat');
+            switchTab('chat', { scrollToBottom: true });
             
             const btn = document.getElementById('advice-btn');
             const originalHTML = btn.innerHTML;
@@ -970,7 +970,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         // === タブ切り替え ===
-        function switchTab(id) {
+        function scrollLogDisplayToBottom() {
+            const d = document.getElementById('log-display');
+            if (!d) return;
+            requestAnimationFrame(() => {
+                d.scrollTop = d.scrollHeight;
+            });
+        }
+
+        function switchTab(id, opts = {}) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('content-' + id).classList.add('active');
             document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { 
@@ -978,7 +986,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 b.classList.add('text-slate-500'); 
             });
             document.getElementById('tab-btn-' + id).classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
-            document.getElementById('log-display').scrollTop = 0;
+            const logDisplay = document.getElementById('log-display');
+            if (opts.scrollToBottom) {
+                scrollLogDisplayToBottom();
+            } else {
+                logDisplay.scrollTop = 0;
+            }
         }
         document.getElementById('tab-btn-transcript').onclick = () => switchTab('transcript');
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
@@ -999,10 +1012,10 @@ Log:\n${log}\n\nChat:\n${chat}`,
             div.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-1">${label}</div><div class="whitespace-pre-wrap">${formatText(text)}</div>`;
             document.getElementById(id).appendChild(div);
             if (id === 'transcript-area') autoScroll(true);
-            if (id === 'chat-area' && cls === 'ai-message') {
-                setTimeout(() => {
-                    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 50);
+            if (id === 'chat-area' && (cls === 'user-message' || cls === 'ai-message')) {
+                if (document.getElementById('content-chat').classList.contains('active')) {
+                    setTimeout(() => scrollLogDisplayToBottom(), 0);
+                }
             }
         }
 
