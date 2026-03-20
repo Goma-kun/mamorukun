@@ -683,6 +683,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
         }
 
         function showAutoQuestionToast(questionText) {
+            console.log('[DEBUG] showAutoQuestionToast called:', questionText);
             if (!autoQuestionToastEl) return;
             hideAutoQuestionToast();
 
@@ -774,6 +775,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     p.textContent = final;
                     document.getElementById('transcript-area').appendChild(p);
                     autoScroll(false); autoSave();
+                    console.log('[DEBUG] final:', final);
+                    console.log('[DEBUG] candidates:', extractQuestionCandidates(final));
                     maybeNotifyAutoQuestion(final);
                 }
             };
