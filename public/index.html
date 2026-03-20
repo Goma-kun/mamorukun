@@ -83,6 +83,29 @@
             </div>
         </div>
 
+        <!-- 疑問文の半自動AI送信（通知→承認） -->
+        <div id="auto-question-toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] sm:w-[32rem]">
+            <div class="bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur px-3 py-2 flex items-start gap-2">
+                <div class="text-sky-400 text-xl leading-none mt-0.5 shrink-0">❓</div>
+                <div class="flex-1 min-w-0">
+                    <div id="auto-question-toast-title" class="text-xs text-sky-300 font-bold mb-0.5"></div>
+                    <div id="auto-question-toast-question" class="text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words"></div>
+                    <div id="auto-question-toast-hint" class="text-[10px] text-slate-400 mt-0.5"></div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">
+                        <span id="auto-question-toast-countdown"></span>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-1.5 shrink-0">
+                    <button id="auto-question-approve-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-3 py-2 rounded-xl font-bold text-[10px] sm:text-xs text-slate-950 transition-all active:scale-95 shadow-lg shadow-emerald-900/60">
+                        送信する
+                    </button>
+                    <button id="auto-question-cancel-btn" class="text-[10px] sm:text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg border border-slate-700/60 hover:border-sky-500/40 transition-all">
+                        キャンセル
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="flex flex-col flex-1 min-h-0 gap-1.5 sm:gap-2 mt-0 sm:mt-1">
             <!-- 文字起こし / ログ & レポート カード -->
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -121,6 +144,7 @@
                         <div id="summary-area"></div>
                     </div>
                 </div>
+                <div id="suggestion-area" class="border-t border-slate-800/80 bg-slate-950/60"></div>
             </div>
 
             <!-- カメラ / チャット入力 カード -->
@@ -156,6 +180,17 @@
                         <span class="text-sm sm:text-base">📄</span>
                         <span>要約作成</span>
                     </button>
+                </div>
+                <div class="mt-1.5 sm:mt-2 flex items-center justify-between gap-2">
+                    <div id="manual-status" class="text-[10px] sm:text-xs text-slate-400 truncate">
+                        登録済みマニュアル: 0件
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <button id="manual-upload-btn" class="text-[10px] sm:text-xs px-2.5 py-1 rounded-lg border border-slate-600 text-slate-200 bg-slate-900/80 hover:bg-slate-800 hover:border-sky-500 hover:text-sky-200 transition-all">
+                            📚 マニュアル登録
+                        </button>
+                        <input id="manual-upload" type="file" accept=".txt" multiple class="hidden">
+                    </div>
                 </div>
             </div>
         </div>
@@ -205,6 +240,146 @@
         let lastSentimentLogLength = 0;
         let sentimentCheckInProgress = false;
 
+        // === マニュアル管理（IndexedDB） ===
+        let manualDB = null;
+        let manualsCache = [];
+        let currentSuggestions = [];
+
+        function renderManualStatus() {
+            const el = document.getElementById('manual-status');
+            if (!el) return;
+            const count = manualsCache.length || 0;
+            el.textContent = `登録済みマニュアル: ${count}件`;
+        }
+
+        function renderSuggestions() {
+            const container = document.getElementById('suggestion-area');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = "px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs text-slate-200";
+
+            const title = document.createElement('div');
+            title.className = "font-semibold text-sky-300 flex items-center gap-1 mb-1.5";
+            title.innerHTML = "<span>🔍</span><span>関連マニュアルサジェスト</span>";
+            wrapper.appendChild(title);
+
+            if (!currentSuggestions || currentSuggestions.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = "text-[11px] sm:text-xs text-slate-500";
+                empty.textContent = "いま関連するマニュアルサジェストはありません。";
+                wrapper.appendChild(empty);
+                container.appendChild(wrapper);
+                return;
+            }
+
+            const list = document.createElement('div');
+            list.className = "space-y-1.5";
+
+            currentSuggestions.forEach(s => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-900/70 border border-slate-700/80 rounded-xl px-2.5 py-1.5";
+
+                const header = document.createElement('div');
+                header.className = "flex items-center justify-between gap-2 mb-0.5";
+
+                const titleEl = document.createElement('div');
+                titleEl.className = "font-semibold text-[11px] sm:text-xs text-slate-100 truncate";
+                titleEl.textContent = s.title || "(無題)";
+
+                const fileEl = document.createElement('div');
+                fileEl.className = "text-[10px] text-slate-500 truncate";
+                fileEl.textContent = s.file || "";
+
+                header.appendChild(titleEl);
+                header.appendChild(fileEl);
+
+                const body = document.createElement('div');
+                body.className = "text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap";
+                body.textContent = s.snippet || "";
+
+                item.appendChild(header);
+                item.appendChild(body);
+                list.appendChild(item);
+            });
+
+            wrapper.appendChild(list);
+            container.appendChild(wrapper);
+        }
+
+        function openManualDB() {
+            if (manualDB) return Promise.resolve(manualDB);
+            return new Promise((resolve, reject) => {
+                const req = indexedDB.open('mamoru_manuals', 1);
+                req.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains('manualFiles')) {
+                        const store = db.createObjectStore('manualFiles', { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('createdAt', 'createdAt', { unique: false });
+                    }
+                };
+                req.onsuccess = (event) => {
+                    manualDB = event.target.result;
+                    resolve(manualDB);
+                };
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function saveManualRecord(fileName, content) {
+            try {
+                const db = await openManualDB();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction('manualFiles', 'readwrite');
+                    const store = tx.objectStore('manualFiles');
+                    store.add({
+                        name: fileName,
+                        type: 'text',
+                        content,
+                        createdAt: Date.now()
+                    });
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                });
+            } catch (e) {
+                console.error('Failed to save manual:', e);
+            }
+        }
+
+        async function loadManuals() {
+            try {
+                const db = await openManualDB();
+                const all = await new Promise((resolve, reject) => {
+                    const tx = db.transaction('manualFiles', 'readonly');
+                    const store = tx.objectStore('manualFiles');
+                    const req = store.index('createdAt').getAll();
+                    req.onsuccess = () => resolve(req.result || []);
+                    req.onerror = () => reject(req.error);
+                });
+                manualsCache = all;
+                renderManualStatus();
+
+                // ダミーのサジェスト表示（プロトタイプ用）
+                if (manualsCache.length > 0 && (!currentSuggestions || currentSuggestions.length === 0)) {
+                    const first = manualsCache[0];
+                    const snippet = (first.content || '').slice(0, 120).replace(/\s+/g, ' ');
+                    currentSuggestions = [
+                        {
+                            file: first.name || 'manual.txt',
+                            title: 'マニュアルからの参考情報',
+                            snippet: snippet || 'ここにマニュアル本文からの抜粋が表示されます。'
+                        }
+                    ];
+                    renderSuggestions();
+                } else {
+                    renderSuggestions();
+                }
+            } catch (e) {
+                console.error('Failed to load manuals:', e);
+            }
+        }
+
         const errorBanner = document.getElementById('error-banner');
         const errorBannerMessage = document.getElementById('error-banner-message');
         const errorBannerClose = document.getElementById('error-banner-close');
@@ -231,7 +406,11 @@
                 btnCopy: "コピー", btnClear: "クリア", msgCopied: "コピー完了！",
                 statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
-                noChatHistory: "AIとのやり取りはありません。"
+                noChatHistory: "AIとのやり取りはありません。",
+                autoQuestionTitle: "疑問文を検知しました",
+                autoQuestionHint: "数秒以内にタップで承認できます",
+                autoQuestionApprove: "送信する",
+                autoQuestionCancel: "キャンセル"
             },
             en: {
                 title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
@@ -241,7 +420,11 @@
                 btnCopy: "Copy", btnClear: "Clear", msgCopied: "Copied!",
                 statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
-                noChatHistory: "No AI interactions."
+                noChatHistory: "No AI interactions.",
+                autoQuestionTitle: "Detected a question",
+                autoQuestionHint: "Tap to approve within a few seconds",
+                autoQuestionApprove: "Send",
+                autoQuestionCancel: "Cancel"
             }
         };
 
@@ -400,9 +583,167 @@ Log:\n${log}\n\nChat:\n${chat}`,
             summarizeBtn.innerHTML = `<span class="text-sm sm:text-base">📄</span><span>${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
             document.getElementById('clear-text').innerText = t.btnClear;
+            if (autoQuestionToastTitleEl) autoQuestionToastTitleEl.textContent = t.autoQuestionTitle;
+            if (autoQuestionToastHintEl) autoQuestionToastHintEl.textContent = t.autoQuestionHint;
+            if (autoQuestionApproveBtn) autoQuestionApproveBtn.innerText = t.autoQuestionApprove;
+            if (autoQuestionCancelBtn) autoQuestionCancelBtn.innerText = t.autoQuestionCancel;
         }
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
+
+        // === 疑問文の半自動AI送信（通知→承認） ===
+        const AUTO_QUESTION_APPROVAL_MS = 4000; // 数秒以内（要望に合わせて短め）
+        const AUTO_QUESTION_SUPPRESS_MS = 10000; // 同じ候補の連打抑止
+
+        const autoQuestionToastEl = document.getElementById('auto-question-toast');
+        const autoQuestionToastTitleEl = document.getElementById('auto-question-toast-title');
+        const autoQuestionToastHintEl = document.getElementById('auto-question-toast-hint');
+        const autoQuestionToastQuestionEl = document.getElementById('auto-question-toast-question');
+        const autoQuestionToastCountdownEl = document.getElementById('auto-question-toast-countdown');
+        const autoQuestionApproveBtn = document.getElementById('auto-question-approve-btn');
+        const autoQuestionCancelBtn = document.getElementById('auto-question-cancel-btn');
+
+        let autoQuestionToastTimer = null;
+        let autoQuestionToastInterval = null;
+        let autoQuestionToastExpiresAt = 0;
+        let autoQuestionToastQuestionText = "";
+
+        let lastAutoQuestionSentFingerprint = "";
+        let lastAutoQuestionSeenFingerprint = "";
+        let lastAutoQuestionSeenAt = 0;
+
+        function hideAutoQuestionToast() {
+            if (autoQuestionToastTimer) clearTimeout(autoQuestionToastTimer);
+            if (autoQuestionToastInterval) clearInterval(autoQuestionToastInterval);
+            autoQuestionToastTimer = null;
+            autoQuestionToastInterval = null;
+            autoQuestionToastExpiresAt = 0;
+            autoQuestionToastQuestionText = "";
+            if (autoQuestionToastEl) autoQuestionToastEl.classList.add('hidden');
+        }
+
+        function normalizeFingerprint(s) {
+            return (s || '').replace(/\s+/g, ' ').trim();
+        }
+
+        function extractQuestionCandidates(text) {
+            // 例: 「〜ですか？」「〜なんですか？」「〜でしょうか？」「〜なの？」
+            // 句点(。)や改行をまたがない範囲で「疑問語尾まで含む塊」を拾う
+            const re = /[^。！？\n]{2,}(?:ですか？|なんですか？|でしょうか？|なの？|ですか\?|なんですか\?|でしょうか\?|なの\?)/g;
+            const matches = (text || '').match(re) || [];
+            // order-preserving de-dupe
+            const out = [];
+            for (const m of matches) {
+                const mm = (m || '').trim();
+                if (mm && !out.includes(mm)) out.push(mm);
+            }
+            return out;
+        }
+
+        async function sendChatQuestionText(q) {
+            const question = (q || '').trim();
+            if (!question) return;
+            if (sendBtn.disabled) return;
+
+            const t = i18n[currentLang];
+            const p = aiPrompts[currentLang];
+
+            switchTab('chat');
+            sendBtn.disabled = true;
+            const originalSendText = sendBtn.innerText;
+            sendBtn.innerText = currentLang === 'en' ? "Thinking..." : "⏳思考中...";
+
+            appendMsg('chat-area', t.labelYou, question, "user-message");
+
+            let currentParts = [];
+            if (aiChatContext.length === 0) {
+                currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, question) });
+            } else {
+                currentParts.push({ text: p.chatDirect(question) });
+            }
+
+            aiChatContext.push({ role: "user", parts: currentParts });
+            const res = await askAI(aiChatContext.slice(-10));
+            appendMsg('chat-area', t.labelAI, res, "ai-message");
+            aiChatContext.push({ role: "model", parts: [{ text: res }] });
+            chatHistoryForReport += `${t.labelYou}: ${question}\n${t.labelAI}: ${res}\n\n`;
+            autoSave();
+
+            sendBtn.innerText = originalSendText;
+            sendBtn.disabled = false;
+        }
+
+        function showAutoQuestionToast(questionText) {
+            if (!autoQuestionToastEl) return;
+            hideAutoQuestionToast();
+
+            autoQuestionToastQuestionText = questionText;
+            autoQuestionToastExpiresAt = Date.now() + AUTO_QUESTION_APPROVAL_MS;
+
+            const t = i18n[currentLang];
+            if (autoQuestionToastTitleEl) autoQuestionToastTitleEl.textContent = t.autoQuestionTitle;
+            if (autoQuestionToastHintEl) autoQuestionToastHintEl.textContent = t.autoQuestionHint;
+            if (autoQuestionToastQuestionEl) autoQuestionToastQuestionEl.textContent = questionText;
+
+            if (autoQuestionApproveBtn) autoQuestionApproveBtn.disabled = !!sendBtn.disabled;
+
+            const updateCountdown = () => {
+                const ms = autoQuestionToastExpiresAt - Date.now();
+                if (ms <= 0) {
+                    hideAutoQuestionToast();
+                    return;
+                }
+                const sec = Math.ceil(ms / 1000);
+                if (autoQuestionToastCountdownEl) autoQuestionToastCountdownEl.textContent =
+                    currentLang === 'en' ? `Send in ${sec}s` : `送信まで ${sec}秒`;
+            };
+
+            updateCountdown();
+            autoQuestionToastEl.classList.remove('hidden');
+            autoQuestionToastInterval = setInterval(updateCountdown, 200);
+            autoQuestionToastTimer = setTimeout(() => hideAutoQuestionToast(), AUTO_QUESTION_APPROVAL_MS);
+        }
+
+        function maybeNotifyAutoQuestion() {
+            if (!isRecording) return;
+            if (!rawLogText) return;
+            if (!autoQuestionToastEl) return;
+            // 既に通知中なら上書きしない（ユーザーが押す猶予を確保）
+            if (!autoQuestionToastEl.classList.contains('hidden')) return;
+
+            const windowText = rawLogText.slice(-400);
+            const candidates = extractQuestionCandidates(windowText);
+            if (!candidates.length) return;
+
+            const latest = candidates[candidates.length - 1].trim();
+            if (!latest) return;
+
+            const fingerprint = normalizeFingerprint(latest);
+            const now = Date.now();
+            if (fingerprint === lastAutoQuestionSentFingerprint) return;
+            if (fingerprint === lastAutoQuestionSeenFingerprint && now - lastAutoQuestionSeenAt < AUTO_QUESTION_SUPPRESS_MS) return;
+
+            lastAutoQuestionSeenFingerprint = fingerprint;
+            lastAutoQuestionSeenAt = now;
+            showAutoQuestionToast(latest);
+        }
+
+        if (autoQuestionApproveBtn) {
+            autoQuestionApproveBtn.onclick = async () => {
+                if (!autoQuestionToastQuestionText) return;
+                if (Date.now() > autoQuestionToastExpiresAt) {
+                    hideAutoQuestionToast();
+                    return;
+                }
+                const q = autoQuestionToastQuestionText;
+                hideAutoQuestionToast();
+                lastAutoQuestionSentFingerprint = normalizeFingerprint(q);
+                await sendChatQuestionText(q);
+            };
+        }
+        if (autoQuestionCancelBtn) {
+            autoQuestionCancelBtn.onclick = () => hideAutoQuestionToast();
+        }
 
         // === 音声認識処理 ===
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -427,6 +768,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     document.getElementById('transcript-area').appendChild(p);
                     autoScroll(false); autoSave();
                     checkSentiment();
+                    maybeNotifyAutoQuestion();
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
@@ -704,6 +1046,36 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 document.getElementById('chat-area').appendChild(div);
             }
             updateUIText();
+
+            // マニュアルDB初期化と読込
+            if ('indexedDB' in window) {
+                loadManuals();
+            }
+
+            // マニュアルアップロードハンドラ
+            const manualUploadBtn = document.getElementById('manual-upload-btn');
+            const manualUploadInput = document.getElementById('manual-upload');
+            if (manualUploadBtn && manualUploadInput) {
+                manualUploadBtn.onclick = () => {
+                    manualUploadInput.click();
+                };
+                manualUploadInput.onchange = async (e) => {
+                    const files = Array.from(e.target.files || []);
+                    if (!files.length) return;
+                    for (const file of files) {
+                        if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
+                            try {
+                                const text = await file.text();
+                                await saveManualRecord(file.name, text);
+                            } catch (err) {
+                                console.error('Failed to read manual file:', err);
+                            }
+                        }
+                    }
+                    manualUploadInput.value = '';
+                    loadManuals();
+                };
+            }
         });
         document.getElementById('clear-btn').onclick = () => {
             if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？\n（現在のセッションは履歴に自動保存されます）')) {
