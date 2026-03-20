@@ -637,7 +637,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             const segments = parts.length ? parts : [t];
             const out = [];
 
-            const tailRe = /(ですか|なんですか|でしょうか|なの)(?:[？?])?$/;
+            const tailRe = /(ですか|なんですか|でしょうか|なの|のかな|だろう|でしょう|ないの|じゃないか|かな|だっけ|ますか|ないですか)(?:[？?])?$/;
 
             for (const seg of segments) {
                 const s = seg.replace(/\s+/g, ' ').trim();
