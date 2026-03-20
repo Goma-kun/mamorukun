@@ -56,7 +56,6 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         input, select, textarea { font-size: 16px !important; }
         #chat-input { resize: vertical; min-height: 2.5rem; }
-        #sentiment-badge { transition: all 0.5s ease; }
         #history-panel { transition: transform 0.25s ease; }
     </style>
 </head>
@@ -67,7 +66,6 @@
                 🛡️ まもるくん
             </h1>
             <div class="flex items-center gap-1.5 sm:gap-2">
-                <span id="sentiment-badge" class="hidden text-xs px-2 py-1 rounded-xl border font-bold border-slate-600 text-slate-400 bg-slate-800/50 whitespace-nowrap"></span>
                 <button id="history-btn" class="bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
                 <select id="lang-toggle" class="bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
                     <option value="ja" selected>🇯🇵 日本語</option>
@@ -237,8 +235,7 @@
 
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
-        let lastSentimentLogLength = 0;
-        let sentimentCheckInProgress = false;
+        // sentiment 関連は削除（感情スコア表示を完全にオフ）
 
         // === マニュアル管理（IndexedDB） ===
         let manualDB = null;
@@ -627,15 +624,27 @@ Log:\n${log}\n\nChat:\n${chat}`,
         }
 
         function extractQuestionCandidates(text) {
-            // 例: 「〜ですか？」「〜なんですか？」「〜でしょうか？」「〜なの？」
-            // 句点(。)や改行をまたがない範囲で「疑問語尾まで含む塊」を拾う
-            const re = /[^。！？\n]{2,}(?:ですか？|なんですか？|でしょうか？|なの？|ですか\?|なんですか\?|でしょうか\?|なの\?)/g;
-            const matches = (text || '').match(re) || [];
-            // order-preserving de-dupe
+            // 音声認識は末尾の「？/？マーク」を付けない場合があるため、
+            // 疑問語尾（ですか/なんですか/でしょうか/なの）を末尾判定で拾う。
+            const t = (text || '').trim();
+            if (!t) return [];
+
+            const parts = t
+                .split(/[。！？\n]/)
+                .map(s => s.trim())
+                .filter(Boolean);
+
+            const segments = parts.length ? parts : [t];
             const out = [];
-            for (const m of matches) {
-                const mm = (m || '').trim();
-                if (mm && !out.includes(mm)) out.push(mm);
+
+            const tailRe = /(ですか|なんですか|でしょうか|なの)(?:[？?])?$/;
+
+            for (const seg of segments) {
+                const s = seg.replace(/\s+/g, ' ').trim();
+                if (!s) continue;
+                if (tailRe.test(s)) {
+                    if (!out.includes(s)) out.push(s);
+                }
             }
             return out;
         }
@@ -704,15 +713,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
             autoQuestionToastTimer = setTimeout(() => hideAutoQuestionToast(), AUTO_QUESTION_APPROVAL_MS);
         }
 
-        function maybeNotifyAutoQuestion() {
+        function maybeNotifyAutoQuestion(textChunk) {
             if (!isRecording) return;
-            if (!rawLogText) return;
             if (!autoQuestionToastEl) return;
             // 既に通知中なら上書きしない（ユーザーが押す猶予を確保）
             if (!autoQuestionToastEl.classList.contains('hidden')) return;
 
-            const windowText = rawLogText.slice(-400);
-            const candidates = extractQuestionCandidates(windowText);
+            const candidates = extractQuestionCandidates(textChunk);
             if (!candidates.length) return;
 
             const latest = candidates[candidates.length - 1].trim();
@@ -767,8 +774,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     p.textContent = final;
                     document.getElementById('transcript-area').appendChild(p);
                     autoScroll(false); autoSave();
-                    checkSentiment();
-                    maybeNotifyAutoQuestion();
+                    maybeNotifyAutoQuestion(final);
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
@@ -1190,46 +1196,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
         document.getElementById('history-btn').onclick = openHistoryPanel;
 
-        // ============================================================
-        // 感情分析・通話品質スコア
-        // ============================================================
-        async function checkSentiment() {
-            if (sentimentCheckInProgress) return;
-            if (rawLogText.length - lastSentimentLogLength < 120) return;
-            sentimentCheckInProgress = true;
-            lastSentimentLogLength = rawLogText.length;
-            const recentLog = rawLogText.slice(-500);
-            const prompt = currentLang === 'ja'
-                ? `以下の応対ログから顧客の感情状態を分析してください。必ずJSONのみを返してください（説明文不要）:\n{"sentiment":"positive","score":75,"label":"😊 満足"}\nsentimentは"positive","neutral","negative"のいずれか。scoreは0-100の整数。labelは"😊 満足","😐 中立","😡 不満"のいずれか。\n\nログ:\n${recentLog}`
-                : `Analyze the customer sentiment from the transcript. Return ONLY JSON (no explanation):\n{"sentiment":"positive","score":75,"label":"😊 Satisfied"}\nsentiment: "positive","neutral","negative". score: 0-100 integer. label: "😊 Satisfied","😐 Neutral","😡 Frustrated".\n\nTranscript:\n${recentLog}`;
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
-                });
-                const data = await res.json();
-                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-                    const text = data.candidates[0].content.parts[0].text.trim();
-                    const match = text.match(/\{[^}]+\}/);
-                    if (match) updateSentimentDisplay(JSON.parse(match[0]));
-                }
-            } catch(e) {}
-            sentimentCheckInProgress = false;
-        }
-
-        function updateSentimentDisplay(data) {
-            const badge = document.getElementById('sentiment-badge');
-            if (!badge || !data || !data.sentiment) return;
-            const colors = {
-                positive: 'text-xs px-2 py-1 rounded-xl border font-bold bg-emerald-500/20 border-emerald-500/50 text-emerald-300 whitespace-nowrap',
-                neutral:  'text-xs px-2 py-1 rounded-xl border font-bold bg-slate-500/20 border-slate-500/50 text-slate-300 whitespace-nowrap',
-                negative: 'text-xs px-2 py-1 rounded-xl border font-bold bg-rose-500/20 border-rose-500/50 text-rose-300 whitespace-nowrap'
-            };
-            badge.className = colors[data.sentiment] || colors.neutral;
-            badge.textContent = `${data.label} ${data.score}`;
-            badge.title = `顧客感情スコア: ${data.score}/100`;
-        }
+        // sentiment 関連は削除（感情スコア表示を完全にオフ）
     </script>
 </body>
 </html>
