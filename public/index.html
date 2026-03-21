@@ -524,6 +524,14 @@ Log:\n${log}\n\nChat:\n${chat}`,
             if (el && el.parentNode) el.remove();
         }
 
+        /** 録音停止時: 残っている疑問トーストをすべて削除 */
+        function clearAllAutoQuestionToasts() {
+            while (autoQuestionToastStack.length) {
+                const entry = autoQuestionToastStack.shift();
+                if (entry && entry.el && entry.el.parentNode) entry.el.remove();
+            }
+        }
+
         function normalizeFingerprint(s) {
             return (s || '').replace(/\s+/g, ' ').trim();
         }
@@ -546,8 +554,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
         }
 
         function extractQuestionCandidates(text) {
-            // 音声認識は末尾の「？/？マーク」を付けない場合があるため、
-            // 疑問語尾（ですか/なんですか/でしょうか/なの）を末尾判定で拾う。
+            // 疑問・依頼表現のみ（かな／だろう／のかな等の独り言系は除外）。長い語尾を先にマッチ。
             const t = (text || '').trim();
             if (!t) return [];
 
@@ -559,7 +566,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             const segments = parts.length ? parts : [t];
             const out = [];
 
-            const tailRe = /(ですか|なんですか|でしょうか|なの|のかな|だろう|でしょう|ないの|じゃないか|かな|だっけ|ますか|ないですか)(?:[？?])?$/;
+            const tailRe = /(ますでしょうか|ないですか|教えてもらえますか|調べてもらえますか|でしょうか|ませんか|教えてください|調べてください|探してください|ますか|ですか)(?:[？?])?$/;
 
             for (const seg of segments) {
                 const s = seg.replace(/\s+/g, ' ').trim();
@@ -757,8 +764,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         toggleBtn.onclick = () => {
-            if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); } 
-            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); }
+            if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); }
+            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); clearAllAutoQuestionToasts(); }
             updateUIText();
         };
 
