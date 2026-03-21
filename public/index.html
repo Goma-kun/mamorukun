@@ -59,10 +59,10 @@
         #history-panel { transition: transform 0.25s ease; }
     </style>
 </head>
-<body class="bg-slate-900 p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
-    <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full gap-1.5 sm:gap-5">
-        <header class="flex justify-between items-center mb-0 sm:mb-1 shrink-0 bg-slate-900/70 border border-slate-800 rounded-2xl px-3 sm:px-5 py-2 sm:py-3 shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur">
-            <h1 id="app-title" class="text-lg sm:text-xl md:text-2xl font-extrabold tracking-wider text-sky-400 drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]">
+<body class="bg-slate-900 p-2 sm:p-5 h-[100dvh] flex flex-col text-base overflow-hidden">
+    <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full gap-1 sm:gap-3">
+        <header class="flex justify-between items-center mb-0 shrink-0 bg-slate-900/70 border border-slate-800 rounded-xl px-2.5 sm:px-4 py-1 sm:py-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.9)] backdrop-blur">
+            <h1 id="app-title" class="text-base sm:text-lg md:text-xl font-extrabold tracking-wide text-sky-400 drop-shadow-[0_0_14px_rgba(56,189,248,0.4)] leading-tight">
                 🛡️ まもるくん
             </h1>
             <div class="flex items-center gap-1.5 sm:gap-2">
@@ -142,7 +142,6 @@
                         <div id="summary-area"></div>
                     </div>
                 </div>
-                <div id="suggestion-area" class="border-t border-slate-800/80 bg-slate-950/60"></div>
             </div>
 
             <!-- カメラ / チャット入力 カード -->
@@ -164,22 +163,22 @@
             </div>
 
             <!-- アクションボタン / レポート カード -->
-            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-2.5 sm:px-4 py-1.5 sm:py-2 shrink-0">
-                <div class="grid grid-cols-3 gap-1.5 sm:gap-2">
-                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1.5 sm:py-2 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 leading-tight text-slate-950 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]">
-                        <span class="text-sm sm:text-base">🎙️</span>
-                        <span>録音開始</span>
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl shadow-[0_14px_44px_rgba(15,23,42,0.94)] backdrop-blur px-2 sm:px-3 py-1 sm:py-1.5 shrink-0">
+                <div class="grid grid-cols-3 gap-1 sm:gap-1.5">
+                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50">
+                        <span class="text-xs sm:text-sm leading-none">🎙️</span>
+                        <span class="leading-tight">録音開始</span>
                     </button>
-                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-1.5 sm:py-2 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 leading-tight text-slate-950 shadow-lg shadow-amber-900/60 hover:shadow-amber-400/60 hover:-translate-y-[1px]">
-                        <span class="text-sm sm:text-base">💡</span>
-                        <span>ヒアリング確認</span>
+                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-amber-900/50 hover:shadow-amber-400/50">
+                        <span class="text-xs sm:text-sm leading-none">💡</span>
+                        <span class="leading-tight">ヒアリング確認</span>
                     </button>
-                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-1.5 sm:py-2 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 leading-tight text-slate-50 shadow-lg shadow-indigo-900/60 hover:shadow-indigo-400/60 hover:-translate-y-[1px]">
-                        <span class="text-sm sm:text-base">📄</span>
-                        <span>要約作成</span>
+                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 shadow-md shadow-indigo-900/50 hover:shadow-indigo-400/50">
+                        <span class="text-xs sm:text-sm leading-none">📄</span>
+                        <span class="leading-tight">要約作成</span>
                     </button>
                 </div>
-                <div class="mt-1.5 sm:mt-2 flex items-center justify-between gap-2">
+                <div class="mt-1 sm:mt-1.5 flex items-center justify-between gap-2">
                     <div id="manual-status" class="text-[10px] sm:text-xs text-slate-400 truncate">
                         登録済みマニュアル: 0件
                     </div>
@@ -242,69 +241,12 @@
         // === マニュアル管理（IndexedDB） ===
         let manualDB = null;
         let manualsCache = [];
-        let currentSuggestions = [];
 
         function renderManualStatus() {
             const el = document.getElementById('manual-status');
             if (!el) return;
             const count = manualsCache.length || 0;
             el.textContent = `登録済みマニュアル: ${count}件`;
-        }
-
-        function renderSuggestions() {
-            const container = document.getElementById('suggestion-area');
-            if (!container) return;
-            container.innerHTML = '';
-
-            const wrapper = document.createElement('div');
-            wrapper.className = "px-3 sm:px-4 py-2 sm:py-2.5 text-[11px] sm:text-xs text-slate-200";
-
-            const title = document.createElement('div');
-            title.className = "font-semibold text-sky-300 flex items-center gap-1 mb-1.5";
-            title.innerHTML = "<span>🔍</span><span>関連マニュアルサジェスト</span>";
-            wrapper.appendChild(title);
-
-            if (!currentSuggestions || currentSuggestions.length === 0) {
-                const empty = document.createElement('div');
-                empty.className = "text-[11px] sm:text-xs text-slate-500";
-                empty.textContent = "いま関連するマニュアルサジェストはありません。";
-                wrapper.appendChild(empty);
-                container.appendChild(wrapper);
-                return;
-            }
-
-            const list = document.createElement('div');
-            list.className = "space-y-1.5";
-
-            currentSuggestions.forEach(s => {
-                const item = document.createElement('div');
-                item.className = "bg-slate-900/70 border border-slate-700/80 rounded-xl px-2.5 py-1.5";
-
-                const header = document.createElement('div');
-                header.className = "flex items-center justify-between gap-2 mb-0.5";
-
-                const titleEl = document.createElement('div');
-                titleEl.className = "font-semibold text-[11px] sm:text-xs text-slate-100 truncate";
-                titleEl.textContent = s.title || "(無題)";
-
-                const fileEl = document.createElement('div');
-                fileEl.className = "text-[10px] text-slate-500 truncate";
-                fileEl.textContent = s.file || "";
-
-                header.appendChild(titleEl);
-                header.appendChild(fileEl);
-
-                const body = document.createElement('div');
-                body.className = "text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap";
-                body.textContent = s.snippet || "";
-
-                item.appendChild(header);
-                item.appendChild(body);
-                list.appendChild(item);
-            });
-
-            wrapper.appendChild(list);
-            container.appendChild(wrapper);
         }
 
         function openManualDB() {
@@ -358,22 +300,6 @@
                 });
                 manualsCache = all;
                 renderManualStatus();
-
-                // ダミーのサジェスト表示（プロトタイプ用）
-                if (manualsCache.length > 0 && (!currentSuggestions || currentSuggestions.length === 0)) {
-                    const first = manualsCache[0];
-                    const snippet = (first.content || '').slice(0, 120).replace(/\s+/g, ' ');
-                    currentSuggestions = [
-                        {
-                            file: first.name || 'manual.txt',
-                            title: 'マニュアルからの参考情報',
-                            snippet: snippet || 'ここにマニュアル本文からの抜粋が表示されます。'
-                        }
-                    ];
-                    renderSuggestions();
-                } else {
-                    renderSuggestions();
-                }
             } catch (e) {
                 console.error('Failed to load manuals:', e);
             }
@@ -382,17 +308,32 @@
         const errorBanner = document.getElementById('error-banner');
         const errorBannerMessage = document.getElementById('error-banner-message');
         const errorBannerClose = document.getElementById('error-banner-close');
+        let errorBannerAutoHideTimer = null;
+
+        function hideErrorBanner() {
+            if (errorBannerAutoHideTimer) {
+                clearTimeout(errorBannerAutoHideTimer);
+                errorBannerAutoHideTimer = null;
+            }
+            if (errorBanner) errorBanner.classList.add('hidden');
+        }
 
         function showError(message) {
             if (!errorBanner || !errorBannerMessage) return;
+            if (errorBannerAutoHideTimer) {
+                clearTimeout(errorBannerAutoHideTimer);
+                errorBannerAutoHideTimer = null;
+            }
             errorBannerMessage.textContent = message;
             errorBanner.classList.remove('hidden');
+            errorBannerAutoHideTimer = setTimeout(() => {
+                errorBannerAutoHideTimer = null;
+                if (errorBanner) errorBanner.classList.add('hidden');
+            }, 3000);
         }
 
         if (errorBannerClose) {
-            errorBannerClose.onclick = () => {
-                if (errorBanner) errorBanner.classList.add('hidden');
-            };
+            errorBannerClose.onclick = () => hideErrorBanner();
         }
 
         // === 言語とUIテキスト ===
@@ -571,15 +512,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
             sendBtn.innerText = t.btnSend;
             
             if (isRecording) {
-                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-1.5 sm:py-2 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 leading-tight text-slate-50 animate-pulse shrink-0 shadow-lg shadow-rose-900/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-sm sm:text-base">⏹️</span><span>${t.btnStop}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 animate-pulse shadow-md shadow-rose-900/50";
+                toggleBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">⏹️</span><span class="leading-tight">${t.btnStop}</span>`;
             } else {
-                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1.5 sm:py-2 rounded-xl font-bold transition-all active:scale-95 text-xs sm:text-sm flex flex-col items-center justify-center gap-0.5 leading-tight text-slate-950 shrink-0 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-sm sm:text-base">🎙️</span><span>${t.btnStart}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50";
+                toggleBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">🎙️</span><span class="leading-tight">${t.btnStart}</span>`;
             }
             
-            document.getElementById('advice-btn').innerHTML = `<span class="text-sm sm:text-base">💡</span><span>${t.btnAdvice}</span>`;
-            summarizeBtn.innerHTML = `<span class="text-sm sm:text-base">📄</span><span>${t.btnSummarize}</span>`;
+            document.getElementById('advice-btn').innerHTML = `<span class="text-xs sm:text-sm leading-none">💡</span><span class="leading-tight">${t.btnAdvice}</span>`;
+            summarizeBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">📄</span><span class="leading-tight">${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
             document.getElementById('clear-text').innerText = t.btnClear;
             if (autoQuestionToastTitleEl) autoQuestionToastTitleEl.textContent = t.autoQuestionTitle;
@@ -649,6 +590,28 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 }
             }
             return out;
+        }
+
+        /** 疑問検知後に送る本文: 直近30秒の確定文から「今の1件より前」だけをつなぎ、その末尾300文字を文脈として質問と結合 */
+        function buildComposedQuestionWithContext(latest) {
+            const q = (latest || '').trim();
+            if (!q) return '';
+            const segs = transcriptFinalTimeSegments;
+            let contextSource = '';
+            if (segs.length > 1) {
+                contextSource = segs.slice(0, -1).map(s => s.text).join('\n');
+            } else {
+                const rt = (rawLogText || '').replace(/\n+$/, '');
+                const idx = rt.lastIndexOf('\n');
+                contextSource = idx >= 0 ? rt.slice(0, idx) : '';
+            }
+            const context300 = contextSource.slice(-300).trim();
+            const ctxLabel = currentLang === 'en'
+                ? 'Context (last ~30s of speech, last 300 chars):'
+                : '【直前の文脈（直近30秒・末尾300文字相当）】';
+            const qLabel = currentLang === 'en' ? 'Question:' : '【質問】';
+            if (!context300) return q;
+            return `${ctxLabel}\n${context300}\n\n${qLabel}\n${q}`;
         }
 
         async function sendChatQuestionText(q) {
@@ -728,14 +691,17 @@ Log:\n${log}\n\nChat:\n${chat}`,
             const latest = candidates[candidates.length - 1].trim();
             if (!latest) return;
 
-            const fingerprint = normalizeFingerprint(latest);
+            const composed = buildComposedQuestionWithContext(latest);
+            const fpComposed = normalizeFingerprint(composed);
+            const fpLatest = normalizeFingerprint(latest);
             const now = Date.now();
-            if (fingerprint === lastAutoQuestionSentFingerprint) return;
-            if (fingerprint === lastAutoQuestionSeenFingerprint && now - lastAutoQuestionSeenAt < AUTO_QUESTION_SUPPRESS_MS) return;
+            if (fpComposed === lastAutoQuestionSentFingerprint) return;
+            if (fpLatest === lastAutoQuestionSeenFingerprint && now - lastAutoQuestionSeenAt < AUTO_QUESTION_SUPPRESS_MS) return;
 
-            lastAutoQuestionSeenFingerprint = fingerprint;
+            lastAutoQuestionSeenFingerprint = fpLatest;
             lastAutoQuestionSeenAt = now;
-            showAutoQuestionToast(latest);
+            console.log('[DEBUG] composedQuestion:', composed);
+            showAutoQuestionToast(composed);
         }
 
         if (autoQuestionApproveBtn) {
