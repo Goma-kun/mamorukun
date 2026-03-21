@@ -81,25 +81,8 @@
             </div>
         </div>
 
-        <!-- 疑問文の半自動AI送信（通知→承認） -->
-        <div id="auto-question-toast" class="hidden fixed bottom-24 left-1/2 -translate-x-1/2 z-[70] w-[calc(100%-2rem)] sm:w-[32rem]">
-            <div class="bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur px-3 py-2 flex items-start gap-2">
-                <div class="text-sky-400 text-xl leading-none mt-0.5 shrink-0">❓</div>
-                <div class="flex-1 min-w-0">
-                    <div id="auto-question-toast-title" class="text-xs text-sky-300 font-bold mb-0.5"></div>
-                    <div id="auto-question-toast-question" class="text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words"></div>
-                    <div id="auto-question-toast-hint" class="text-[10px] text-slate-400 mt-0.5"></div>
-                </div>
-                <div class="flex flex-col gap-1.5 shrink-0">
-                    <button id="auto-question-approve-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-3 py-2 rounded-xl font-bold text-[10px] sm:text-xs text-slate-950 transition-all active:scale-95 shadow-lg shadow-emerald-900/60">
-                        送信する
-                    </button>
-                    <button id="auto-question-cancel-btn" class="text-[10px] sm:text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg border border-slate-700/60 hover:border-sky-500/40 transition-all">
-                        キャンセル
-                    </button>
-                </div>
-            </div>
-        </div>
+        <!-- 疑問文トースト（最大3件・右下に縦積み・新しいほど下） -->
+        <div id="auto-question-toast-stack" class="fixed bottom-24 right-2 sm:right-3 z-[70] flex flex-col gap-2 items-end pointer-events-none w-[calc(100%-1rem)] max-w-[20rem] sm:max-w-[22rem]" aria-live="polite"></div>
 
         <div class="flex flex-col flex-1 min-h-0 gap-1.5 sm:gap-2 mt-0 sm:mt-1">
             <!-- 文字起こし / ログ & レポート カード -->
@@ -520,41 +503,26 @@ Log:\n${log}\n\nChat:\n${chat}`,
             summarizeBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">📄</span><span class="leading-tight">${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
             document.getElementById('clear-text').innerText = t.btnClear;
-            if (autoQuestionToastTitleEl) autoQuestionToastTitleEl.textContent = t.autoQuestionTitle;
-            if (autoQuestionToastHintEl) autoQuestionToastHintEl.textContent = t.autoQuestionHint;
-            if (autoQuestionApproveBtn) autoQuestionApproveBtn.innerText = t.autoQuestionApprove;
-            if (autoQuestionCancelBtn) autoQuestionCancelBtn.innerText = t.autoQuestionCancel;
         }
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
 
-        // === 疑問文の半自動AI送信（通知→承認） ===
+        // === 疑問文の半自動AI送信（通知→承認・最大3件スタック） ===
         const AUTO_QUESTION_SUPPRESS_MS = 60000; // 一度表示した疑問文は60秒間再検知しない
+        const MAX_AUTO_QUESTION_TOASTS = 3;
 
-        const autoQuestionToastEl = document.getElementById('auto-question-toast');
-        const autoQuestionToastTitleEl = document.getElementById('auto-question-toast-title');
-        const autoQuestionToastHintEl = document.getElementById('auto-question-toast-hint');
-        const autoQuestionToastQuestionEl = document.getElementById('auto-question-toast-question');
-        const autoQuestionApproveBtn = document.getElementById('auto-question-approve-btn');
-        const autoQuestionCancelBtn = document.getElementById('auto-question-cancel-btn');
-
-        let autoQuestionToastTimer = null;
-        let autoQuestionToastInterval = null;
-        let autoQuestionToastExpiresAt = 0;
-        let autoQuestionToastQuestionText = "";
+        const autoQuestionToastStackEl = document.getElementById('auto-question-toast-stack');
+        /** @type {{ el: HTMLElement, fpComposed: string }[]} */
+        let autoQuestionToastStack = [];
 
         let lastAutoQuestionSentFingerprint = "";
         let lastAutoQuestionSeenFingerprint = "";
         let lastAutoQuestionSeenAt = 0;
 
-        function hideAutoQuestionToast() {
-            if (autoQuestionToastTimer) clearTimeout(autoQuestionToastTimer);
-            if (autoQuestionToastInterval) clearInterval(autoQuestionToastInterval);
-            autoQuestionToastTimer = null;
-            autoQuestionToastInterval = null;
-            autoQuestionToastExpiresAt = 0;
-            autoQuestionToastQuestionText = "";
-            if (autoQuestionToastEl) autoQuestionToastEl.classList.add('hidden');
+        function removeAutoQuestionToastEntry(el) {
+            const idx = autoQuestionToastStack.findIndex(t => t.el === el);
+            if (idx >= 0) autoQuestionToastStack.splice(idx, 1);
+            if (el && el.parentNode) el.remove();
         }
 
         function normalizeFingerprint(s) {
@@ -642,29 +610,78 @@ Log:\n${log}\n\nChat:\n${chat}`,
             sendBtn.disabled = false;
         }
 
-        /** displayText: トーストに表示するテキスト（質問文のみ）。sendPayload: 送信時にGeminiへ渡す本文（文脈付き） */
+        /** displayText: トースト表示は質問文のみ。sendPayload: Gemini 送信本文（文脈付き） */
         function showAutoQuestionToast(displayText, sendPayload) {
             console.log('[DEBUG] showAutoQuestionToast called, display:', displayText);
-            if (!autoQuestionToastEl) return;
-            hideAutoQuestionToast();
+            if (!autoQuestionToastStackEl) return;
 
-            autoQuestionToastQuestionText = sendPayload;
+            const fpComposed = normalizeFingerprint(sendPayload);
+            if (autoQuestionToastStack.some(entry => entry.fpComposed === fpComposed)) return;
+
+            while (autoQuestionToastStack.length >= MAX_AUTO_QUESTION_TOASTS) {
+                const oldest = autoQuestionToastStack.shift();
+                if (oldest && oldest.el.parentNode) oldest.el.remove();
+            }
 
             const t = i18n[currentLang];
-            if (autoQuestionToastTitleEl) autoQuestionToastTitleEl.textContent = t.autoQuestionTitle;
-            if (autoQuestionToastHintEl) autoQuestionToastHintEl.textContent = t.autoQuestionHint;
-            if (autoQuestionToastQuestionEl) autoQuestionToastQuestionEl.textContent = displayText;
+            const card = document.createElement('div');
+            card.className = 'pointer-events-auto bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur px-3 py-2 flex items-start gap-2 w-full';
 
-            if (autoQuestionApproveBtn) autoQuestionApproveBtn.disabled = !!sendBtn.disabled;
+            const icon = document.createElement('div');
+            icon.className = 'text-sky-400 text-lg leading-none mt-0.5 shrink-0';
+            icon.textContent = '❓';
 
-            autoQuestionToastEl.classList.remove('hidden');
+            const mid = document.createElement('div');
+            mid.className = 'flex-1 min-w-0';
+            const titleEl = document.createElement('div');
+            titleEl.className = 'text-xs text-sky-300 font-bold mb-0.5';
+            titleEl.textContent = t.autoQuestionTitle;
+            const qEl = document.createElement('div');
+            qEl.className = 'text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words';
+            qEl.textContent = displayText;
+            const hintEl = document.createElement('div');
+            hintEl.className = 'text-[10px] text-slate-400 mt-0.5';
+            hintEl.textContent = t.autoQuestionHint;
+            mid.appendChild(titleEl);
+            mid.appendChild(qEl);
+            mid.appendChild(hintEl);
+
+            const btnCol = document.createElement('div');
+            btnCol.className = 'flex flex-col gap-1.5 shrink-0';
+            const approveBtn = document.createElement('button');
+            approveBtn.type = 'button';
+            approveBtn.className = 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-2.5 py-1.5 rounded-xl font-bold text-[10px] sm:text-xs text-slate-950 transition-all active:scale-95 shadow-lg shadow-emerald-900/60';
+            approveBtn.textContent = t.autoQuestionApprove;
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'text-[10px] sm:text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg border border-slate-700/60 hover:border-sky-500/40 transition-all';
+            cancelBtn.textContent = t.autoQuestionCancel;
+
+            approveBtn.disabled = !!sendBtn.disabled;
+            approveBtn.onclick = async () => {
+                const q = sendPayload;
+                lastAutoQuestionSentFingerprint = normalizeFingerprint(q);
+                removeAutoQuestionToastEntry(card);
+                await sendChatQuestionText(q);
+            };
+            cancelBtn.onclick = () => {
+                lastAutoQuestionSentFingerprint = normalizeFingerprint(sendPayload);
+                removeAutoQuestionToastEntry(card);
+            };
+
+            btnCol.appendChild(approveBtn);
+            btnCol.appendChild(cancelBtn);
+            card.appendChild(icon);
+            card.appendChild(mid);
+            card.appendChild(btnCol);
+
+            autoQuestionToastStackEl.appendChild(card);
+            autoQuestionToastStack.push({ el: card, fpComposed });
         }
 
         function maybeNotifyAutoQuestion(textChunk) {
             if (!isRecording) return;
-            if (!autoQuestionToastEl) return;
-            // 既に通知中なら上書きしない（ユーザーが押す猶予を確保）
-            if (!autoQuestionToastEl.classList.contains('hidden')) return;
+            if (!autoQuestionToastStackEl) return;
 
             const candidates = extractQuestionCandidates(textChunk);
             if (!candidates.length) return;
@@ -678,24 +695,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
             const now = Date.now();
             if (fpComposed === lastAutoQuestionSentFingerprint) return;
             if (fpLatest === lastAutoQuestionSeenFingerprint && now - lastAutoQuestionSeenAt < AUTO_QUESTION_SUPPRESS_MS) return;
+            if (autoQuestionToastStack.some(entry => entry.fpComposed === fpComposed)) return;
 
             lastAutoQuestionSeenFingerprint = fpLatest;
             lastAutoQuestionSeenAt = now;
             console.log('[DEBUG] composedQuestion:', composed);
             showAutoQuestionToast(latest, composed);
-        }
-
-        if (autoQuestionApproveBtn) {
-            autoQuestionApproveBtn.onclick = async () => {
-                if (!autoQuestionToastQuestionText) return;
-                const q = autoQuestionToastQuestionText;
-                hideAutoQuestionToast();
-                lastAutoQuestionSentFingerprint = normalizeFingerprint(q);
-                await sendChatQuestionText(q);
-            };
-        }
-        if (autoQuestionCancelBtn) {
-            autoQuestionCancelBtn.onclick = () => hideAutoQuestionToast();
         }
 
         // === 音声認識処理 ===
