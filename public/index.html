@@ -89,9 +89,6 @@
                     <div id="auto-question-toast-title" class="text-xs text-sky-300 font-bold mb-0.5"></div>
                     <div id="auto-question-toast-question" class="text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words"></div>
                     <div id="auto-question-toast-hint" class="text-[10px] text-slate-400 mt-0.5"></div>
-                    <div class="text-[10px] text-slate-400 mt-0.5">
-                        <span id="auto-question-toast-countdown"></span>
-                    </div>
                 </div>
                 <div class="flex flex-col gap-1.5 shrink-0">
                     <button id="auto-question-approve-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-3 py-2 rounded-xl font-bold text-[10px] sm:text-xs text-slate-950 transition-all active:scale-95 shadow-lg shadow-emerald-900/60">
@@ -348,7 +345,7 @@
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
                 noChatHistory: "AIとのやり取りはありません。",
                 autoQuestionTitle: "疑問文を検知しました",
-                autoQuestionHint: "数秒以内にタップで承認できます",
+                autoQuestionHint: "送信するかキャンセルを押してください",
                 autoQuestionApprove: "送信する",
                 autoQuestionCancel: "キャンセル"
             },
@@ -362,7 +359,7 @@
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
                 noChatHistory: "No AI interactions.",
                 autoQuestionTitle: "Detected a question",
-                autoQuestionHint: "Tap to approve within a few seconds",
+                autoQuestionHint: "Tap to send or cancel",
                 autoQuestionApprove: "Send",
                 autoQuestionCancel: "Cancel"
             }
@@ -532,14 +529,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
 
         // === 疑問文の半自動AI送信（通知→承認） ===
-        const AUTO_QUESTION_APPROVAL_MS = 8000; // 承認までの猶予（秒読み）
-        const AUTO_QUESTION_SUPPRESS_MS = 10000; // 同じ候補の連打抑止
+        const AUTO_QUESTION_SUPPRESS_MS = 60000; // 一度表示した疑問文は60秒間再検知しない
 
         const autoQuestionToastEl = document.getElementById('auto-question-toast');
         const autoQuestionToastTitleEl = document.getElementById('auto-question-toast-title');
         const autoQuestionToastHintEl = document.getElementById('auto-question-toast-hint');
         const autoQuestionToastQuestionEl = document.getElementById('auto-question-toast-question');
-        const autoQuestionToastCountdownEl = document.getElementById('auto-question-toast-countdown');
         const autoQuestionApproveBtn = document.getElementById('auto-question-approve-btn');
         const autoQuestionCancelBtn = document.getElementById('auto-question-cancel-btn');
 
@@ -647,36 +642,22 @@ Log:\n${log}\n\nChat:\n${chat}`,
             sendBtn.disabled = false;
         }
 
-        function showAutoQuestionToast(questionText) {
-            console.log('[DEBUG] showAutoQuestionToast called:', questionText);
+        /** displayText: トーストに表示するテキスト（質問文のみ）。sendPayload: 送信時にGeminiへ渡す本文（文脈付き） */
+        function showAutoQuestionToast(displayText, sendPayload) {
+            console.log('[DEBUG] showAutoQuestionToast called, display:', displayText);
             if (!autoQuestionToastEl) return;
             hideAutoQuestionToast();
 
-            autoQuestionToastQuestionText = questionText;
-            autoQuestionToastExpiresAt = Date.now() + AUTO_QUESTION_APPROVAL_MS;
+            autoQuestionToastQuestionText = sendPayload;
 
             const t = i18n[currentLang];
             if (autoQuestionToastTitleEl) autoQuestionToastTitleEl.textContent = t.autoQuestionTitle;
             if (autoQuestionToastHintEl) autoQuestionToastHintEl.textContent = t.autoQuestionHint;
-            if (autoQuestionToastQuestionEl) autoQuestionToastQuestionEl.textContent = questionText;
+            if (autoQuestionToastQuestionEl) autoQuestionToastQuestionEl.textContent = displayText;
 
             if (autoQuestionApproveBtn) autoQuestionApproveBtn.disabled = !!sendBtn.disabled;
 
-            const updateCountdown = () => {
-                const ms = autoQuestionToastExpiresAt - Date.now();
-                if (ms <= 0) {
-                    hideAutoQuestionToast();
-                    return;
-                }
-                const sec = Math.ceil(ms / 1000);
-                if (autoQuestionToastCountdownEl) autoQuestionToastCountdownEl.textContent =
-                    currentLang === 'en' ? `Send in ${sec}s` : `送信まで ${sec}秒`;
-            };
-
-            updateCountdown();
             autoQuestionToastEl.classList.remove('hidden');
-            autoQuestionToastInterval = setInterval(updateCountdown, 200);
-            autoQuestionToastTimer = setTimeout(() => hideAutoQuestionToast(), AUTO_QUESTION_APPROVAL_MS);
         }
 
         function maybeNotifyAutoQuestion(textChunk) {
@@ -701,16 +682,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
             lastAutoQuestionSeenFingerprint = fpLatest;
             lastAutoQuestionSeenAt = now;
             console.log('[DEBUG] composedQuestion:', composed);
-            showAutoQuestionToast(composed);
+            showAutoQuestionToast(latest, composed);
         }
 
         if (autoQuestionApproveBtn) {
             autoQuestionApproveBtn.onclick = async () => {
                 if (!autoQuestionToastQuestionText) return;
-                if (Date.now() > autoQuestionToastExpiresAt) {
-                    hideAutoQuestionToast();
-                    return;
-                }
                 const q = autoQuestionToastQuestionText;
                 hideAutoQuestionToast();
                 lastAutoQuestionSentFingerprint = normalizeFingerprint(q);
