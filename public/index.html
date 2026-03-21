@@ -743,7 +743,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     console.log('[DEBUG] final:', final);
                     console.log('[DEBUG] detectionBlob:', detectionBlob);
                     console.log('[DEBUG] candidates:', extractQuestionCandidates(detectionBlob));
-                    maybeNotifyAutoQuestion(detectionBlob);
+                    setTimeout(() => {
+                        maybeNotifyAutoQuestion(detectionBlob);
+                    }, 1500);
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
