@@ -158,17 +158,6 @@
                         <span class="leading-tight">要約作成</span>
                     </button>
                 </div>
-                <div class="mt-1 sm:mt-1.5 flex items-center justify-between gap-2">
-                    <div id="manual-status" class="text-[10px] sm:text-xs text-slate-400 truncate">
-                        登録済みマニュアル: 0件
-                    </div>
-                    <div class="flex items-center gap-1.5">
-                        <button id="manual-upload-btn" class="text-[10px] sm:text-xs px-2.5 py-1 rounded-lg border border-slate-600 text-slate-200 bg-slate-900/80 hover:bg-slate-800 hover:border-sky-500 hover:text-sky-200 transition-all">
-                            📚 マニュアル登録
-                        </button>
-                        <input id="manual-upload" type="file" accept=".txt" multiple class="hidden">
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -219,73 +208,6 @@
         /** トリガーワード方式: 「質問です」〜「以上です」抽出済み位置（rawLogText 先頭からのオフセット） */
         let triggerScanPointer = 0;
         // sentiment 関連は削除（感情スコア表示を完全にオフ）
-
-        // === マニュアル管理（IndexedDB） ===
-        let manualDB = null;
-        let manualsCache = [];
-
-        function renderManualStatus() {
-            const el = document.getElementById('manual-status');
-            if (!el) return;
-            const count = manualsCache.length || 0;
-            el.textContent = `登録済みマニュアル: ${count}件`;
-        }
-
-        function openManualDB() {
-            if (manualDB) return Promise.resolve(manualDB);
-            return new Promise((resolve, reject) => {
-                const req = indexedDB.open('mamoru_manuals', 1);
-                req.onupgradeneeded = (event) => {
-                    const db = event.target.result;
-                    if (!db.objectStoreNames.contains('manualFiles')) {
-                        const store = db.createObjectStore('manualFiles', { keyPath: 'id', autoIncrement: true });
-                        store.createIndex('createdAt', 'createdAt', { unique: false });
-                    }
-                };
-                req.onsuccess = (event) => {
-                    manualDB = event.target.result;
-                    resolve(manualDB);
-                };
-                req.onerror = () => reject(req.error);
-            });
-        }
-
-        async function saveManualRecord(fileName, content) {
-            try {
-                const db = await openManualDB();
-                await new Promise((resolve, reject) => {
-                    const tx = db.transaction('manualFiles', 'readwrite');
-                    const store = tx.objectStore('manualFiles');
-                    store.add({
-                        name: fileName,
-                        type: 'text',
-                        content,
-                        createdAt: Date.now()
-                    });
-                    tx.oncomplete = () => resolve();
-                    tx.onerror = () => reject(tx.error);
-                });
-            } catch (e) {
-                console.error('Failed to save manual:', e);
-            }
-        }
-
-        async function loadManuals() {
-            try {
-                const db = await openManualDB();
-                const all = await new Promise((resolve, reject) => {
-                    const tx = db.transaction('manualFiles', 'readonly');
-                    const store = tx.objectStore('manualFiles');
-                    const req = store.index('createdAt').getAll();
-                    req.onsuccess = () => resolve(req.result || []);
-                    req.onerror = () => reject(req.error);
-                });
-                manualsCache = all;
-                renderManualStatus();
-            } catch (e) {
-                console.error('Failed to load manuals:', e);
-            }
-        }
 
         const errorBanner = document.getElementById('error-banner');
         const errorBannerMessage = document.getElementById('error-banner-message');
@@ -555,31 +477,6 @@ Log:\n${log}\n\nChat:\n${chat}`,
             questionSuppressUntil[fpQuestion] = Date.now() + ms;
         }
 
-        function extractQuestionCandidates(text) {
-            // 疑問・依頼表現のみ（かな／だろう／のかな等の独り言系は除外）。長い語尾を先にマッチ。
-            const t = (text || '').trim();
-            if (!t) return [];
-
-            const parts = t
-                .split(/[。！？\n]/)
-                .map(s => s.trim())
-                .filter(Boolean);
-
-            const segments = parts.length ? parts : [t];
-            const out = [];
-
-            const tailRe = /(ますでしょうか|ないですか|教えてもらえますか|調べてもらえますか|でしょうか|ませんか|教えてください|調べてください|探してください|ますか|ですか)(?:[？?])?$/;
-
-            for (const seg of segments) {
-                const s = seg.replace(/\s+/g, ' ').trim();
-                if (!s) continue;
-                if (tailRe.test(s)) {
-                    if (!out.includes(s)) out.push(s);
-                }
-            }
-            return out;
-        }
-
         /** 疑問検知後に送る本文: 直近30秒の確定文から「今の1件より前」だけをつなぎ、その末尾300文字を文脈として質問と結合 */
         function buildComposedQuestionWithContext(latest) {
             const q = (latest || '').trim();
@@ -695,28 +592,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
             autoQuestionToastStack.push({ el: card, fpQuestion });
         }
 
-        function maybeNotifyAutoQuestion(textChunk) {
-            if (!isRecording) return;
-            if (!autoQuestionToastStackEl) return;
-
-            const candidates = extractQuestionCandidates(textChunk);
-            if (!candidates.length) return;
-
-            const latest = candidates[candidates.length - 1].trim();
-            if (!latest) return;
-
-            const fpQuestion = fingerprintQuestionOnly(latest);
-            if (isQuestionSuppressed(fpQuestion)) return;
-            if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) return;
-
-            const composed = buildComposedQuestionWithContext(latest);
-            console.log('[DEBUG] composedQuestion:', composed);
-            showAutoQuestionToast(latest, composed);
-        }
-
         /**
          * トリガーワード方式: 開始「質問です|しつもんです」→ 終了「以上です|いじょうです」の間を1質問として抽出。
-         * トリガー文言は含めない。既存の語尾検知（maybeNotifyAutoQuestion）と併用。
+         * トリガー文言は含めない。語尾パターン（ですか等）による自動検知は行わない。
          */
         function maybeCheckTriggerKeywordQuestions() {
             if (!isRecording) return;
@@ -738,9 +616,9 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 if (!body) continue;
                 const fpQuestion = fingerprintQuestionOnly(body);
                 if (isQuestionSuppressed(fpQuestion)) continue;
-                if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) continue;
                 const composed = buildComposedQuestionWithContext(body);
                 console.log('[DEBUG] triggerKeywordQuestion body:', body);
+                clearAllAutoQuestionToasts();
                 showAutoQuestionToast(body, composed);
                 return;
             }
@@ -771,16 +649,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     const nowTs = Date.now();
                     transcriptFinalTimeSegments.push({ t: nowTs, text: final });
                     transcriptFinalTimeSegments = transcriptFinalTimeSegments.filter(s => nowTs - s.t <= 30000);
-                    const window30s = transcriptFinalTimeSegments.map(s => s.text).join('\n');
-                    const tail300 = rawLogText.slice(-300);
-                    const detectionBlob = (window30s + '\n' + tail300).replace(/\n{3,}/g, '\n\n').trim();
                     console.log('[DEBUG] final:', final);
-                    console.log('[DEBUG] detectionBlob:', detectionBlob);
-                    console.log('[DEBUG] candidates:', extractQuestionCandidates(detectionBlob));
                     maybeCheckTriggerKeywordQuestions();
-                    setTimeout(() => {
-                        maybeNotifyAutoQuestion(detectionBlob);
-                    }, 1500);
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
@@ -1071,36 +941,6 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 document.getElementById('chat-area').appendChild(div);
             }
             updateUIText();
-
-            // マニュアルDB初期化と読込
-            if ('indexedDB' in window) {
-                loadManuals();
-            }
-
-            // マニュアルアップロードハンドラ
-            const manualUploadBtn = document.getElementById('manual-upload-btn');
-            const manualUploadInput = document.getElementById('manual-upload');
-            if (manualUploadBtn && manualUploadInput) {
-                manualUploadBtn.onclick = () => {
-                    manualUploadInput.click();
-                };
-                manualUploadInput.onchange = async (e) => {
-                    const files = Array.from(e.target.files || []);
-                    if (!files.length) return;
-                    for (const file of files) {
-                        if (file.type === 'text/plain' || file.name.toLowerCase().endsWith('.txt')) {
-                            try {
-                                const text = await file.text();
-                                await saveManualRecord(file.name, text);
-                            } catch (err) {
-                                console.error('Failed to read manual file:', err);
-                            }
-                        }
-                    }
-                    manualUploadInput.value = '';
-                    loadManuals();
-                };
-            }
         });
         document.getElementById('clear-btn').onclick = () => {
             if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？\n（現在のセッションは履歴に自動保存されます）')) {
