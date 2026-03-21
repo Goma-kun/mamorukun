@@ -81,7 +81,7 @@
             </div>
         </div>
 
-        <!-- 疑問文トースト（最大3件・右下に縦積み・新しいほど下） -->
+        <!-- 疑問文トースト（最大5件・右下に縦積み・新しいほど下） -->
         <div id="auto-question-toast-stack" class="fixed bottom-24 right-2 sm:right-3 z-[70] flex flex-col gap-2 items-end pointer-events-none w-[calc(100%-1rem)] max-w-[20rem] sm:max-w-[22rem]" aria-live="polite"></div>
 
         <div class="flex flex-col flex-1 min-h-0 gap-1.5 sm:gap-2 mt-0 sm:mt-1">
@@ -507,17 +507,16 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
 
-        // === 疑問文の半自動AI送信（通知→承認・最大3件スタック） ===
-        const AUTO_QUESTION_SUPPRESS_MS = 60000; // 一度表示した疑問文は60秒間再検知しない
-        const MAX_AUTO_QUESTION_TOASTS = 3;
+        // === 疑問文の半自動AI送信（通知→承認・最大5件スタック） ===
+        /** 疑問文のみのフィンガープリントで120秒抑制（文脈の変化は無関係） */
+        const QUESTION_SUPPRESS_MS = 120000;
+        const MAX_AUTO_QUESTION_TOASTS = 5;
 
         const autoQuestionToastStackEl = document.getElementById('auto-question-toast-stack');
-        /** @type {{ el: HTMLElement, fpComposed: string }[]} */
+        /** @type {{ el: HTMLElement, fpQuestion: string }[]} */
         let autoQuestionToastStack = [];
-
-        let lastAutoQuestionSentFingerprint = "";
-        let lastAutoQuestionSeenFingerprint = "";
-        let lastAutoQuestionSeenAt = 0;
+        /** 疑問文fp → この時刻まで再表示しない（送信・キャンセルで更新） */
+        let questionSuppressUntil = {};
 
         function removeAutoQuestionToastEntry(el) {
             const idx = autoQuestionToastStack.findIndex(t => t.el === el);
@@ -527,6 +526,23 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
         function normalizeFingerprint(s) {
             return (s || '').replace(/\s+/g, ' ').trim();
+        }
+
+        /** 重複判定・抑制は疑問文（検知した一文）のみ。文脈付きcomposedは比較に使わない */
+        function fingerprintQuestionOnly(questionSentence) {
+            return normalizeFingerprint(questionSentence);
+        }
+
+        function isQuestionSuppressed(fpQuestion) {
+            const until = questionSuppressUntil[fpQuestion];
+            if (until == null) return false;
+            if (Date.now() < until) return true;
+            delete questionSuppressUntil[fpQuestion];
+            return false;
+        }
+
+        function suppressQuestionForMs(fpQuestion, ms) {
+            questionSuppressUntil[fpQuestion] = Date.now() + ms;
         }
 
         function extractQuestionCandidates(text) {
@@ -610,13 +626,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
             sendBtn.disabled = false;
         }
 
-        /** displayText: トースト表示は質問文のみ。sendPayload: Gemini 送信本文（文脈付き） */
+        /** displayText: トースト表示は質問文のみ。sendPayload: Gemini 送信本文（文脈付き・重複判定には使わない） */
         function showAutoQuestionToast(displayText, sendPayload) {
             console.log('[DEBUG] showAutoQuestionToast called, display:', displayText);
             if (!autoQuestionToastStackEl) return;
 
-            const fpComposed = normalizeFingerprint(sendPayload);
-            if (autoQuestionToastStack.some(entry => entry.fpComposed === fpComposed)) return;
+            const fpQuestion = fingerprintQuestionOnly(displayText);
+            if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) return;
 
             while (autoQuestionToastStack.length >= MAX_AUTO_QUESTION_TOASTS) {
                 const oldest = autoQuestionToastStack.shift();
@@ -633,18 +649,10 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
             const mid = document.createElement('div');
             mid.className = 'flex-1 min-w-0';
-            const titleEl = document.createElement('div');
-            titleEl.className = 'text-xs text-sky-300 font-bold mb-0.5';
-            titleEl.textContent = t.autoQuestionTitle;
             const qEl = document.createElement('div');
             qEl.className = 'text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words';
             qEl.textContent = displayText;
-            const hintEl = document.createElement('div');
-            hintEl.className = 'text-[10px] text-slate-400 mt-0.5';
-            hintEl.textContent = t.autoQuestionHint;
-            mid.appendChild(titleEl);
             mid.appendChild(qEl);
-            mid.appendChild(hintEl);
 
             const btnCol = document.createElement('div');
             btnCol.className = 'flex flex-col gap-1.5 shrink-0';
@@ -659,13 +667,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
             approveBtn.disabled = !!sendBtn.disabled;
             approveBtn.onclick = async () => {
-                const q = sendPayload;
-                lastAutoQuestionSentFingerprint = normalizeFingerprint(q);
+                suppressQuestionForMs(fpQuestion, QUESTION_SUPPRESS_MS);
                 removeAutoQuestionToastEntry(card);
-                await sendChatQuestionText(q);
+                await sendChatQuestionText(sendPayload);
             };
             cancelBtn.onclick = () => {
-                lastAutoQuestionSentFingerprint = normalizeFingerprint(sendPayload);
+                suppressQuestionForMs(fpQuestion, QUESTION_SUPPRESS_MS);
                 removeAutoQuestionToastEntry(card);
             };
 
@@ -676,7 +683,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             card.appendChild(btnCol);
 
             autoQuestionToastStackEl.appendChild(card);
-            autoQuestionToastStack.push({ el: card, fpComposed });
+            autoQuestionToastStack.push({ el: card, fpQuestion });
         }
 
         function maybeNotifyAutoQuestion(textChunk) {
@@ -689,16 +696,11 @@ Log:\n${log}\n\nChat:\n${chat}`,
             const latest = candidates[candidates.length - 1].trim();
             if (!latest) return;
 
-            const composed = buildComposedQuestionWithContext(latest);
-            const fpComposed = normalizeFingerprint(composed);
-            const fpLatest = normalizeFingerprint(latest);
-            const now = Date.now();
-            if (fpComposed === lastAutoQuestionSentFingerprint) return;
-            if (fpLatest === lastAutoQuestionSeenFingerprint && now - lastAutoQuestionSeenAt < AUTO_QUESTION_SUPPRESS_MS) return;
-            if (autoQuestionToastStack.some(entry => entry.fpComposed === fpComposed)) return;
+            const fpQuestion = fingerprintQuestionOnly(latest);
+            if (isQuestionSuppressed(fpQuestion)) return;
+            if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) return;
 
-            lastAutoQuestionSeenFingerprint = fpLatest;
-            lastAutoQuestionSeenAt = now;
+            const composed = buildComposedQuestionWithContext(latest);
             console.log('[DEBUG] composedQuestion:', composed);
             showAutoQuestionToast(latest, composed);
         }
