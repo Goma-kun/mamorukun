@@ -216,6 +216,8 @@
         let lastAutoSelectedText = "";
         /** 疑問文検知用: 直近30秒以内に確定した final テキスト（言い淀みの分割をまたぐ文脈用） */
         let transcriptFinalTimeSegments = [];
+        /** トリガーワード方式: 「質問です」〜「以上です」抽出済み位置（rawLogText 先頭からのオフセット） */
+        let triggerScanPointer = 0;
         // sentiment 関連は削除（感情スコア表示を完全にオフ）
 
         // === マニュアル管理（IndexedDB） ===
@@ -712,6 +714,38 @@ Log:\n${log}\n\nChat:\n${chat}`,
             showAutoQuestionToast(latest, composed);
         }
 
+        /**
+         * トリガーワード方式: 開始「質問です|しつもんです」→ 終了「以上です|いじょうです」の間を1質問として抽出。
+         * トリガー文言は含めない。既存の語尾検知（maybeNotifyAutoQuestion）と併用。
+         */
+        function maybeCheckTriggerKeywordQuestions() {
+            if (!isRecording) return;
+            if (!autoQuestionToastStackEl) return;
+            const text = rawLogText;
+            let from = triggerScanPointer;
+            while (from < text.length) {
+                const sub = text.slice(from);
+                const mStart = sub.match(/(質問です|しつもんです)/);
+                if (!mStart) return;
+                const contentStart = from + mStart.index + mStart[0].length;
+                const afterStart = text.slice(contentStart);
+                const mEnd = afterStart.match(/(以上です|いじょうです)/);
+                if (!mEnd) return;
+                const body = text.slice(contentStart, contentStart + mEnd.index).trim();
+                const nextPointer = contentStart + mEnd.index + mEnd[0].length;
+                triggerScanPointer = nextPointer;
+                from = nextPointer;
+                if (!body) continue;
+                const fpQuestion = fingerprintQuestionOnly(body);
+                if (isQuestionSuppressed(fpQuestion)) continue;
+                if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) continue;
+                const composed = buildComposedQuestionWithContext(body);
+                console.log('[DEBUG] triggerKeywordQuestion body:', body);
+                showAutoQuestionToast(body, composed);
+                return;
+            }
+        }
+
         // === 音声認識処理 ===
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (SpeechRecognition) {
@@ -743,6 +777,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     console.log('[DEBUG] final:', final);
                     console.log('[DEBUG] detectionBlob:', detectionBlob);
                     console.log('[DEBUG] candidates:', extractQuestionCandidates(detectionBlob));
+                    maybeCheckTriggerKeywordQuestions();
                     setTimeout(() => {
                         maybeNotifyAutoQuestion(detectionBlob);
                     }, 1500);
@@ -767,7 +802,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
         toggleBtn.onclick = () => {
             if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); }
-            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); clearAllAutoQuestionToasts(); }
+            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); clearAllAutoQuestionToasts(); triggerScanPointer = rawLogText.length; }
             updateUIText();
         };
 
