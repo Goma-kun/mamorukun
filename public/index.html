@@ -56,18 +56,16 @@
         button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         input, select, textarea { font-size: 16px !important; }
         #chat-input { resize: vertical; min-height: 2.5rem; }
-        #sentiment-badge { transition: all 0.5s ease; }
         #history-panel { transition: transform 0.25s ease; }
     </style>
 </head>
-<body class="bg-slate-900 p-3 sm:p-8 h-[100dvh] flex flex-col text-base overflow-hidden">
-    <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full gap-1.5 sm:gap-5">
-        <header class="flex justify-between items-center mb-0 sm:mb-2 shrink-0 bg-slate-900/70 border border-slate-800 rounded-2xl px-4 sm:px-6 py-3 sm:py-4 shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur">
-            <h1 id="app-title" class="text-xl sm:text-2xl md:text-3xl font-extrabold tracking-wider text-sky-400 drop-shadow-[0_0_18px_rgba(56,189,248,0.45)]">
+<body class="bg-slate-900 p-2 sm:p-5 h-[100dvh] flex flex-col text-base overflow-hidden">
+    <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full gap-1 sm:gap-3">
+        <header class="flex justify-between items-center mb-0 shrink-0 bg-slate-900/70 border border-slate-800 rounded-xl px-2.5 sm:px-4 py-1 sm:py-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.9)] backdrop-blur">
+            <h1 id="app-title" class="text-base sm:text-lg md:text-xl font-extrabold tracking-wide text-sky-400 drop-shadow-[0_0_14px_rgba(56,189,248,0.4)] leading-tight">
                 🛡️ まもるくん
             </h1>
             <div class="flex items-center gap-1.5 sm:gap-2">
-                <span id="sentiment-badge" class="hidden text-xs px-2 py-1 rounded-xl border font-bold border-slate-600 text-slate-400 bg-slate-800/50 whitespace-nowrap"></span>
                 <button id="history-btn" class="bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
                 <button id="kb-btn" class="bg-slate-800/90 border border-emerald-600/60 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-emerald-900/40 transition-all shadow-inner shadow-black/40" title="知識ベース管理">📚</button>
                 <select id="lang-toggle" class="bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
@@ -84,33 +82,36 @@
             </div>
         </div>
 
-        <div class="flex flex-col flex-1 min-h-0 gap-2 sm:gap-3 mt-0 sm:mt-2">
+        <!-- 疑問文トースト（最大5件・右下に縦積み・新しいほど下） -->
+        <div id="auto-question-toast-stack" class="fixed bottom-24 right-2 sm:right-3 z-[70] flex flex-col gap-2 items-end pointer-events-none w-[calc(100%-1rem)] max-w-[20rem] sm:max-w-[22rem]" aria-live="polite"></div>
+
+        <div class="flex flex-col flex-1 min-h-0 gap-1.5 sm:gap-2 mt-0 sm:mt-1">
             <!-- 文字起こし / ログ & レポート カード -->
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div class="grid grid-cols-5 gap-0 border-b border-slate-700/80 w-full shrink-0 min-w-0 pr-1 sm:pr-2">
-                    <button id="tab-btn-transcript" class="py-2 sm:py-3 px-0.5 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-xs sm:text-base leading-none">🎙️</span>
-                        <span class="text-xs sm:text-base whitespace-nowrap leading-tight">ログ</span>
+                <div class="grid grid-cols-5 gap-0 border-b border-slate-700/80 w-full shrink-0 min-w-0 pr-1">
+                    <button id="tab-btn-transcript" class="py-1 sm:py-1.5 px-0.5 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-[10px] sm:text-xs leading-none">🎙️</span>
+                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">ログ</span>
                     </button>
-                    <button id="tab-btn-chat" class="py-2 sm:py-3 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-xs sm:text-base leading-none">💬</span>
-                        <span class="text-xs sm:text-base whitespace-nowrap leading-tight">AI回答</span>
+                    <button id="tab-btn-chat" class="py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-[10px] sm:text-xs leading-none">💬</span>
+                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">AI回答</span>
                     </button>
-                    <button id="tab-btn-summary" class="py-2 sm:py-3 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-xs sm:text-base leading-none">📄</span>
-                        <span class="text-xs sm:text-base whitespace-nowrap leading-tight">要約</span>
+                    <button id="tab-btn-summary" class="py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-[10px] sm:text-xs leading-none">📄</span>
+                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">要約</span>
                     </button>
-                    <button id="copy-btn" class="py-2 sm:py-3 px-0.5 font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 hover:bg-slate-800 hover:text-white transition-all flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] shadow-sm shadow-slate-900/40 rounded-lg overflow-hidden">
-                        <span class="text-xs sm:text-base leading-none">📋</span>
-                        <span id="copy-text" class="text-xs sm:text-base whitespace-nowrap leading-tight">コピー</span>
+                    <button id="copy-btn" class="py-1 sm:py-1.5 px-0.5 font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 hover:bg-slate-800 hover:text-white transition-all flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] shadow-sm shadow-slate-900/40 rounded-lg overflow-hidden">
+                        <span class="text-[10px] sm:text-xs leading-none">📋</span>
+                        <span id="copy-text" class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">コピー</span>
                     </button>
-                    <button id="clear-btn" class="py-2 sm:py-3 px-0.5 font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-100 transition-all flex flex-col items-center justify-center gap-0.5 min-w-0 min-h-[2.5rem] sm:min-h-[3.25rem] active:scale-[0.98] shadow-sm shadow-rose-900/40 rounded-lg overflow-hidden">
-                        <span class="text-xs sm:text-base leading-none">🗑️</span>
-                        <span id="clear-text" class="text-xs sm:text-base whitespace-nowrap leading-tight">クリア</span>
+                    <button id="clear-btn" class="py-1 sm:py-1.5 px-0.5 font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-100 transition-all flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] shadow-sm shadow-rose-900/40 rounded-lg overflow-hidden">
+                        <span class="text-[10px] sm:text-xs leading-none">🗑️</span>
+                        <span id="clear-text" class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">クリア</span>
                     </button>
                 </div>
 
-                <div id="log-display" class="log-container rounded-b-xl sm:rounded-b-2xl px-3 sm:px-5 pb-4 sm:pb-5 pt-3 sm:pt-4 flex-1 min-h-0 overflow-y-auto relative text-base leading-relaxed">
+                <div id="log-display" class="log-container rounded-b-xl sm:rounded-b-2xl px-3 sm:px-4 pb-3 sm:pb-4 pt-2 sm:pt-3 flex-1 min-h-0 overflow-y-auto relative text-base leading-relaxed">
                     <div id="content-transcript" class="tab-content active">
                         <div id="transcript-area" class="space-y-3"></div>
                         <div id="interim-text-area" class="text-slate-500 italic mt-2"></div>
@@ -125,7 +126,7 @@
             </div>
 
             <!-- カメラ / チャット入力 カード -->
-            <div class="bg-slate-900/75 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-5 py-3 sm:py-4 flex flex-col gap-3 shrink-0">
+            <div class="bg-slate-900/75 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2 shrink-0">
                 <div id="image-preview-container" class="hidden relative inline-block w-20 h-20 sm:w-24 sm:h-24 ml-1 sm:ml-2 mt-1">
                     <img id="image-preview" class="w-full h-full object-cover rounded-xl border border-slate-600 shadow-lg shadow-slate-900/70">
                     <button id="remove-image-btn" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg hover:bg-rose-400">×</button>
@@ -143,19 +144,19 @@
             </div>
 
             <!-- アクションボタン / レポート カード -->
-            <div class="bg-slate-900/80 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-5 py-2 sm:py-3 shrink-0">
-                <div class="grid grid-cols-3 gap-2.5 sm:gap-4">
-                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]">
-                        <span class="text-lg sm:text-xl">🎙️</span>
-                        <span>録音開始</span>
+            <div class="bg-slate-900/80 border border-slate-800 rounded-xl shadow-[0_14px_44px_rgba(15,23,42,0.94)] backdrop-blur px-2 sm:px-3 py-1 sm:py-1.5 shrink-0">
+                <div class="grid grid-cols-3 gap-1 sm:gap-1.5">
+                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50">
+                        <span class="text-xs sm:text-sm leading-none">🎙️</span>
+                        <span class="leading-tight">録音開始</span>
                     </button>
-                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shadow-lg shadow-amber-900/60 hover:shadow-amber-400/60 hover:-translate-y-[1px]">
-                        <span class="text-lg sm:text-xl">💡</span>
-                        <span>ヒアリング確認</span>
+                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-amber-900/50 hover:shadow-amber-400/50">
+                        <span class="text-xs sm:text-sm leading-none">💡</span>
+                        <span class="leading-tight">ヒアリング確認</span>
                     </button>
-                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 shadow-lg shadow-indigo-900/60 hover:shadow-indigo-400/60 hover:-translate-y-[1px]">
-                        <span class="text-lg sm:text-xl">📄</span>
-                        <span>要約作成</span>
+                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 shadow-md shadow-indigo-900/50 hover:shadow-indigo-400/50">
+                        <span class="text-xs sm:text-sm leading-none">📄</span>
+                        <span class="leading-tight">要約作成</span>
                     </button>
                 </div>
             </div>
@@ -227,23 +228,41 @@
 
         let currentLang = 'ja';
         let lastAutoSelectedText = "";
-        let lastSentimentLogLength = 0;
-        let sentimentCheckInProgress = false;
+        /** 疑問文検知用: 直近30秒以内に確定した final テキスト（言い淀みの分割をまたぐ文脈用） */
+        let transcriptFinalTimeSegments = [];
+        /** トリガーワード方式: 「質問です」〜「以上です」抽出済み位置（rawLogText 先頭からのオフセット） */
+        let triggerScanPointer = 0;
+        // sentiment 関連は削除（感情スコア表示を完全にオフ）
 
         const errorBanner = document.getElementById('error-banner');
         const errorBannerMessage = document.getElementById('error-banner-message');
         const errorBannerClose = document.getElementById('error-banner-close');
+        let errorBannerAutoHideTimer = null;
+
+        function hideErrorBanner() {
+            if (errorBannerAutoHideTimer) {
+                clearTimeout(errorBannerAutoHideTimer);
+                errorBannerAutoHideTimer = null;
+            }
+            if (errorBanner) errorBanner.classList.add('hidden');
+        }
 
         function showError(message) {
             if (!errorBanner || !errorBannerMessage) return;
+            if (errorBannerAutoHideTimer) {
+                clearTimeout(errorBannerAutoHideTimer);
+                errorBannerAutoHideTimer = null;
+            }
             errorBannerMessage.textContent = message;
             errorBanner.classList.remove('hidden');
+            errorBannerAutoHideTimer = setTimeout(() => {
+                errorBannerAutoHideTimer = null;
+                if (errorBanner) errorBanner.classList.add('hidden');
+            }, 3000);
         }
 
         if (errorBannerClose) {
-            errorBannerClose.onclick = () => {
-                if (errorBanner) errorBanner.classList.add('hidden');
-            };
+            errorBannerClose.onclick = () => hideErrorBanner();
         }
 
         // === 言語とUIテキスト ===
@@ -256,7 +275,11 @@
                 btnCopy: "コピー", btnClear: "クリア", msgCopied: "コピー完了！",
                 statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
-                noChatHistory: "AIとのやり取りはありません。"
+                noChatHistory: "AIとのやり取りはありません。",
+                autoQuestionTitle: "疑問文を検知しました",
+                autoQuestionHint: "送信するかキャンセルを押してください",
+                autoQuestionApprove: "送信する",
+                autoQuestionCancel: "キャンセル"
             },
             en: {
                 title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
@@ -266,15 +289,19 @@
                 btnCopy: "Copy", btnClear: "Clear", msgCopied: "Copied!",
                 statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
-                noChatHistory: "No AI interactions."
+                noChatHistory: "No AI interactions.",
+                autoQuestionTitle: "Detected a question",
+                autoQuestionHint: "Tap to send or cancel",
+                autoQuestionApprove: "Send",
+                autoQuestionCancel: "Cancel"
             }
         };
 
         // === プロンプト設定 ===
         const aiPrompts = {
     ja: {
-        chatContext: (date, log, q) => `あなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
-        chatDirect: (q) => `【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
+        chatContext: (date, log, q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【絶対厳守】「〜という質問ですね」「〜ということですね」などと質問を繰り返すことは禁止。必ず即座に回答内容から始めること。\n\nあなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
+        chatDirect: (q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【絶対厳守】「〜という質問ですね」「〜ということですね」などと質問を繰り返すことは禁止。必ず即座に回答内容から始めること。\n\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
                 imageOnly: "添付した画像について分析・回答してください。(日本語で)",
                 advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
                 exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で真の要約を作成してください。
@@ -298,8 +325,8 @@
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
-                chatContext: (date, log, q) => `You are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
+                chatContext: (date, log, q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*ABSOLUTE RULE* Never open by restating or echoing the question (e.g. "So you're asking..." / "I understand you want to know..."). Start immediately with the substantive answer.\n\nYou are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
+                chatDirect: (q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*ABSOLUTE RULE* Never open by restating or echoing the question (e.g. "So you're asking..." / "I understand you want to know..."). Start immediately with the substantive answer.\n\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
                 imageOnly: "Please analyze the attached image in English.",
                 advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
                 exportReport: (timeText, log, chat) => `Create a summary in English based on the following.
@@ -420,27 +447,220 @@ Log:\n${log}\n\nChat:\n${chat}`,
         function updateUIText() {
             const t = i18n[currentLang];
             document.getElementById('app-title').innerText = t.title;
-            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-xs sm:text-base leading-none">🎙️</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
-            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-xs sm:text-base leading-none">💬</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
-            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-xs sm:text-base leading-none">📄</span><span class="text-xs sm:text-base whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
+            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-[10px] sm:text-xs leading-none">🎙️</span><span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
+            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-[10px] sm:text-xs leading-none">💬</span><span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
+            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-[10px] sm:text-xs leading-none">📄</span><span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
             chatInput.placeholder = t.placeholder;
             sendBtn.innerText = t.btnSend;
             
             if (isRecording) {
-                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-50 animate-pulse shrink-0 shadow-lg shadow-rose-900/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-lg sm:text-xl">⏹️</span><span>${t.btnStop}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 animate-pulse shadow-md shadow-rose-900/50";
+                toggleBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">⏹️</span><span class="leading-tight">${t.btnStop}</span>`;
             } else {
-                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-2 sm:py-3 rounded-2xl font-bold transition-all active:scale-95 text-sm sm:text-base flex flex-col items-center justify-center gap-1 leading-tight text-slate-950 shrink-0 shadow-lg shadow-emerald-900/60 hover:shadow-emerald-400/60 hover:-translate-y-[1px]";
-                toggleBtn.innerHTML = `<span class="text-lg sm:text-xl">🎙️</span><span>${t.btnStart}</span>`;
+                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50";
+                toggleBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">🎙️</span><span class="leading-tight">${t.btnStart}</span>`;
             }
             
-            document.getElementById('advice-btn').innerHTML = `<span class="text-lg sm:text-xl">💡</span><span>${t.btnAdvice}</span>`;
-            summarizeBtn.innerHTML = `<span class="text-lg sm:text-xl">📄</span><span>${t.btnSummarize}</span>`;
+            document.getElementById('advice-btn').innerHTML = `<span class="text-xs sm:text-sm leading-none">💡</span><span class="leading-tight">${t.btnAdvice}</span>`;
+            summarizeBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">📄</span><span class="leading-tight">${t.btnSummarize}</span>`;
             document.getElementById('copy-text').innerText = t.btnCopy;
             document.getElementById('clear-text').innerText = t.btnClear;
         }
 
         langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
+
+        // === 疑問文の半自動AI送信（通知→承認・最大5件スタック） ===
+        /** 疑問文のみのフィンガープリントで120秒抑制（文脈の変化は無関係） */
+        const QUESTION_SUPPRESS_MS = 120000;
+        const MAX_AUTO_QUESTION_TOASTS = 5;
+
+        const autoQuestionToastStackEl = document.getElementById('auto-question-toast-stack');
+        /** @type {{ el: HTMLElement, fpQuestion: string }[]} */
+        let autoQuestionToastStack = [];
+        /** 疑問文fp → この時刻まで再表示しない（送信・キャンセルで更新） */
+        let questionSuppressUntil = {};
+
+        function removeAutoQuestionToastEntry(el) {
+            const idx = autoQuestionToastStack.findIndex(t => t.el === el);
+            if (idx >= 0) autoQuestionToastStack.splice(idx, 1);
+            if (el && el.parentNode) el.remove();
+        }
+
+        /** 録音停止時: 残っている疑問トーストをすべて削除 */
+        function clearAllAutoQuestionToasts() {
+            while (autoQuestionToastStack.length) {
+                const entry = autoQuestionToastStack.shift();
+                if (entry && entry.el && entry.el.parentNode) entry.el.remove();
+            }
+        }
+
+        function normalizeFingerprint(s) {
+            return (s || '').replace(/\s+/g, ' ').trim();
+        }
+
+        /** 重複判定・抑制は疑問文（検知した一文）のみ。文脈付きcomposedは比較に使わない */
+        function fingerprintQuestionOnly(questionSentence) {
+            return normalizeFingerprint(questionSentence);
+        }
+
+        function isQuestionSuppressed(fpQuestion) {
+            const until = questionSuppressUntil[fpQuestion];
+            if (until == null) return false;
+            if (Date.now() < until) return true;
+            delete questionSuppressUntil[fpQuestion];
+            return false;
+        }
+
+        function suppressQuestionForMs(fpQuestion, ms) {
+            questionSuppressUntil[fpQuestion] = Date.now() + ms;
+        }
+
+        /** 疑問検知後に送る本文: 直近30秒の確定文から「今の1件より前」だけをつなぎ、その末尾300文字を文脈として質問と結合 */
+        function buildComposedQuestionWithContext(latest) {
+            const q = (latest || '').trim();
+            if (!q) return '';
+            const segs = transcriptFinalTimeSegments;
+            let contextSource = '';
+            if (segs.length > 1) {
+                contextSource = segs.slice(0, -1).map(s => s.text).join('\n');
+            } else {
+                const rt = (rawLogText || '').replace(/\n+$/, '');
+                const idx = rt.lastIndexOf('\n');
+                contextSource = idx >= 0 ? rt.slice(0, idx) : '';
+            }
+            const context300 = contextSource.slice(-300).trim();
+            const ctxLabel = currentLang === 'en'
+                ? 'Context (last ~30s of speech, last 300 chars):'
+                : '【直前の文脈（直近30秒・末尾300文字相当）】';
+            const qLabel = currentLang === 'en' ? 'Question:' : '【質問】';
+            if (!context300) return q;
+            return `${ctxLabel}\n${context300}\n\n${qLabel}\n${q}`;
+        }
+
+        async function sendChatQuestionText(q) {
+            const question = (q || '').trim();
+            if (!question) return;
+            if (sendBtn.disabled) return;
+
+            const t = i18n[currentLang];
+            const p = aiPrompts[currentLang];
+
+            switchTab('chat', { scrollToBottom: true });
+            sendBtn.disabled = true;
+            const originalSendText = sendBtn.innerText;
+            sendBtn.innerText = currentLang === 'en' ? "Thinking..." : "⏳思考中...";
+
+            appendMsg('chat-area', t.labelYou, question, "user-message");
+
+            let currentParts = [];
+            if (aiChatContext.length === 0) {
+                currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, question) });
+            } else {
+                currentParts.push({ text: p.chatDirect(question) });
+            }
+
+            aiChatContext.push({ role: "user", parts: currentParts });
+            const res = await askAI(aiChatContext.slice(-10));
+            appendMsg('chat-area', t.labelAI, res, "ai-message");
+            aiChatContext.push({ role: "model", parts: [{ text: res }] });
+            chatHistoryForReport += `${t.labelYou}: ${question}\n${t.labelAI}: ${res}\n\n`;
+            autoSave();
+
+            sendBtn.innerText = originalSendText;
+            sendBtn.disabled = false;
+        }
+
+        /** displayText: トースト表示は質問文のみ。sendPayload: Gemini 送信本文（文脈付き・重複判定には使わない） */
+        function showAutoQuestionToast(displayText, sendPayload) {
+            console.log('[DEBUG] showAutoQuestionToast called, display:', displayText);
+            if (!autoQuestionToastStackEl) return;
+
+            const fpQuestion = fingerprintQuestionOnly(displayText);
+            if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) return;
+
+            while (autoQuestionToastStack.length >= MAX_AUTO_QUESTION_TOASTS) {
+                const oldest = autoQuestionToastStack.shift();
+                if (oldest && oldest.el.parentNode) oldest.el.remove();
+            }
+
+            const t = i18n[currentLang];
+            const card = document.createElement('div');
+            card.className = 'pointer-events-auto bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur px-3 py-2 flex items-start gap-2 w-full';
+
+            const icon = document.createElement('div');
+            icon.className = 'text-sky-400 text-lg leading-none mt-0.5 shrink-0';
+            icon.textContent = '❓';
+
+            const mid = document.createElement('div');
+            mid.className = 'flex-1 min-w-0';
+            const qEl = document.createElement('div');
+            qEl.className = 'text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words';
+            qEl.textContent = displayText;
+            mid.appendChild(qEl);
+
+            const btnCol = document.createElement('div');
+            btnCol.className = 'flex flex-col gap-1.5 shrink-0';
+            const approveBtn = document.createElement('button');
+            approveBtn.type = 'button';
+            approveBtn.className = 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-2.5 py-1.5 rounded-xl font-bold text-[10px] sm:text-xs text-slate-950 transition-all active:scale-95 shadow-lg shadow-emerald-900/60';
+            approveBtn.textContent = t.autoQuestionApprove;
+            const cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'text-[10px] sm:text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg border border-slate-700/60 hover:border-sky-500/40 transition-all';
+            cancelBtn.textContent = t.autoQuestionCancel;
+
+            approveBtn.disabled = !!sendBtn.disabled;
+            approveBtn.onclick = async () => {
+                suppressQuestionForMs(fpQuestion, QUESTION_SUPPRESS_MS);
+                removeAutoQuestionToastEntry(card);
+                await sendChatQuestionText(sendPayload);
+            };
+            cancelBtn.onclick = () => {
+                suppressQuestionForMs(fpQuestion, QUESTION_SUPPRESS_MS);
+                removeAutoQuestionToastEntry(card);
+            };
+
+            btnCol.appendChild(approveBtn);
+            btnCol.appendChild(cancelBtn);
+            card.appendChild(icon);
+            card.appendChild(mid);
+            card.appendChild(btnCol);
+
+            autoQuestionToastStackEl.appendChild(card);
+            autoQuestionToastStack.push({ el: card, fpQuestion });
+        }
+
+        /**
+         * トリガーワード方式: 開始「質問です|しつもんです」→ 終了「以上です|いじょうです」の間を1質問として抽出。
+         * トリガー文言は含めない。語尾パターン（ですか等）による自動検知は行わない。
+         */
+        function maybeCheckTriggerKeywordQuestions() {
+            if (!isRecording) return;
+            if (!autoQuestionToastStackEl) return;
+            const text = rawLogText;
+            let from = triggerScanPointer;
+            while (from < text.length) {
+                const sub = text.slice(from);
+                const mStart = sub.match(/(質問です|しつもんです)/);
+                if (!mStart) return;
+                const contentStart = from + mStart.index + mStart[0].length;
+                const afterStart = text.slice(contentStart);
+                const mEnd = afterStart.match(/(以上です|いじょうです)/);
+                if (!mEnd) return;
+                const body = text.slice(contentStart, contentStart + mEnd.index).trim();
+                const nextPointer = contentStart + mEnd.index + mEnd[0].length;
+                triggerScanPointer = nextPointer;
+                from = nextPointer;
+                if (!body) continue;
+                const fpQuestion = fingerprintQuestionOnly(body);
+                if (isQuestionSuppressed(fpQuestion)) continue;
+                const composed = buildComposedQuestionWithContext(body);
+                console.log('[DEBUG] triggerKeywordQuestion body:', body);
+                clearAllAutoQuestionToasts();
+                showAutoQuestionToast(body, composed);
+                return;
+            }
+        }
 
         // === 音声認識処理 ===
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -464,7 +684,11 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     p.textContent = final;
                     document.getElementById('transcript-area').appendChild(p);
                     autoScroll(false); autoSave();
-                    checkSentiment();
+                    const nowTs = Date.now();
+                    transcriptFinalTimeSegments.push({ t: nowTs, text: final });
+                    transcriptFinalTimeSegments = transcriptFinalTimeSegments.filter(s => nowTs - s.t <= 30000);
+                    console.log('[DEBUG] final:', final);
+                    maybeCheckTriggerKeywordQuestions();
                 }
             };
             recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
@@ -485,8 +709,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         toggleBtn.onclick = () => {
-            if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); } 
-            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); }
+            if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); }
+            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); clearAllAutoQuestionToasts(); triggerScanPointer = rawLogText.length; }
             updateUIText();
         };
 
@@ -526,7 +750,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             if (!q && !currentImageData) return;
             const t = i18n[currentLang], p = aiPrompts[currentLang];
             
-            switchTab('chat'); 
+            switchTab('chat', { scrollToBottom: true }); 
             sendBtn.disabled = true;
             const originalSendText = sendBtn.innerText;
             sendBtn.innerText = "⏳思考中...";
@@ -571,12 +795,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 return;
             }
             const t = i18n[currentLang], p = aiPrompts[currentLang];
-            switchTab('chat');
+            switchTab('chat', { scrollToBottom: true });
 
             const btn = document.getElementById('advice-btn');
             const originalHTML = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = `<span class="text-lg">⏳</span><span>思考中</span>`;
+            btn.innerHTML = `<span class="text-sm">⏳</span><span>思考中</span>`;
 
             let displayMsg = "現在の状況から、ヒアリング漏れや次に確認すべきことを教えてください。";
             appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
@@ -621,13 +845,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
             }, 1000);
 
             try {
-                summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
+                summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport1}</span>`;
                 const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }]);
 
                 // 2回連続リクエストによるレート制限を避けるため3秒待機
                 await new Promise(r => setTimeout(r, 3000));
 
-                summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport2}</span>`;
+                summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport2}</span>`;
                 const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }]);
                 
                 const fullContent = p.reportTemplate(finalReport, cleanLog, chatHistoryForReport || t.noChatHistory);
@@ -664,7 +888,15 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         // === タブ切り替え ===
-        function switchTab(id) {
+        function scrollLogDisplayToBottom() {
+            const d = document.getElementById('log-display');
+            if (!d) return;
+            requestAnimationFrame(() => {
+                d.scrollTop = d.scrollHeight;
+            });
+        }
+
+        function switchTab(id, opts = {}) {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             document.getElementById('content-' + id).classList.add('active');
             document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { 
@@ -672,7 +904,12 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 b.classList.add('text-slate-500'); 
             });
             document.getElementById('tab-btn-' + id).classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
-            document.getElementById('log-display').scrollTop = 0;
+            const logDisplay = document.getElementById('log-display');
+            if (opts.scrollToBottom) {
+                scrollLogDisplayToBottom();
+            } else {
+                logDisplay.scrollTop = 0;
+            }
         }
         document.getElementById('tab-btn-transcript').onclick = () => switchTab('transcript');
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
@@ -693,10 +930,10 @@ Log:\n${log}\n\nChat:\n${chat}`,
             div.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-1">${label}</div><div class="whitespace-pre-wrap">${formatText(text)}</div>`;
             document.getElementById(id).appendChild(div);
             if (id === 'transcript-area') autoScroll(true);
-            if (id === 'chat-area' && cls === 'ai-message') {
-                setTimeout(() => {
-                    div.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 50);
+            if (id === 'chat-area' && (cls === 'user-message' || cls === 'ai-message')) {
+                if (document.getElementById('content-chat').classList.contains('active')) {
+                    setTimeout(() => scrollLogDisplayToBottom(), 0);
+                }
             }
         }
 
@@ -1116,46 +1353,7 @@ ${summaries}`;
 
         document.getElementById('history-btn').onclick = openHistoryPanel;
 
-        // ============================================================
-        // 感情分析・通話品質スコア
-        // ============================================================
-        async function checkSentiment() {
-            if (sentimentCheckInProgress) return;
-            if (rawLogText.length - lastSentimentLogLength < 120) return;
-            sentimentCheckInProgress = true;
-            lastSentimentLogLength = rawLogText.length;
-            const recentLog = rawLogText.slice(-500);
-            const prompt = currentLang === 'ja'
-                ? `以下の応対ログから顧客の感情状態を分析してください。必ずJSONのみを返してください（説明文不要）:\n{"sentiment":"positive","score":75,"label":"😊 満足"}\nsentimentは"positive","neutral","negative"のいずれか。scoreは0-100の整数。labelは"😊 満足","😐 中立","😡 不満"のいずれか。\n\nログ:\n${recentLog}`
-                : `Analyze the customer sentiment from the transcript. Return ONLY JSON (no explanation):\n{"sentiment":"positive","score":75,"label":"😊 Satisfied"}\nsentiment: "positive","neutral","negative". score: 0-100 integer. label: "😊 Satisfied","😐 Neutral","😡 Frustrated".\n\nTranscript:\n${recentLog}`;
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
-                });
-                const data = await res.json();
-                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-                    const text = data.candidates[0].content.parts[0].text.trim();
-                    const match = text.match(/\{[^}]+\}/);
-                    if (match) updateSentimentDisplay(JSON.parse(match[0]));
-                }
-            } catch(e) {}
-            sentimentCheckInProgress = false;
-        }
-
-        function updateSentimentDisplay(data) {
-            const badge = document.getElementById('sentiment-badge');
-            if (!badge || !data || !data.sentiment) return;
-            const colors = {
-                positive: 'text-xs px-2 py-1 rounded-xl border font-bold bg-emerald-500/20 border-emerald-500/50 text-emerald-300 whitespace-nowrap',
-                neutral:  'text-xs px-2 py-1 rounded-xl border font-bold bg-slate-500/20 border-slate-500/50 text-slate-300 whitespace-nowrap',
-                negative: 'text-xs px-2 py-1 rounded-xl border font-bold bg-rose-500/20 border-rose-500/50 text-rose-300 whitespace-nowrap'
-            };
-            badge.className = colors[data.sentiment] || colors.neutral;
-            badge.textContent = `${data.label} ${data.score}`;
-            badge.title = `顧客感情スコア: ${data.score}/100`;
-        }
+        // sentiment 関連は削除（感情スコア表示を完全にオフ）
     </script>
 </body>
 </html>
