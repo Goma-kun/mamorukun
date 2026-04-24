@@ -322,22 +322,35 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         // === API通信処理（Workers 経由） ===
-        async function askAI(contentsArray) {
+        async function askAI(contentsArray, _retry = 0) {
+            const MAX_RETRY = 3;
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
-            
+
             try {
-                const res = await fetch('/api/chat', { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ 
-                        contents: contentsArray 
+                const res = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: contentsArray
                     }),
                     signal: controller.signal
                 });
                 clearTimeout(timeoutId);
                 const data = await res.json();
-                
+
+                // 429 レート制限 → 自動リトライ（5s, 10s, 15s）
+                if (res.status === 429 && _retry < MAX_RETRY) {
+                    const waitSec = (_retry + 1) * 5;
+                    const retryMsg = currentLang === 'en'
+                        ? `Rate limited. Auto-retry in ${waitSec}s... (${_retry + 1}/${MAX_RETRY})`
+                        : `APIレート制限中。${waitSec}秒後に自動リトライします... (${_retry + 1}/${MAX_RETRY}回)`;
+                    showError(retryMsg);
+                    await new Promise(r => setTimeout(r, waitSec * 1000));
+                    if (errorBanner) errorBanner.classList.add('hidden');
+                    return askAI(contentsArray, _retry + 1);
+                }
+
                 if (!res.ok || data.error) {
                     const errMsg = (currentLang === 'en')
                         ? `API Error: ${data.error ? data.error.message : 'Unknown Error'}`
@@ -610,7 +623,10 @@ Log:\n${log}\n\nChat:\n${chat}`,
             try {
                 summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport1}</span>`;
                 const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }]);
-                
+
+                // 2回連続リクエストによるレート制限を避けるため3秒待機
+                await new Promise(r => setTimeout(r, 3000));
+
                 summarizeBtn.innerHTML = `<span class="text-lg">⏳</span><span>${t.statusReport2}</span>`;
                 const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }]);
                 
