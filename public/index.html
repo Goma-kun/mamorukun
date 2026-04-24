@@ -709,7 +709,14 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         toggleBtn.onclick = () => {
-            if (!isRecording) { manualStop = false; recognition.start(); isRecording = true; requestWakeLock(); }
+            if (!isRecording) {
+                // ログが空のとき（新しい通話）は開始時刻をリセット
+                if (!rawLogText.trim()) {
+                    startDateTime = new Date();
+                    localStorage.setItem('mamoru_startTime', startDateTime.toISOString());
+                }
+                manualStop = false; recognition.start(); isRecording = true; requestWakeLock();
+            }
             else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); clearAllAutoQuestionToasts(); triggerScanPointer = rawLogText.length; }
             updateUIText();
         };
