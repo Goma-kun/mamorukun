@@ -349,8 +349,10 @@ Log:\n${log}\n\nChat:\n${chat}`,
         };
 
         // === API通信処理（Workers 経由） ===
-        async function askAI(contentsArray, _retry = 0) {
+        // opts.useSearch=false で Google Search グラウンディングを無効化（要約・アドバイス等で使用）
+        async function askAI(contentsArray, opts = {}, _retry = 0) {
             const MAX_RETRY = 3;
+            const useSearch = opts.useSearch !== false; // デフォルトは true
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -359,7 +361,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: contentsArray
+                        contents: contentsArray,
+                        ...(useSearch ? {} : { tools: [] })
                     }),
                     signal: controller.signal
                 });
@@ -375,7 +378,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
                     showError(retryMsg);
                     await new Promise(r => setTimeout(r, waitSec * 1000));
                     if (errorBanner) errorBanner.classList.add('hidden');
-                    return askAI(contentsArray, _retry + 1);
+                    return askAI(contentsArray, opts, _retry + 1);
                 }
 
                 if (!res.ok || data.error) {
@@ -814,7 +817,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
             // AIアドバイスとKB検索を並列実行
             const [res] = await Promise.all([
-                askAI([{ role: "user", parts: [{ text: p.advice(rawLogText) }] }]),
+                askAI([{ role: "user", parts: [{ text: p.advice(rawLogText) }] }], { useSearch: false }),
                 searchKBForSuggestions(rawLogText)
             ]);
             appendMsg('chat-area', t.labelAI, res, "ai-message");
@@ -853,13 +856,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
             try {
                 summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport1}</span>`;
-                const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }]);
+                const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }], { useSearch: false });
 
                 // 2回連続リクエストによるレート制限を避けるため3秒待機
                 await new Promise(r => setTimeout(r, 3000));
 
                 summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport2}</span>`;
-                const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }]);
+                const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }], { useSearch: false });
                 
                 const fullContent = p.reportTemplate(finalReport, cleanLog, chatHistoryForReport || t.noChatHistory);
                 
