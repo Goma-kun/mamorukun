@@ -858,8 +858,8 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport1}</span>`;
                 const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }], { useSearch: false });
 
-                // 2回連続リクエストによるレート制限を避けるため3秒待機
-                await new Promise(r => setTimeout(r, 3000));
+                // 2回連続リクエストによるレート制限を避けるため10秒待機
+                await new Promise(r => setTimeout(r, 10000));
 
                 summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport2}</span>`;
                 const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }], { useSearch: false });
