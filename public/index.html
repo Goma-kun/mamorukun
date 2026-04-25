@@ -273,7 +273,7 @@
                 placeholder: "質問を入力、または画像をペースト・添付...", btnSend: "送信", btnStart: "録音開始",
                 btnStop: "録音停止", btnAdvice: "ヒアリング確認", btnSummarize: "要約作成",
                 btnCopy: "コピー", btnClear: "クリア", msgCopied: "コピー完了！",
-                statusReport1: "要約作成中(1/2)...", statusReport2: "文章修正中(2/2)...",
+                statusReport1: "要約作成中...", statusReport2: "文章修正中(2/2)...",
                 labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
                 noChatHistory: "AIとのやり取りはありません。",
                 autoQuestionTitle: "疑問文を検知しました",
@@ -287,7 +287,7 @@
                 placeholder: "Type a question or paste/attach an image...", btnSend: "Send", btnStart: "Record",
                 btnStop: "Stop", btnAdvice: "Hearing Check", btnSummarize: "Create Summary",
                 btnCopy: "Copy", btnClear: "Clear", msgCopied: "Copied!",
-                statusReport1: "Creating Summary (1/2)...", statusReport2: "Cleaning text (2/2)...",
+                statusReport1: "Creating Summary...", statusReport2: "Cleaning text (2/2)...",
                 labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
                 noChatHistory: "No AI interactions.",
                 autoQuestionTitle: "Detected a question",
@@ -321,6 +321,32 @@
 4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）
 
 ログ:\n${log}\n\nチャット:\n${chat}`,
+                exportCombined: (timeText, log, chat) => `以下の応対ログとAIチャット履歴を使って、【要約】と【全文修正】の2つを作成してください。
+
+【出力形式・厳守】
+最初に要約を出力し、次の区切り文字を単独の行に出力し、その後に全文修正を出力してください。
+区切り文字: ===CLEANED_LOG===
+
+---
+【要約の方針】
+・要点を絞った簡潔で読みやすい要約にすること。
+・固有名詞（地名、施設名、薬名、システム名など）や具体的な要望のキーワードは必ず残すこと。
+・全文転記は不要。「後から読んだ担当者が要点をすぐ把握できる要約」が理想。
+
+【要約の必須構成】
+対応時間: ${timeText}
+
+1. 応対概要（簡潔な要約、重要な固有名詞と要望のキーワードを含める）
+2. 決定事項
+3. ToDo（顧客の要望・依頼内容は具体的な表現のまま列挙）
+4. 💡AIディレクション（ヒアリング漏れや次に確認すべきことを指摘）
+
+---
+【全文修正の方針】
+ログを自然な日本語に修正すること。修正済みの文章のみを出力し、前置きや後書きは一切不要。
+
+---
+ログ:\n${log}\n\nチャット:\n${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
@@ -342,6 +368,31 @@ Time: ${timeText}
 3. ToDo (list customer requests in their concrete wording)
 4. 💡AI Direction (gaps in hearing, next steps to confirm)
 
+Log:\n${log}\n\nChat:\n${chat}`,
+                exportCombined: (timeText, log, chat) => `Using the transcript and chat history below, produce TWO outputs: a SUMMARY and a CLEANED TRANSCRIPT.
+
+【Output format - strictly follow】
+Output the summary first, then output the following delimiter on its own line, then output the cleaned transcript.
+Delimiter: ===CLEANED_LOG===
+
+---
+【Summary guidelines】
+- Concise, focused on key points. Do not write long paragraphs.
+- Preserve all proper nouns (place names, facility names, drug names, system names) and specific customer requests verbatim.
+- A staff member reading later must immediately grasp the key points and important details.
+
+【Required summary structure】
+Time: ${timeText}
+1. Summary (concise, include all proper nouns and specific requests)
+2. Decisions
+3. ToDo (list customer requests in their exact wording)
+4. 💡AI Direction (identify gaps in hearing, next steps to confirm)
+
+---
+【Cleaned transcript guidelines】
+Correct the transcript to natural English. Output ONLY the corrected text, no preamble or closing remarks.
+
+---
 Log:\n${log}\n\nChat:\n${chat}`,
                 exportClean: (log) => `Correct the following text in natural English. Output ONLY the corrected text.\n\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ Operator Summary ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
@@ -856,14 +907,13 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
             try {
                 summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport1}</span>`;
-                const finalReport = await askAI([{ role: "user", parts: [{ text: p.exportReport(timeText, rawLogText, chatHistoryForReport) }] }], { useSearch: false });
+                // 要約と全文修正を1回のAPIコールで取得（429エラー防止）
+                const combined = await askAI([{ role: "user", parts: [{ text: p.exportCombined(timeText, rawLogText, chatHistoryForReport) }] }], { useSearch: false });
+                const DELIMITER = "===CLEANED_LOG===";
+                const delimIdx = combined.indexOf(DELIMITER);
+                const finalReport = delimIdx >= 0 ? combined.slice(0, delimIdx).trim() : combined.trim();
+                const cleanLog = delimIdx >= 0 ? combined.slice(delimIdx + DELIMITER.length).trim() : rawLogText;
 
-                // 2回連続リクエストによるレート制限を避けるため10秒待機
-                await new Promise(r => setTimeout(r, 10000));
-
-                summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport2}</span>`;
-                const cleanLog = await askAI([{ role: "user", parts: [{ text: p.exportClean(rawLogText) }] }], { useSearch: false });
-                
                 const fullContent = p.reportTemplate(finalReport, cleanLog, chatHistoryForReport || t.noChatHistory);
                 
                 document.getElementById('summary-area').innerHTML = "";
