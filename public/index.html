@@ -57,6 +57,10 @@
         input, select, textarea { font-size: 16px !important; }
         #chat-input { resize: vertical; min-height: 2.5rem; }
         #history-panel { transition: transform 0.25s ease; }
+
+        /* モード切替 */
+        body:not(.mode-memo) .memo-only { display: none !important; }
+        body:not(.mode-helpdesk) .helpdesk-only { display: none !important; }
     </style>
 </head>
 <body class="bg-slate-900 p-2 sm:p-5 h-[100dvh] flex flex-col text-base overflow-hidden">
@@ -66,9 +70,10 @@
                 🛡️ まもるくん
             </h1>
             <div class="flex items-center gap-1.5 sm:gap-2">
-                <button id="history-btn" class="bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
-                <button id="kb-btn" class="bg-slate-800/90 border border-emerald-600/60 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-emerald-900/40 transition-all shadow-inner shadow-black/40" title="知識ベース管理">📚</button>
-                <select id="lang-toggle" class="bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
+                <button id="mode-toggle-btn" class="bg-slate-800/90 border border-indigo-500/60 text-indigo-300 text-xs rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-indigo-900/50 transition-all shadow-inner shadow-black/40 font-bold" title="モード切替">📝 Memo</button>
+                <button id="history-btn" class="helpdesk-only bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
+                <button id="kb-btn" class="helpdesk-only bg-slate-800/90 border border-emerald-600/60 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-emerald-900/40 transition-all shadow-inner shadow-black/40" title="知識ベース管理">📚</button>
+                <select id="lang-toggle" class="helpdesk-only bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
                     <option value="ja" selected>🇯🇵 日本語</option>
                     <option value="en">🇺🇸 English</option>
                 </select>
@@ -88,16 +93,20 @@
         <div class="flex flex-col flex-1 min-h-0 gap-1.5 sm:gap-2 mt-0 sm:mt-1">
             <!-- 文字起こし / ログ & レポート カード -->
             <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div class="grid grid-cols-5 gap-0 border-b border-slate-700/80 w-full shrink-0 min-w-0 pr-1">
+                <div id="tab-bar" class="grid grid-cols-5 gap-0 border-b border-slate-700/80 w-full shrink-0 min-w-0 pr-1">
                     <button id="tab-btn-transcript" class="py-1 sm:py-1.5 px-0.5 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
                         <span class="text-[10px] sm:text-xs leading-none">🎙️</span>
                         <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">ログ</span>
                     </button>
-                    <button id="tab-btn-chat" class="py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                    <button id="tab-btn-clean" class="memo-only py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                        <span class="text-[10px] sm:text-xs leading-none">✏️</span>
+                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">清書</span>
+                    </button>
+                    <button id="tab-btn-chat" class="helpdesk-only py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
                         <span class="text-[10px] sm:text-xs leading-none">💬</span>
                         <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">AI回答</span>
                     </button>
-                    <button id="tab-btn-summary" class="py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
+                    <button id="tab-btn-summary" class="helpdesk-only py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
                         <span class="text-[10px] sm:text-xs leading-none">📄</span>
                         <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">要約</span>
                     </button>
@@ -122,6 +131,13 @@
                     <div id="content-summary" class="tab-content">
                         <div id="summary-area"></div>
                     </div>
+                    <div id="content-clean" class="tab-content memo-only">
+                        <div id="clean-processing" class="hidden text-center py-10 text-slate-400">
+                            <div class="text-3xl mb-3">✍️</div>
+                            <div class="text-sm">清書中...</div>
+                        </div>
+                        <div id="clean-area"></div>
+                    </div>
                 </div>
             </div>
 
@@ -145,16 +161,16 @@
 
             <!-- アクションボタン / レポート カード -->
             <div class="bg-slate-900/80 border border-slate-800 rounded-xl shadow-[0_14px_44px_rgba(15,23,42,0.94)] backdrop-blur px-2 sm:px-3 py-1 sm:py-1.5 shrink-0">
-                <div class="grid grid-cols-3 gap-1 sm:gap-1.5">
+                <div id="action-grid" class="grid grid-cols-3 gap-1 sm:gap-1.5">
                     <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50">
                         <span class="text-xs sm:text-sm leading-none">🎙️</span>
                         <span class="leading-tight">録音開始</span>
                     </button>
-                    <button id="advice-btn" class="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-amber-900/50 hover:shadow-amber-400/50">
+                    <button id="advice-btn" class="helpdesk-only bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-amber-900/50 hover:shadow-amber-400/50">
                         <span class="text-xs sm:text-sm leading-none">💡</span>
                         <span class="leading-tight">ヒアリング確認</span>
                     </button>
-                    <button id="summarize-btn" class="bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 shadow-md shadow-indigo-900/50 hover:shadow-indigo-400/50">
+                    <button id="summarize-btn" class="helpdesk-only bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 shadow-md shadow-indigo-900/50 hover:shadow-indigo-400/50">
                         <span class="text-xs sm:text-sm leading-none">📄</span>
                         <span class="leading-tight">要約作成</span>
                     </button>
@@ -205,8 +221,11 @@
 
     <script>
         // === 初期設定と状態管理 ===
+        let currentMode = localStorage.getItem('mamoru_mode') || 'helpdesk';
+        document.body.classList.add('mode-' + currentMode);
+        let cleanedText = '';
         let isRecording = false;
-        let manualStop = true; 
+        let manualStop = true;
         let recognition;
         let rawLogText = localStorage.getItem('mamoru_rawLogText') || "";
         let chatHistoryForReport = localStorage.getItem('mamoru_chatHistory') || "";
@@ -348,6 +367,7 @@
 ---
 ログ:\n${log}\n\nチャット:\n${chat}`,
                 exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
+                memoClean: (log) => `以下の音声文字起こしテキストを読みやすく整形してください。\n【ルール】\n・えー、あのー、えっと、なんか等のフィラーを除去する\n・重複・言い淀みを削除する\n・適切な句読点を追加する\n・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）\n・箇条書きや見出しにしない\n・整形後のテキストのみ出力する（前置き・後書き禁止）\n\nテキスト:\n${log}`,
                 reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
             },
             en: {
@@ -758,8 +778,73 @@ Log:\n${log}\n\nChat:\n${chat}`,
         const requestWakeLock = async () => { 
             try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} 
         };
-        const releaseWakeLock = () => { 
-            if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; }); 
+        const releaseWakeLock = () => {
+            if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; });
+        };
+
+        // === メモモード: 清書処理 ===
+        async function runMemoClean() {
+            if (!rawLogText.trim()) return;
+            const processingEl = document.getElementById('clean-processing');
+            const cleanArea = document.getElementById('clean-area');
+            cleanArea.innerHTML = '';
+            processingEl.classList.remove('hidden');
+            switchTab('clean');
+
+            const result = await askAI([{
+                role: "user",
+                parts: [{ text: aiPrompts.ja.memoClean(rawLogText) }]
+            }]);
+
+            cleanedText = result;
+            processingEl.classList.add('hidden');
+
+            const div = document.createElement('div');
+            div.className = 'ai-message';
+            div.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-1">清書</div><div class="whitespace-pre-wrap">${formatText(result)}</div>`;
+            cleanArea.appendChild(div);
+            const d = document.getElementById('log-display');
+            if (d) d.scrollTop = d.scrollHeight;
+        }
+
+        // === モード切替 ===
+        function updateModeUI() {
+            const isMemo = currentMode === 'memo';
+            document.body.classList.toggle('mode-memo', isMemo);
+            document.body.classList.toggle('mode-helpdesk', !isMemo);
+
+            const tabBar = document.getElementById('tab-bar');
+            tabBar.classList.toggle('grid-cols-5', !isMemo);
+            tabBar.classList.toggle('grid-cols-4', isMemo);
+
+            const actionGrid = document.getElementById('action-grid');
+            actionGrid.classList.toggle('grid-cols-3', !isMemo);
+            actionGrid.classList.toggle('grid-cols-1', isMemo);
+
+            const modeBtn = document.getElementById('mode-toggle-btn');
+            if (isMemo) {
+                modeBtn.textContent = '🛡️ HD';
+                modeBtn.title = 'ヘルプデスクモードに切替';
+            } else {
+                modeBtn.textContent = '📝 Memo';
+                modeBtn.title = 'メモモードに切替';
+            }
+
+            // モード切替時にアクティブタブが非表示になる場合はログへ戻す
+            const activeTab = document.querySelector('.tab-content.active');
+            if (activeTab) {
+                const id = activeTab.id.replace('content-', '');
+                const btnEl = document.getElementById('tab-btn-' + id);
+                if (btnEl && (btnEl.classList.contains('memo-only') || btnEl.classList.contains('helpdesk-only'))) {
+                    switchTab('transcript');
+                }
+            }
+        }
+
+        document.getElementById('mode-toggle-btn').onclick = () => {
+            currentMode = (currentMode === 'memo') ? 'helpdesk' : 'memo';
+            localStorage.setItem('mamoru_mode', currentMode);
+            updateModeUI();
         };
 
         toggleBtn.onclick = () => {
@@ -771,7 +856,11 @@ Log:\n${log}\n\nChat:\n${chat}`,
                 }
                 manualStop = false; recognition.start(); isRecording = true; requestWakeLock();
             }
-            else { manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock(); clearAllAutoQuestionToasts(); triggerScanPointer = rawLogText.length; }
+            else {
+                manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock();
+                clearAllAutoQuestionToasts(); triggerScanPointer = rawLogText.length;
+                if (currentMode === 'memo' && rawLogText.trim()) runMemoClean();
+            }
             updateUIText();
         };
 
@@ -935,6 +1024,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
             let text = "";
             if (activeTabId === 'content-transcript') text = rawLogText;
             else if (activeTabId === 'content-chat') text = chatHistoryForReport;
+            else if (activeTabId === 'content-clean') text = cleanedText;
             else text = document.getElementById('summary-area').innerText;
             
             try {
@@ -974,6 +1064,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
         document.getElementById('tab-btn-transcript').onclick = () => switchTab('transcript');
         document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
         document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
+        document.getElementById('tab-btn-clean').onclick = () => switchTab('clean');
 
         // === URLリンク化処理 ===
         function formatText(text) {
@@ -1031,6 +1122,7 @@ Log:\n${log}\n\nChat:\n${chat}`,
 
         // === 初期化処理 ===
         window.addEventListener('DOMContentLoaded', () => {
+            updateModeUI();
             if (rawLogText) {
                 rawLogText.split('\n').forEach(line => {
                     if (line.trim()) {
