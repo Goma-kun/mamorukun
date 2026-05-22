@@ -78,6 +78,29 @@
                 font-size: 0.7rem;
                 line-height: 1.2;
             }
+
+            /* スマホ: 録音ボタンを大きく押しやすく */
+            #toggle-btn {
+                padding-top: 1.1rem;
+                padding-bottom: 1.1rem;
+                border-radius: 1rem;
+                gap: 0.4rem;
+            }
+            #toggle-btn span:first-child {
+                font-size: 1.75rem;
+                line-height: 1;
+            }
+            #toggle-btn span:last-child {
+                font-size: 1rem;
+                line-height: 1.2;
+                font-weight: 800;
+            }
+
+            /* スマホ: アクションカードの上下余白を増やす */
+            #action-card {
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+            }
         }
     </style>
 </head>
@@ -178,7 +201,7 @@
             </div>
 
             <!-- アクションボタン / レポート カード -->
-            <div class="bg-slate-900/80 border border-slate-800 rounded-xl shadow-[0_14px_44px_rgba(15,23,42,0.94)] backdrop-blur px-2 sm:px-3 py-1 sm:py-1.5 shrink-0">
+            <div id="action-card" class="bg-slate-900/80 border border-slate-800 rounded-xl shadow-[0_14px_44px_rgba(15,23,42,0.94)] backdrop-blur px-2 sm:px-3 py-1 sm:py-1.5 shrink-0">
                 <div id="action-grid" class="grid grid-cols-3 gap-1 sm:gap-1.5">
                     <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50">
                         <span class="text-xs sm:text-sm leading-none">🎙️</span>
