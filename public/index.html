@@ -61,6 +61,24 @@
         /* モード切替 */
         body:not(.mode-memo) .memo-only { display: none !important; }
         body:not(.mode-helpdesk) .helpdesk-only { display: none !important; }
+
+        /* スマホ: タブバーボタンを大きく（sm=640px未満） */
+        @media (max-width: 639px) {
+            #tab-bar button {
+                min-height: 3.75rem;
+                padding-top: 0.625rem;
+                padding-bottom: 0.625rem;
+                gap: 0.3rem;
+            }
+            #tab-bar button span:first-child {
+                font-size: 1.5rem;
+                line-height: 1;
+            }
+            #tab-bar button span:last-child {
+                font-size: 0.7rem;
+                line-height: 1.2;
+            }
+        }
     </style>
 </head>
 <body class="bg-slate-900 p-2 sm:p-5 h-[100dvh] flex flex-col text-base overflow-hidden">
@@ -142,7 +160,7 @@
             </div>
 
             <!-- カメラ / チャット入力 カード -->
-            <div class="bg-slate-900/75 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2 shrink-0">
+            <div class="helpdesk-only bg-slate-900/75 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2 shrink-0">
                 <div id="image-preview-container" class="hidden relative inline-block w-20 h-20 sm:w-24 sm:h-24 ml-1 sm:ml-2 mt-1">
                     <img id="image-preview" class="w-full h-full object-cover rounded-xl border border-slate-600 shadow-lg shadow-slate-900/70">
                     <button id="remove-image-btn" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg hover:bg-rose-400">×</button>
