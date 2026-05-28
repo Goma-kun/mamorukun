@@ -25,21 +25,25 @@ function saveTranscript() {
 // ============================================================
 // UI 要素
 // ============================================================
-const settingsBtn     = document.getElementById('settings-btn');
-const tabTranscript   = document.getElementById('tab-transcript');
-const tabClean        = document.getElementById('tab-clean');
-const copyBtn         = document.getElementById('copy-btn');
-const clearBtn        = document.getElementById('clear-btn');
-const panelTranscript = document.getElementById('panel-transcript');
-const panelClean      = document.getElementById('panel-clean');
-const transcriptLines = document.getElementById('transcript-lines');
-const interimLine     = document.getElementById('interim-line');
-const toggleBtn       = document.getElementById('toggle-btn');
-const cleanBtn        = document.getElementById('clean-btn');
-const cleanTier1Lock  = document.getElementById('clean-tier1-lock');
-const cleanProcessing = document.getElementById('clean-processing');
-const cleanResult     = document.getElementById('clean-result');
-const goSettingsBtn   = document.getElementById('go-settings-btn');
+const settingsBtn        = document.getElementById('settings-btn');
+const tabTranscript      = document.getElementById('tab-transcript');
+const tabClean           = document.getElementById('tab-clean');
+const clearBtn           = document.getElementById('clear-btn');
+const panelTranscript    = document.getElementById('panel-transcript');
+const panelClean         = document.getElementById('panel-clean');
+const transcriptLines    = document.getElementById('transcript-lines');
+const interimLine        = document.getElementById('interim-line');
+const transcriptCopyArea = document.getElementById('transcript-copy-area');
+const transcriptCopyBtn  = document.getElementById('transcript-copy-btn');
+const cleanCopyArea      = document.getElementById('clean-copy-area');
+const cleanCopyBtn       = document.getElementById('clean-copy-btn');
+const toggleBtn          = document.getElementById('toggle-btn');
+const cleanBtn           = document.getElementById('clean-btn');
+const cleanTier1Lock     = document.getElementById('clean-tier1-lock');
+const cleanProcessing    = document.getElementById('clean-processing');
+const cleanResult        = document.getElementById('clean-result');
+const goSettingsBtn      = document.getElementById('go-settings-btn');
+const clearModal         = document.getElementById('clear-modal');
 
 // ============================================================
 // ティア UI（APIキーの有無で変わる）
@@ -87,7 +91,10 @@ function switchPanel(id) {
 // ============================================================
 function renderTranscript() {
   transcriptLines.innerHTML = '';
-  if (!transcript.trim()) return;
+  if (!transcript.trim()) {
+    transcriptCopyArea.classList.remove('visible');
+    return;
+  }
   transcript.split('\n').forEach(line => {
     if (!line.trim()) return;
     const p = document.createElement('p');
@@ -95,6 +102,7 @@ function renderTranscript() {
     p.textContent = line;
     transcriptLines.appendChild(p);
   });
+  transcriptCopyArea.classList.add('visible');
   scrollTranscriptToBottom();
 }
 
@@ -104,13 +112,13 @@ function appendTranscriptLine(text) {
   p.className = 'transcript-line';
   p.textContent = text;
   transcriptLines.appendChild(p);
+  transcriptCopyArea.classList.add('visible');
   scrollTranscriptToBottom();
 }
 
+// RAF なし・即時スクロールで interim 行まで確実に表示
 function scrollTranscriptToBottom() {
-  requestAnimationFrame(() => {
-    panelTranscript.scrollTop = panelTranscript.scrollHeight;
-  });
+  panelTranscript.scrollTop = panelTranscript.scrollHeight;
 }
 
 // ============================================================
@@ -162,7 +170,7 @@ function stopRecording() {
   recognitionAlive = false;
   const rec = recognition;
   recognition = null;
-  // STOPPED 相当処理は onend 後に実行して、最終 RESULT が先に届く順序を保証
+  // onend 後に処理することで最終 RESULT が先に届く順序を保証
   rec.onend = () => onRecordingStopped();
   rec.stop();
 }
@@ -225,6 +233,7 @@ async function runClean(auto = false) {
   cleanTier1Lock.style.display  = 'none';
   cleanProcessing.style.display = '';
   cleanResult.innerHTML = '';
+  cleanCopyArea.classList.remove('visible');
 
   const prompt = `以下の音声文字起こしテキストを読みやすく整形してください。
 【ルール】
@@ -260,6 +269,7 @@ ${transcript}`;
     card.contentEditable = 'true';
     card.textContent = cleanedText;
     cleanResult.appendChild(card);
+    cleanCopyArea.classList.add('visible');
 
     if (auto) switchPanel('clean');
   } catch (err) {
@@ -270,48 +280,41 @@ ${transcript}`;
 }
 
 // ============================================================
-// コピー
+// コピー（各パネルのボタンから直接呼ぶ）
 // ============================================================
-async function doCopy() {
-  let text = '';
-  if (activePanel === 'transcript') text = transcript;
-  else if (activePanel === 'clean') {
-    const card = cleanResult.querySelector('.clean-card');
-    text = card ? card.textContent : cleanedText;
-  }
-
+async function copyText(text, btn) {
   if (!text.trim()) { showToast('コピーするテキストがありません', 'info'); return; }
   try {
     await navigator.clipboard.writeText(text);
-    showToast('コピーしました！', 'ok');
+    if (btn) {
+      const orig = btn.textContent;
+      btn.textContent = '✓ コピー済';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 1500);
+    } else {
+      showToast('コピーしました！', 'ok');
+    }
   } catch {
     showToast('コピーに失敗しました', 'error');
   }
 }
 
 // ============================================================
-// クリア
+// クリア（モーダル確認）
 // ============================================================
-let clearConfirmTimer = null;
 function doClear() {
   if (!transcript.trim() && !cleanedText) return;
-  if (clearBtn.dataset.confirm !== '1') {
-    clearBtn.dataset.confirm = '1';
-    clearBtn.textContent = '確認';
-    clearConfirmTimer = setTimeout(() => {
-      clearBtn.dataset.confirm = '';
-      clearBtn.textContent = '🗑️';
-    }, 3000);
-    return;
-  }
-  clearTimeout(clearConfirmTimer);
-  clearBtn.dataset.confirm = '';
-  clearBtn.textContent = '🗑️';
+  clearModal.classList.add('open');
+}
+
+function executeClear() {
+  clearModal.classList.remove('open');
   transcript  = '';
   cleanedText = '';
   saveTranscript();
   renderTranscript();
   cleanResult.innerHTML = '';
+  cleanCopyArea.classList.remove('visible');
   cleanTier1Lock.style.display = geminiKey ? 'none' : '';
   switchPanel('transcript');
   showToast('クリアしました', 'ok');
@@ -369,19 +372,36 @@ toggleBtn.addEventListener('click', () => {
   else stopRecording();
 });
 
-settingsBtn.addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
-});
-
-goSettingsBtn.addEventListener('click', () => {
-  chrome.runtime.openOptionsPage();
-});
+settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
+goSettingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 tabTranscript.addEventListener('click', () => switchPanel('transcript'));
 tabClean.addEventListener('click',      () => switchPanel('clean'));
 
-copyBtn.addEventListener('click', doCopy);
 clearBtn.addEventListener('click', doClear);
+
+// コピーボタン（書き起こしパネル）
+transcriptCopyBtn.addEventListener('click', () => {
+  copyText(transcript, transcriptCopyBtn);
+});
+
+// コピーボタン（清書パネル）
+cleanCopyBtn.addEventListener('click', () => {
+  const card = cleanResult.querySelector('.clean-card');
+  const text = card ? card.textContent : cleanedText;
+  copyText(text, cleanCopyBtn);
+});
+
+// モーダル
+document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+  clearModal.classList.remove('open');
+});
+document.getElementById('modal-confirm-btn').addEventListener('click', executeClear);
+
+// モーダル外クリックで閉じる
+clearModal.addEventListener('click', (e) => {
+  if (e.target === clearModal) clearModal.classList.remove('open');
+});
 
 cleanBtn.addEventListener('click', () => {
   if (!geminiKey) { chrome.runtime.openOptionsPage(); return; }
