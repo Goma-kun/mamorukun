@@ -188,6 +188,20 @@
       height: 100vh;
       display: flex; flex-direction: column;
     }
+
+    /* ── コンパクト表示（狭い幅でも崩れないよう調整） ── */
+    @media (max-width: 280px) {
+      html, body { font-size: 12px; }
+      #header { padding: 6px 8px; }
+      #app-title { font-size: 13px; }
+      .header-btn { padding: 3px 7px; font-size: 11px; }
+      #action-bar { padding: 6px 8px; }
+      #toggle-btn { padding: 9px; font-size: 13px; }
+      #clean-btn { padding: 6px; font-size: 11px; }
+      #panel-transcript, #panel-clean { padding: 8px; }
+      .transcript-line { font-size: 12px; }
+      .clean-card { font-size: 12px; padding: 10px; }
+    }
   </style>
 </head>
 <body>
