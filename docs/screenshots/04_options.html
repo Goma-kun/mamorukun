@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>まもるくん — 設定画面</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;width:1280px;height:800px;background:#060e1f;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,"Hiragino Sans","Yu Gothic",sans-serif;}
+.popup{width:480px;height:680px;background:#0f172a;border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,0.7),0 0 0 1px rgba(56,189,248,0.15);}
+.inner{padding:24px 16px;overflow-y:auto;flex:1;}
+h1{font-size:18px;font-weight:800;color:#38bdf8;margin:0 0 16px;}
+#current-tier{font-size:13px;color:#94a3b8;margin-bottom:16px;padding:10px 12px;background:#0f172a;border-radius:8px;border:1px solid #1e293b;}
+.tier2-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;background:#052e16;border:1px solid #16a34a;color:#4ade80;margin-left:8px;}
+.section{background:#1e293b;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:16px;}
+h2{font-size:13px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 12px;}
+.key-saved-badge{display:inline-flex;align-items:center;gap:4px;background:#052e16;border:1px solid #16a34a;color:#4ade80;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;margin-bottom:8px;}
+label{font-size:12px;color:#94a3b8;display:block;margin-bottom:6px;}
+input[type="password"]{width:100%;padding:10px 12px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-size:13px;outline:none;font-family:monospace;}
+.btn-row{display:flex;gap:8px;margin-top:10px;}
+.btn{padding:9px 16px;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;flex:1;}
+.btn-test{background:#0f2744;border:1px solid #0ea5e9;color:#38bdf8;}
+.btn-danger{background:#2d0a0a;border:1px solid #dc2626;color:#f87171;}
+#key-status{margin-top:10px;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:600;background:#052e16;border:1px solid #16a34a;color:#4ade80;}
+.link-row{margin-top:10px;}
+a{color:#38bdf8;text-decoration:none;font-size:12px;}
+.note{font-size:12px;color:#64748b;line-height:1.6;margin-top:8px;}
+.note strong{color:#94a3b8;}
+</style>
+</head>
+<body>
+<div class="popup">
+  <div class="inner">
+    <h1>⚙️ まもるくん 設定</h1>
+    <div id="current-tier">
+      現在の機能: <strong style="color:#e2e8f0;">文字起こし + AI清書</strong>
+      <span class="tier2-badge">✓ APIキーあり</span>
+    </div>
+    <div class="section">
+      <h2>Gemini API キー（AI清書機能の解放）</h2>
+      <div class="key-saved-badge">✓ APIキー設定済み</div>
+      <label for="api-key-input">APIキー</label>
+      <input type="password" id="api-key-input" value="AIzaSyDxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+      <div id="key-status">✓ 接続テスト成功 — Gemini API に正常に接続できました</div>
+      <div class="btn-row">
+        <button class="btn btn-primary">保存</button>
+        <button class="btn btn-test">接続テスト</button>
+        <button class="btn btn-danger">削除</button>
+      </div>
+      <div class="link-row">
+        <a href="#">🔗 Google AI Studio でAPIキーを無料取得する</a>
+      </div>
+      <p class="note"><strong>🔒 セキュリティについて：</strong>APIキーはお使いの Chrome 内にのみ保存され、外部サーバーへは一切送信しません。</p>
+    </div>
+    <div class="section">
+      <h2>機能レベルについて</h2>
+      <p class="note"><strong>📝 文字起こしのみ（APIキー不要）</strong><br>リアルタイム音声文字起こし・コピー・クリア。ゼロ設定で使えます。</p>
+      <p class="note" style="margin-top:10px"><strong>✨ 文字起こし + AI清書（APIキーあり）</strong><br>録音停止後に Gemini が自動で清書。フィラー除去・句読点追加・話し言葉の整形を行います。</p>
+    </div>
+  </div>
+</div>
+</body>
+</html>
