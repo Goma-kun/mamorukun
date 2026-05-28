@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>まもるくん</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #0f172a; color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 14px;
+      overflow: hidden;
+    }
+
+    /* ── ヘッダー ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px;
+      background: rgba(15,23,42,0.9);
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    #app-title {
+      font-size: 15px; font-weight: 800;
+      color: #38bdf8;
+      text-shadow: 0 0 12px rgba(56,189,248,0.35);
+      margin: 0;
+    }
+    .header-btns { display: flex; gap: 6px; }
+    .header-btn {
+      background: #1e293b; border: 1px solid #334155;
+      color: #94a3b8; border-radius: 8px;
+      padding: 4px 10px; font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .header-btn:hover { background: #334155; color: #e2e8f0; }
+
+    /* ── タブバー ── */
+    #tab-bar {
+      display: grid; grid-template-columns: 1fr 1fr auto auto;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #64748b; font-size: 12px; font-weight: 700;
+      padding: 7px 4px; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 1px;
+    }
+    .tab-btn .icon { font-size: 13px; line-height: 1; }
+    .tab-btn .label { font-size: 10px; line-height: 1.2; }
+    .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+    .tab-btn:hover:not(.active) { color: #94a3b8; }
+    .tab-btn.tier2-locked { color: #374151; cursor: default; }
+    .tab-btn.tier2-locked:hover { color: #374151; }
+    #copy-btn, #clear-btn {
+      background: #1e293b; border: none; border-left: 1px solid #1e293b;
+      color: #94a3b8; font-size: 12px; padding: 7px 10px;
+      cursor: pointer; transition: all 0.15s;
+    }
+    #copy-btn:hover { color: #38bdf8; background: #0f2744; }
+    #clear-btn { color: #f87171; }
+    #clear-btn:hover { background: #2d0a0a; }
+
+    /* ティア別表示制御：APIキーなしは清書タブ非表示 */
+    body:not(.tier2) #tab-clean { display: none; }
+    body:not(.tier2) #tab-bar   { grid-template-columns: auto auto auto; }
+
+    /* ── メインコンテンツ ── */
+    #main {
+      display: flex; flex-direction: column;
+      flex: 1; min-height: 0;
+    }
+    .panel { display: none; flex: 1; min-height: 0; flex-direction: column; }
+    .panel.active { display: flex; }
+
+    /* 文字起こしパネル */
+    #panel-transcript {
+      overflow-y: auto; padding: 12px;
+    }
+    #panel-transcript::-webkit-scrollbar { width: 4px; }
+    #panel-transcript::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #transcript-lines { display: flex; flex-direction: column; gap: 4px; min-height: 20px; }
+    .transcript-line {
+      padding: 4px 8px;
+      border-left: 2px solid #334155;
+      color: #cbd5e1; font-size: 13px; line-height: 1.6;
+      word-break: break-all;
+    }
+    #interim-line {
+      padding: 4px 8px; margin-top: 4px;
+      color: #475569; font-style: italic; font-size: 13px;
+      line-height: 1.5; word-break: break-all;
+    }
+    #empty-hint {
+      color: #334155; font-size: 12px; text-align: center;
+      padding: 24px 16px;
+    }
+
+    /* 清書パネル */
+    #panel-clean { padding: 12px; overflow-y: auto; }
+    #panel-clean::-webkit-scrollbar { width: 4px; }
+    #panel-clean::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .tier1-lock {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 10px; padding: 32px 16px; text-align: center;
+    }
+    .lock-icon { font-size: 32px; opacity: 0.4; }
+    .lock-text { color: #64748b; font-size: 13px; line-height: 1.6; }
+    .lock-text strong { color: #94a3b8; }
+    .go-settings-btn {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; border-radius: 10px;
+      color: white; font-size: 12px; font-weight: 700;
+      padding: 8px 18px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .go-settings-btn:hover { opacity: 0.85; }
+    #clean-processing {
+      display: none; text-align: center; padding: 32px 16px;
+      color: #64748b; font-size: 13px;
+    }
+    #clean-processing .spin { font-size: 24px; display: block; margin-bottom: 8px; animation: spin 1.2s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #clean-result { display: flex; flex-direction: column; gap: 8px; }
+    .clean-card {
+      background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(91,33,182,0.15));
+      border: 1px solid rgba(99,102,241,0.3);
+      border-radius: 10px; padding: 12px;
+      color: #c7d2fe; font-size: 13px; line-height: 1.7;
+      white-space: pre-wrap; word-break: break-all;
+    }
+
+    /* ── インタリムバー ── */
+    #interim-bar {
+      flex-shrink: 0;
+      min-height: 36px; max-height: 80px;
+      padding: 6px 12px;
+      background: #0a0f1e;
+      border-top: 1px solid #1e293b;
+      color: #475569; font-size: 12px; font-style: italic;
+      line-height: 1.5; overflow: hidden;
+      word-break: break-all;
+    }
+
+    /* ── アクションバー ── */
+    #action-bar {
+      flex-shrink: 0;
+      padding: 8px 10px;
+      border-top: 1px solid #1e293b;
+      background: rgba(15,23,42,0.95);
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    #toggle-btn {
+      width: 100%; padding: 11px;
+      border: none; border-radius: 10px;
+      font-size: 14px; font-weight: 800; cursor: pointer;
+      transition: all 0.15s; letter-spacing: 0.02em;
+    }
+    #toggle-btn.idle {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #0f172a;
+      box-shadow: 0 4px 15px rgba(16,185,129,0.3);
+    }
+    #toggle-btn.recording {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white; animation: recpulse 1.5s ease-in-out infinite;
+      box-shadow: 0 4px 15px rgba(239,68,68,0.4);
+    }
+    @keyframes recpulse { 0%,100%{box-shadow:0 4px 15px rgba(239,68,68,0.4)} 50%{box-shadow:0 4px 22px rgba(239,68,68,0.7)} }
+
+    /* 清書ボタン行 */
+    #clean-row { display: flex; gap: 6px; }
+    #clean-btn {
+      flex: 1; padding: 8px;
+      border: 1px solid #6366f1; border-radius: 8px;
+      background: rgba(99,102,241,0.1);
+      color: #a5b4fc; font-size: 12px; font-weight: 700;
+      cursor: pointer; transition: all 0.15s;
+    }
+    #clean-btn:hover:not(:disabled) { background: rgba(99,102,241,0.25); }
+    #clean-btn:disabled {
+      border-color: #4338ca; color: #818cf8;
+      background: rgba(67,56,202,0.1); cursor: default;
+    }
+    #clean-btn-hint {
+      font-size: 10px; color: #6366f1;
+      align-self: center; flex-shrink: 0; line-height: 1.4;
+      text-align: right;
+    }
+
+    /* 全体レイアウト */
+    #wrapper {
+      height: 100vh;
+      display: flex; flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <!-- ヘッダー -->
+    <header id="header">
+      <h1 id="app-title">🛡️ まもるくん</h1>
+      <div class="header-btns">
+        <button id="settings-btn" class="header-btn" title="設定">⚙️</button>
+      </div>
+    </header>
+
+    <!-- タブバー -->
+    <div id="tab-bar">
+      <button id="tab-transcript" class="tab-btn active">
+        <span class="icon">🎙️</span><span class="label">ログ</span>
+      </button>
+      <button id="tab-clean" class="tab-btn tier2-locked" title="APIキーを設定すると使えます">
+        <span class="icon">✏️</span><span class="label">清書</span>
+      </button>
+      <button id="copy-btn" title="コピー">📋</button>
+      <button id="clear-btn" title="クリア">🗑️</button>
+    </div>
+
+    <!-- メインコンテンツ -->
+    <div id="main">
+      <!-- ログパネル -->
+      <div id="panel-transcript" class="panel active">
+        <div id="empty-hint">🎙️ 録音開始ボタンを押して話しかけてください</div>
+        <div id="transcript-lines"></div>
+        <div id="interim-line"></div>
+      </div>
+
+      <!-- 清書パネル -->
+      <div id="panel-clean" class="panel">
+        <div id="clean-tier1-lock" class="tier1-lock">
+          <div class="lock-icon">🔑</div>
+          <div class="lock-text">
+            <strong>Gemini API キーを設定すると<br>清書機能が使えます</strong><br>
+            録音を停止すると、話し言葉を<br>整った文章に自動で清書します。
+          </div>
+          <button class="go-settings-btn" id="go-settings-btn">⚙️ 設定画面を開く</button>
+        </div>
+        <div id="clean-processing">
+          <span class="spin">✍️</span>清書中...
+        </div>
+        <div id="clean-result"></div>
+      </div>
+    </div>
+
+    <!-- インタリムバー -->
+    <div id="interim-bar">認識結果がここに表示されます...</div>
+
+    <!-- アクションバー -->
+    <div id="action-bar">
+      <button id="toggle-btn" class="idle">▶ 開始</button>
+
+      <!-- 清書ボタン行 -->
+      <div id="clean-row">
+        <button id="clean-btn" disabled>✏️ 清書</button>
+        <span id="clean-btn-hint">APIキーを設定すると使えます</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

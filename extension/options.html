@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>まもるくん 設定</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 0;
+      background: #0f172a; color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 14px; min-height: 100vh;
+    }
+    .container { max-width: 480px; margin: 0 auto; padding: 24px 16px; }
+
+    h1 { font-size: 18px; font-weight: 800; color: #38bdf8; margin: 0 0 24px; }
+    h2 { font-size: 13px; font-weight: 700; color: #64748b; text-transform: uppercase;
+         letter-spacing: 0.08em; margin: 0 0 12px; }
+
+    .section {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 16px; margin-bottom: 16px;
+    }
+
+    label { font-size: 12px; color: #94a3b8; display: block; margin-bottom: 6px; }
+    input[type="password"], input[type="text"] {
+      width: 100%; padding: 10px 12px;
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 13px;
+      outline: none; transition: border-color 0.15s;
+      font-family: monospace;
+    }
+    input:focus { border-color: #6366f1; }
+
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .btn {
+      padding: 9px 16px; border: none; border-radius: 8px;
+      font-size: 12px; font-weight: 700; cursor: pointer;
+      transition: opacity 0.15s; white-space: nowrap;
+    }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; flex: 1; }
+    .btn-test    { background: #0f2744; border: 1px solid #0ea5e9; color: #38bdf8; }
+    .btn-danger  { background: #2d0a0a; border: 1px solid #dc2626; color: #f87171; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    #key-status {
+      margin-top: 10px; padding: 8px 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 600;
+      display: none;
+    }
+    .status-ok    { background: #052e16; border: 1px solid #16a34a; color: #4ade80; }
+    .status-error { background: #450a0a; border: 1px solid #dc2626; color: #f87171; }
+    .status-info  { background: #0f172a; border: 1px solid #334155; color: #94a3b8; }
+    .status-testing { background: #0f172a; border: 1px solid #6366f1; color: #a5b4fc; }
+
+    .key-saved-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #052e16; border: 1px solid #16a34a;
+      color: #4ade80; font-size: 11px; font-weight: 700;
+      padding: 3px 8px; border-radius: 6px; margin-bottom: 8px;
+    }
+
+    .link-row { margin-top: 10px; }
+    a { color: #38bdf8; text-decoration: none; font-size: 12px; }
+    a:hover { text-decoration: underline; }
+
+    .note {
+      font-size: 12px; color: #64748b; line-height: 1.6; margin-top: 8px;
+    }
+    .note strong { color: #94a3b8; }
+
+    .tier-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 999px;
+      font-size: 11px; font-weight: 700; margin-left: 8px;
+    }
+    .tier1 { background: #1e293b; border: 1px solid #334155; color: #64748b; }
+    .tier2 { background: #052e16; border: 1px solid #16a34a; color: #4ade80; }
+
+    #current-tier {
+      font-size: 13px; color: #94a3b8; margin-bottom: 16px;
+      padding: 10px 12px; background: #0f172a; border-radius: 8px;
+      border: 1px solid #1e293b;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>⚙️ まもるくん 設定</h1>
+
+    <div id="current-tier">
+      現在の機能: <span id="tier-label">確認中...</span>
+    </div>
+
+    <!-- Gemini API キー設定 -->
+    <div class="section">
+      <h2>Gemini API キー（AI清書機能の解放）</h2>
+
+      <div id="key-saved-indicator" style="display:none">
+        <span class="key-saved-badge">✓ APIキー設定済み</span>
+      </div>
+
+      <label for="api-key-input">APIキー</label>
+      <input type="password" id="api-key-input" placeholder="AIza..." autocomplete="off" spellcheck="false">
+
+      <div id="key-status"></div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" id="save-btn">保存</button>
+        <button class="btn btn-test" id="test-btn">接続テスト</button>
+        <button class="btn btn-danger" id="delete-btn">削除</button>
+      </div>
+
+      <div class="link-row">
+        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">
+          🔗 Google AI Studio でAPIキーを無料取得する
+        </a>
+      </div>
+
+      <p class="note">
+        <strong>取得手順：</strong>Google AI Studio にアクセス → ログイン → 「Get API key」→ 「Create API key」→ コピーして上の欄に貼り付け → 保存。
+      </p>
+      <p class="note" style="margin-top:8px">
+        <strong>💰 料金について：</strong>Gemini APIには無料枠があり、個人の日常的な使用であればほぼ料金がかかりません。まもるくんの清書機能は1回あたりのリクエストが小さいため、無料枠内に収まるケースがほとんどです。
+      </p>
+      <p class="note" style="margin-top:8px; border-left: 2px solid #f59e0b; padding-left: 8px;">
+        <strong>⚠️ 接続テストで「quota exceeded」エラーが出る場合：</strong><br>
+        新規プロジェクトで作成したキーは、Google Cloud の請求先アカウントが未設定だと無料枠のクォータが有効になりません。以下のいずれかで解決できます。<br>
+        ① <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud Console の請求先アカウント</a>でカードを登録する（無料枠内は課金されません）<br>
+        ② すでに請求先アカウントが設定済みの既存プロジェクトで新しいキーを作成する
+      </p>
+      <p class="note" style="margin-top:8px">
+        <strong>🔒 セキュリティについて：</strong>APIキーはお使いの Chrome 内にのみ保存され、外部サーバーへは一切送信しません。ただし以下の点にご注意ください。<br>
+        ・APIキーは他人に共有しないでください<br>
+        ・キーが漏洩した場合は Google AI Studio ですぐに無効化できます<br>
+        ・このデバイスを他の人と共有している場合は使用後にキーを削除することをお勧めします
+      </p>
+    </div>
+
+    <!-- 機能レベル説明 -->
+    <div class="section">
+      <h2>機能レベルについて</h2>
+      <p class="note">
+        <strong>📝 文字起こしのみ（APIキー不要）</strong><br>
+        リアルタイム音声文字起こし・コピー・クリア。ゼロ設定で使えるメモツールとして機能します。
+      </p>
+      <p class="note" style="margin-top:10px">
+        <strong>✨ 文字起こし + AI清書（APIキーあり）</strong><br>
+        録音停止後に Gemini が自動で清書。えー・あのーなどのフィラー除去、句読点追加、話し言葉の整形を行います。清書タブでいつでも確認・コピー可能。
+      </p>
+    </div>
+  </div>
+
+  <script src="options.js"></script>
+</body>
+</html>
