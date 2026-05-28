@@ -1,12 +1,13 @@
 // ============================================================
 // 状態
 // ============================================================
-let geminiKey   = '';
-let isRecording = false;
-let activeTabId = null;
-let transcript  = '';  // 確定テキスト（改行区切り）
-let cleanedText = '';
-let activePanel = 'transcript';
+let geminiKey      = '';
+let isRecording    = false;
+let recognition    = null;
+let recognitionAlive = false;
+let transcript     = '';  // 確定テキスト（改行区切り）
+let cleanedText    = '';
+let activePanel    = 'transcript';
 
 // ============================================================
 // ストレージ
@@ -113,29 +114,57 @@ function scrollTranscriptToBottom() {
 }
 
 // ============================================================
-// 録音制御（コンテンツスクリプト経由）
+// 録音制御（まもるくんウィンドウ内で直接実行）
 // ============================================================
-async function startRecording() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (!tab) return;
-  const url = tab.url || '';
-  if (url.startsWith('chrome://') || url.startsWith('chrome-extension://') || !url) {
-    showToast('通常のWebページで使用してください', 'error');
-    return;
-  }
-  activeTabId = tab.id;
-  try {
-    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
-    chrome.tabs.sendMessage(tab.id, { type: 'START', lang: 'ja-JP' });
-  } catch (err) {
-    showToast('スクリプト注入に失敗しました: ' + err.message, 'error');
-  }
+function startRecording() {
+  if (recognitionAlive) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
+
+  recognition = new SR();
+  recognition.continuous     = true;
+  recognition.interimResults = true;
+  recognition.lang           = 'ja-JP';
+
+  recognition.onstart = () => {
+    recognitionAlive = true;
+    onRecordingStarted();
+  };
+
+  recognition.onresult = (e) => {
+    let interim = '', final = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    onResult(interim, final);
+  };
+
+  recognition.onend = () => {
+    if (recognitionAlive) recognition.start(); // continuous 維持
+  };
+
+  recognition.onerror = (e) => {
+    if (e.error === 'no-speech') return;
+    showToast('音声認識エラー: ' + e.error, 'error');
+    if (e.error !== 'aborted') {
+      recognitionAlive = false;
+      onRecordingStopped();
+    }
+  };
+
+  recognition.start();
 }
 
 function stopRecording() {
-  if (activeTabId) {
-    chrome.tabs.sendMessage(activeTabId, { type: 'STOP' });
-  }
+  if (!recognition) return;
+  recognitionAlive = false;
+  const rec = recognition;
+  recognition = null;
+  // STOPPED 相当処理は onend 後に実行して、最終 RESULT が先に届く順序を保証
+  rec.onend = () => onRecordingStopped();
+  rec.stop();
 }
 
 function onRecordingStarted() {
@@ -160,10 +189,8 @@ function onRecordingStopped() {
   interimLine.textContent = '';
 
   if (geminiKey && transcript.trim()) {
-    // APIキーあり → 自動清書
     runClean(true);
   } else if (!geminiKey && transcript.trim()) {
-    // APIキーなし → 書き起こしを自動コピー
     navigator.clipboard.writeText(transcript).then(() => {
       showToast('📋 書き起こしをコピーしました', 'ok');
     }).catch(() => {});
@@ -182,21 +209,6 @@ function onResult(interim, final) {
     saveTranscript();
   }
 }
-
-// ============================================================
-// メッセージ受信（content.js から）
-// ============================================================
-chrome.runtime.onMessage.addListener((msg) => {
-  switch (msg.type) {
-    case 'STARTED': onRecordingStarted(); break;
-    case 'STOPPED': onRecordingStopped(); break;
-    case 'RESULT':  onResult(msg.interim || '', msg.final || ''); break;
-    case 'ERROR':
-      showToast('音声認識エラー: ' + msg.msg, 'error');
-      if (isRecording) { isRecording = false; onRecordingStopped(); }
-      break;
-  }
-});
 
 // ============================================================
 // 清書（ティア2）
