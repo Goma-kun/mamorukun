@@ -130,18 +130,11 @@
       border-radius: 10px; padding: 12px;
       color: #c7d2fe; font-size: 13px; line-height: 1.7;
       white-space: pre-wrap; word-break: break-all;
+      cursor: text; outline: none;
     }
-
-    /* ── インタリムバー ── */
-    #interim-bar {
-      flex-shrink: 0;
-      min-height: 36px; max-height: 80px;
-      padding: 6px 12px;
-      background: #0a0f1e;
-      border-top: 1px solid #1e293b;
-      color: #475569; font-size: 12px; font-style: italic;
-      line-height: 1.5; overflow: hidden;
-      word-break: break-all;
+    .clean-card:focus {
+      border-color: rgba(99,102,241,0.7);
+      box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
     }
 
     /* ── アクションバー ── */
@@ -223,7 +216,6 @@
     <div id="main">
       <!-- ログパネル -->
       <div id="panel-transcript" class="panel active">
-        <div id="empty-hint">🎙️ 録音開始ボタンを押して話しかけてください</div>
         <div id="transcript-lines"></div>
         <div id="interim-line"></div>
       </div>
@@ -245,17 +237,13 @@
       </div>
     </div>
 
-    <!-- インタリムバー -->
-    <div id="interim-bar">認識結果がここに表示されます...</div>
-
     <!-- アクションバー -->
     <div id="action-bar">
       <button id="toggle-btn" class="idle">▶ 開始</button>
 
       <!-- 清書ボタン行 -->
       <div id="clean-row">
-        <button id="clean-btn" disabled>✏️ 清書</button>
-        <span id="clean-btn-hint">APIキーを設定すると使えます</span>
+        <button id="clean-btn">🔑 APIキーを設定して清書</button>
       </div>
     </div>
   </div>
