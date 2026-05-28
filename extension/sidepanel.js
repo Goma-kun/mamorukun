@@ -4,7 +4,7 @@
 let geminiKey   = '';
 let isRecording = false;
 let activeTabId = null;
-let transcript  = '';       // 確定テキスト（改行区切り）
+let transcript  = '';  // 確定テキスト（改行区切り）
 let cleanedText = '';
 let activePanel = 'transcript';
 
@@ -113,7 +113,7 @@ function scrollTranscriptToBottom() {
 }
 
 // ============================================================
-// 録音制御
+// 録音制御（コンテンツスクリプト経由）
 // ============================================================
 async function startRecording() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -123,7 +123,6 @@ async function startRecording() {
     showToast('通常のWebページで使用してください', 'error');
     return;
   }
-
   activeTabId = tab.id;
   try {
     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
@@ -183,6 +182,21 @@ function onResult(interim, final) {
     saveTranscript();
   }
 }
+
+// ============================================================
+// メッセージ受信（content.js から）
+// ============================================================
+chrome.runtime.onMessage.addListener((msg) => {
+  switch (msg.type) {
+    case 'STARTED': onRecordingStarted(); break;
+    case 'STOPPED': onRecordingStopped(); break;
+    case 'RESULT':  onResult(msg.interim || '', msg.final || ''); break;
+    case 'ERROR':
+      showToast('音声認識エラー: ' + msg.msg, 'error');
+      if (isRecording) { isRecording = false; onRecordingStopped(); }
+      break;
+  }
+});
 
 // ============================================================
 // 清書（ティア2）
@@ -324,21 +338,6 @@ function showToast(msg, type = 'info') {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
 }
-
-// ============================================================
-// メッセージ受信（content.js から）
-// ============================================================
-chrome.runtime.onMessage.addListener((msg) => {
-  switch (msg.type) {
-    case 'STARTED': onRecordingStarted(); break;
-    case 'STOPPED': onRecordingStopped(); break;
-    case 'RESULT':  onResult(msg.interim || '', msg.final || ''); break;
-    case 'ERROR':
-      showToast('音声認識エラー: ' + msg.msg, 'error');
-      if (isRecording) { isRecording = false; onRecordingStopped(); }
-      break;
-  }
-});
 
 // ============================================================
 // ストレージ変更監視（options から API キーが保存されたとき即反映）
