@@ -25,25 +25,25 @@ function saveTranscript() {
 // ============================================================
 // UI 要素
 // ============================================================
-const settingsBtn        = document.getElementById('settings-btn');
-const tabTranscript      = document.getElementById('tab-transcript');
-const tabClean           = document.getElementById('tab-clean');
-const clearBtn           = document.getElementById('clear-btn');
-const panelTranscript    = document.getElementById('panel-transcript');
-const panelClean         = document.getElementById('panel-clean');
-const transcriptLines    = document.getElementById('transcript-lines');
-const interimLine        = document.getElementById('interim-line');
-const transcriptCopyArea = document.getElementById('transcript-copy-area');
-const transcriptCopyBtn  = document.getElementById('transcript-copy-btn');
-const cleanCopyArea      = document.getElementById('clean-copy-area');
-const cleanCopyBtn       = document.getElementById('clean-copy-btn');
-const toggleBtn          = document.getElementById('toggle-btn');
-const cleanBtn           = document.getElementById('clean-btn');
-const cleanTier1Lock     = document.getElementById('clean-tier1-lock');
-const cleanProcessing    = document.getElementById('clean-processing');
-const cleanResult        = document.getElementById('clean-result');
-const goSettingsBtn      = document.getElementById('go-settings-btn');
-const clearModal         = document.getElementById('clear-modal');
+const settingsBtn       = document.getElementById('settings-btn');
+const tabTranscript     = document.getElementById('tab-transcript');
+const tabClean          = document.getElementById('tab-clean');
+const clearBtn          = document.getElementById('clear-btn');
+const panelTranscript   = document.getElementById('panel-transcript');
+const panelClean        = document.getElementById('panel-clean');
+const transcriptLines   = document.getElementById('transcript-lines');
+const interimLine       = document.getElementById('interim-line');
+const toggleBtn         = document.getElementById('toggle-btn');
+const cleanBtn          = document.getElementById('clean-btn');
+const cleanTier1Lock    = document.getElementById('clean-tier1-lock');
+const cleanProcessing   = document.getElementById('clean-processing');
+const cleanResult       = document.getElementById('clean-result');
+const goSettingsBtn     = document.getElementById('go-settings-btn');
+const cleanCopyTop      = document.getElementById('clean-copy-top');
+const cleanCopyTopBtn   = document.getElementById('clean-copy-top-btn');
+const cleanCopyBottom   = document.getElementById('clean-copy-bottom');
+const cleanCopyBottomBtn = document.getElementById('clean-copy-bottom-btn');
+const clearModal        = document.getElementById('clear-modal');
 
 // ============================================================
 // ティア UI（APIキーの有無で変わる）
@@ -91,10 +91,7 @@ function switchPanel(id) {
 // ============================================================
 function renderTranscript() {
   transcriptLines.innerHTML = '';
-  if (!transcript.trim()) {
-    transcriptCopyArea.classList.remove('visible');
-    return;
-  }
+  if (!transcript.trim()) return;
   transcript.split('\n').forEach(line => {
     if (!line.trim()) return;
     const p = document.createElement('p');
@@ -102,7 +99,6 @@ function renderTranscript() {
     p.textContent = line;
     transcriptLines.appendChild(p);
   });
-  transcriptCopyArea.classList.add('visible');
   scrollTranscriptToBottom();
 }
 
@@ -112,13 +108,12 @@ function appendTranscriptLine(text) {
   p.className = 'transcript-line';
   p.textContent = text;
   transcriptLines.appendChild(p);
-  transcriptCopyArea.classList.add('visible');
   scrollTranscriptToBottom();
 }
 
-// RAF なし・即時スクロールで interim 行まで確実に表示
+// scrollIntoView でパネルを常に interim 行まで確実にスクロール
 function scrollTranscriptToBottom() {
-  panelTranscript.scrollTop = panelTranscript.scrollHeight;
+  interimLine.scrollIntoView({ block: 'end' });
 }
 
 // ============================================================
@@ -193,12 +188,12 @@ function onRecordingStopped() {
     appendTranscriptLine(pending);
     saveTranscript();
   }
-
   interimLine.textContent = '';
 
   if (geminiKey && transcript.trim()) {
     runClean(true);
   } else if (!geminiKey && transcript.trim()) {
+    // APIキーなし → 書き起こしを自動コピー
     navigator.clipboard.writeText(transcript).then(() => {
       showToast('📋 書き起こしをコピーしました', 'ok');
     }).catch(() => {});
@@ -224,16 +219,14 @@ function onResult(interim, final) {
 async function runClean(auto = false) {
   if (!geminiKey || !transcript.trim()) return;
 
-  if (!auto) {
-    switchPanel('clean');
-  } else {
-    showToast('✍️ 清書中...', 'info');
-  }
+  if (!auto) switchPanel('clean');
+  else showToast('✍️ 清書中...', 'info');
 
   cleanTier1Lock.style.display  = 'none';
   cleanProcessing.style.display = '';
   cleanResult.innerHTML = '';
-  cleanCopyArea.classList.remove('visible');
+  cleanCopyTop.classList.remove('visible');
+  cleanCopyBottom.classList.remove('visible');
 
   const prompt = `以下の音声文字起こしテキストを読みやすく整形してください。
 【ルール】
@@ -269,9 +262,18 @@ ${transcript}`;
     card.contentEditable = 'true';
     card.textContent = cleanedText;
     cleanResult.appendChild(card);
-    cleanCopyArea.classList.add('visible');
+    cleanCopyTop.classList.add('visible');
+    cleanCopyBottom.classList.add('visible');
 
-    if (auto) switchPanel('clean');
+    if (auto) {
+      // 清書完了後に自動コピー → 貼り付けるだけの状態にする
+      navigator.clipboard.writeText(cleanedText).then(() => {
+        showToast('✅ 清書してコピーしました', 'ok');
+      }).catch(() => {
+        showToast('清書完了（コピーは手動でどうぞ）', 'info');
+      });
+      switchPanel('clean');
+    }
   } catch (err) {
     cleanProcessing.style.display = 'none';
     showToast('清書エラー: ' + err.message, 'error');
@@ -280,7 +282,7 @@ ${transcript}`;
 }
 
 // ============================================================
-// コピー（各パネルのボタンから直接呼ぶ）
+// コピー共通処理
 // ============================================================
 async function copyText(text, btn) {
   if (!text.trim()) { showToast('コピーするテキストがありません', 'info'); return; }
@@ -299,6 +301,11 @@ async function copyText(text, btn) {
   }
 }
 
+function getCleanText() {
+  const card = cleanResult.querySelector('.clean-card');
+  return card ? card.textContent : cleanedText;
+}
+
 // ============================================================
 // クリア（モーダル確認）
 // ============================================================
@@ -314,7 +321,8 @@ function executeClear() {
   saveTranscript();
   renderTranscript();
   cleanResult.innerHTML = '';
-  cleanCopyArea.classList.remove('visible');
+  cleanCopyTop.classList.remove('visible');
+  cleanCopyBottom.classList.remove('visible');
   cleanTier1Lock.style.display = geminiKey ? 'none' : '';
   switchPanel('transcript');
   showToast('クリアしました', 'ok');
@@ -351,7 +359,7 @@ function showToast(msg, type = 'info') {
   toast.textContent = msg;
   toast.style.opacity = '1';
   if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2000);
+  toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
 }
 
 // ============================================================
@@ -380,25 +388,15 @@ tabClean.addEventListener('click',      () => switchPanel('clean'));
 
 clearBtn.addEventListener('click', doClear);
 
-// コピーボタン（書き起こしパネル）
-transcriptCopyBtn.addEventListener('click', () => {
-  copyText(transcript, transcriptCopyBtn);
-});
-
-// コピーボタン（清書パネル）
-cleanCopyBtn.addEventListener('click', () => {
-  const card = cleanResult.querySelector('.clean-card');
-  const text = card ? card.textContent : cleanedText;
-  copyText(text, cleanCopyBtn);
-});
+// 清書パネル：上下コピーボタン
+cleanCopyTopBtn.addEventListener('click',    () => copyText(getCleanText(), cleanCopyTopBtn));
+cleanCopyBottomBtn.addEventListener('click', () => copyText(getCleanText(), cleanCopyBottomBtn));
 
 // モーダル
 document.getElementById('modal-cancel-btn').addEventListener('click', () => {
   clearModal.classList.remove('open');
 });
 document.getElementById('modal-confirm-btn').addEventListener('click', executeClear);
-
-// モーダル外クリックで閉じる
 clearModal.addEventListener('click', (e) => {
   if (e.target === clearModal) clearModal.classList.remove('open');
 });
