@@ -73,7 +73,11 @@
 
     /* ── 書き起こしパネル ── */
     #panel-transcript {
-      overflow-y: auto; padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end; /* コンテンツを下から積み上げ（チャット風） */
+      overflow-y: auto;
+      padding: 12px;
     }
     #panel-transcript::-webkit-scrollbar { width: 4px; }
     #panel-transcript::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
