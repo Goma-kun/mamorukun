@@ -111,9 +111,9 @@ function appendTranscriptLine(text) {
   scrollTranscriptToBottom();
 }
 
-// scrollIntoView でパネルを常に interim 行まで確実にスクロール
+// display:block コンテナに対して直接 scrollTop を設定
 function scrollTranscriptToBottom() {
-  interimLine.scrollIntoView({ block: 'end' });
+  panelTranscript.scrollTop = panelTranscript.scrollHeight;
 }
 
 // ============================================================
