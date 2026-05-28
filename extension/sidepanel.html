@@ -73,9 +73,6 @@
 
     /* ── 書き起こしパネル ── */
     #panel-transcript {
-      display: flex;
-      flex-direction: column;
-      justify-content: flex-end; /* コンテンツを下から積み上げ（チャット風） */
       overflow-y: auto;
       padding: 12px;
     }
@@ -99,7 +96,7 @@
     /* ── 清書パネル ── */
     #panel-clean {
       padding: 12px; overflow-y: auto;
-      display: flex; flex-direction: column; gap: 8px;
+      flex-direction: column; gap: 8px;
     }
     #panel-clean::-webkit-scrollbar { width: 4px; }
     #panel-clean::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }

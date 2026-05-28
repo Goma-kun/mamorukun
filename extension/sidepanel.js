@@ -74,14 +74,16 @@ function switchPanel(id) {
   if (id === 'clean' && tabClean.classList.contains('tier2-locked')) return;
 
   activePanel = id;
-  [panelTranscript, panelClean].forEach(p => p.classList.remove('active'));
   [tabTranscript, tabClean].forEach(t => t.classList.remove('active'));
 
   if (id === 'transcript') {
-    panelTranscript.classList.add('active');
+    // inline style で確実に切り替え（CSS 詳細度の競合を回避）
+    panelTranscript.style.display = 'block';
+    panelClean.style.display = 'none';
     tabTranscript.classList.add('active');
   } else {
-    panelClean.classList.add('active');
+    panelTranscript.style.display = 'none';
+    panelClean.style.display = 'flex';
     tabClean.classList.add('active');
   }
 }
@@ -413,5 +415,8 @@ cleanBtn.addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadStorage();
   applyTier();
+  // 初期表示状態を inline style で確定（CSS 詳細度の競合を排除）
+  panelTranscript.style.display = 'block';
+  panelClean.style.display = 'none';
   renderTranscript();
 });
