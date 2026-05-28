@@ -39,7 +39,7 @@
 
     /* ── タブバー ── */
     #tab-bar {
-      display: grid; grid-template-columns: 1fr 1fr auto auto;
+      display: grid; grid-template-columns: 1fr 1fr auto;
       border-bottom: 1px solid #1e293b;
       flex-shrink: 0;
     }
@@ -55,18 +55,16 @@
     .tab-btn:hover:not(.active) { color: #94a3b8; }
     .tab-btn.tier2-locked { color: #374151; cursor: default; }
     .tab-btn.tier2-locked:hover { color: #374151; }
-    #copy-btn, #clear-btn {
+    #clear-btn {
       background: #1e293b; border: none; border-left: 1px solid #1e293b;
-      color: #94a3b8; font-size: 12px; padding: 7px 10px;
+      color: #f87171; font-size: 12px; padding: 7px 12px;
       cursor: pointer; transition: all 0.15s;
     }
-    #copy-btn:hover { color: #38bdf8; background: #0f2744; }
-    #clear-btn { color: #f87171; }
     #clear-btn:hover { background: #2d0a0a; }
 
     /* ティア別表示制御：APIキーなしは清書タブ非表示 */
     body:not(.tier2) #tab-clean { display: none; }
-    body:not(.tier2) #tab-bar   { grid-template-columns: auto auto auto; }
+    body:not(.tier2) #tab-bar   { grid-template-columns: auto auto; }
 
     /* ── メインコンテンツ ── */
     #main {
@@ -95,13 +93,17 @@
       color: #475569; font-style: italic; font-size: 13px;
       line-height: 1.5; word-break: break-all;
     }
-    #empty-hint {
-      color: #334155; font-size: 12px; text-align: center;
-      padding: 24px 16px;
+
+    /* コードブロック風コピーボタン（書き起こし末尾） */
+    #transcript-copy-area {
+      display: none;
+      justify-content: flex-end;
+      padding: 6px 2px 2px;
     }
+    #transcript-copy-area.visible { display: flex; }
 
     /* 清書パネル */
-    #panel-clean { padding: 12px; overflow-y: auto; }
+    #panel-clean { padding: 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
     #panel-clean::-webkit-scrollbar { width: 4px; }
     #panel-clean::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     .tier1-lock {
@@ -137,6 +139,28 @@
       border-color: rgba(99,102,241,0.7);
       box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
     }
+
+    /* 清書パネルのコピーエリア */
+    #clean-copy-area {
+      display: none;
+      justify-content: flex-end;
+      padding: 2px;
+    }
+    #clean-copy-area.visible { display: flex; }
+
+    /* コードブロック風コピーボタン共通スタイル */
+    .code-copy-btn {
+      background: rgba(30,41,59,0.85);
+      border: 1px solid #334155;
+      border-radius: 7px;
+      color: #94a3b8;
+      font-size: 12px; font-weight: 600;
+      padding: 5px 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .code-copy-btn:hover { color: #38bdf8; border-color: #38bdf8; background: rgba(15,39,68,0.9); }
+    .code-copy-btn.copied { color: #4ade80; border-color: #4ade80; }
 
     /* ── アクションバー ── */
     #action-bar {
@@ -174,15 +198,6 @@
       cursor: pointer; transition: all 0.15s;
     }
     #clean-btn:hover:not(:disabled) { background: rgba(99,102,241,0.25); }
-    #clean-btn:disabled {
-      border-color: #4338ca; color: #818cf8;
-      background: rgba(67,56,202,0.1); cursor: default;
-    }
-    #clean-btn-hint {
-      font-size: 10px; color: #6366f1;
-      align-self: center; flex-shrink: 0; line-height: 1.4;
-      text-align: right;
-    }
 
     /* 全体レイアウト */
     #wrapper {
@@ -190,7 +205,49 @@
       display: flex; flex-direction: column;
     }
 
-    /* ── コンパクト表示（狭い幅でも崩れないよう調整） ── */
+    /* ── クリア確認モーダル ── */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.65);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 20px 18px;
+      width: calc(100% - 48px);
+      max-width: 300px;
+    }
+    .modal-msg {
+      color: #e2e8f0; font-size: 14px; font-weight: 700;
+      margin: 0 0 4px;
+    }
+    .modal-sub {
+      color: #64748b; font-size: 12px;
+      margin: 0 0 16px;
+    }
+    .modal-btns { display: flex; gap: 8px; }
+    .modal-cancel-btn {
+      flex: 1; padding: 10px;
+      background: #334155; border: none; border-radius: 8px;
+      color: #94a3b8; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .modal-cancel-btn:hover { background: #475569; }
+    .modal-del-btn {
+      flex: 1; padding: 10px;
+      background: #7f1d1d; border: none; border-radius: 8px;
+      color: #fca5a5; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: background 0.15s;
+    }
+    .modal-del-btn:hover { background: #991b1b; }
+
+    /* ── コンパクト表示 ── */
     @media (max-width: 280px) {
       html, body { font-size: 12px; }
       #header { padding: 6px 8px; }
@@ -223,7 +280,6 @@
       <button id="tab-clean" class="tab-btn tier2-locked" title="APIキーを設定すると使えます">
         <span class="icon">✏️</span><span class="label">清書</span>
       </button>
-      <button id="copy-btn" title="コピー">📋</button>
       <button id="clear-btn" title="クリア">🗑️</button>
     </div>
 
@@ -233,6 +289,10 @@
       <div id="panel-transcript" class="panel active">
         <div id="transcript-lines"></div>
         <div id="interim-line"></div>
+        <!-- コードブロック風コピーボタン（書き起こし末尾） -->
+        <div id="transcript-copy-area">
+          <button id="transcript-copy-btn" class="code-copy-btn">📋 コピー</button>
+        </div>
       </div>
 
       <!-- 清書パネル -->
@@ -249,16 +309,30 @@
           <span class="spin">✍️</span>清書中...
         </div>
         <div id="clean-result"></div>
+        <!-- 清書結果のコピーボタン -->
+        <div id="clean-copy-area">
+          <button id="clean-copy-btn" class="code-copy-btn">📋 コピー</button>
+        </div>
       </div>
     </div>
 
     <!-- アクションバー -->
     <div id="action-bar">
       <button id="toggle-btn" class="idle">▶ 開始</button>
-
-      <!-- 清書ボタン行 -->
       <div id="clean-row">
         <button id="clean-btn">🔑 APIキーを設定して清書</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- クリア確認モーダル -->
+  <div id="clear-modal" class="modal-overlay">
+    <div class="modal-box">
+      <p class="modal-msg">書き起こしを削除しますか？</p>
+      <p class="modal-sub">この操作は元に戻せません</p>
+      <div class="modal-btns">
+        <button id="modal-cancel-btn" class="modal-cancel-btn">キャンセル</button>
+        <button id="modal-confirm-btn" class="modal-del-btn">削除する</button>
       </div>
     </div>
   </div>
