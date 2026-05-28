@@ -33,11 +33,8 @@ const panelTranscript = document.getElementById('panel-transcript');
 const panelClean      = document.getElementById('panel-clean');
 const transcriptLines = document.getElementById('transcript-lines');
 const interimLine     = document.getElementById('interim-line');
-const emptyHint       = document.getElementById('empty-hint');
-const interimBar      = document.getElementById('interim-bar');
 const toggleBtn       = document.getElementById('toggle-btn');
 const cleanBtn        = document.getElementById('clean-btn');
-const cleanBtnHint    = document.getElementById('clean-btn-hint');
 const cleanTier1Lock  = document.getElementById('clean-tier1-lock');
 const cleanProcessing = document.getElementById('clean-processing');
 const cleanResult     = document.getElementById('clean-result');
@@ -53,14 +50,14 @@ function applyTier() {
   if (hasKey) {
     tabClean.classList.remove('tier2-locked');
     tabClean.title = '';
-    cleanBtn.disabled = false;
-    cleanBtnHint.textContent = '';
+    cleanBtn.textContent = '✏️ 清書';
+    cleanBtn.style.opacity = '';
     cleanTier1Lock.style.display = 'none';
   } else {
     tabClean.classList.add('tier2-locked');
     tabClean.title = 'APIキーを設定すると使えます';
-    cleanBtn.disabled = true;
-    cleanBtnHint.textContent = '⚙️ APIキーを設定すると使えます';
+    cleanBtn.textContent = '🔑 APIキーを設定して清書';
+    cleanBtn.style.opacity = '0.7';
     cleanTier1Lock.style.display = '';
   }
 }
@@ -89,11 +86,7 @@ function switchPanel(id) {
 // ============================================================
 function renderTranscript() {
   transcriptLines.innerHTML = '';
-  if (!transcript.trim()) {
-    emptyHint.style.display = '';
-    return;
-  }
-  emptyHint.style.display = 'none';
+  if (!transcript.trim()) return;
   transcript.split('\n').forEach(line => {
     if (!line.trim()) return;
     const p = document.createElement('p');
@@ -106,7 +99,6 @@ function renderTranscript() {
 
 function appendTranscriptLine(text) {
   if (!text.trim()) return;
-  emptyHint.style.display = 'none';
   const p = document.createElement('p');
   p.className = 'transcript-line';
   p.textContent = text;
@@ -151,7 +143,6 @@ function onRecordingStarted() {
   isRecording = true;
   toggleBtn.textContent = '■ 停止';
   toggleBtn.className = 'recording';
-  interimBar.textContent = '● 録音中...';
 }
 
 function onRecordingStopped() {
@@ -168,24 +159,26 @@ function onRecordingStopped() {
   }
 
   interimLine.textContent = '';
-  interimBar.textContent = '認識結果がここに表示されます...';
 
-  // APIキーあり → 自動清書（バックグラウンド）
   if (geminiKey && transcript.trim()) {
+    // APIキーあり → 自動清書
     runClean(true);
+  } else if (!geminiKey && transcript.trim()) {
+    // APIキーなし → 書き起こしを自動コピー
+    navigator.clipboard.writeText(transcript).then(() => {
+      showToast('📋 書き起こしをコピーしました', 'ok');
+    }).catch(() => {});
   }
 }
 
 function onResult(interim, final) {
   if (interim) {
     interimLine.textContent = interim;
-    interimBar.textContent  = interim;
     scrollTranscriptToBottom();
   }
   if (final) {
     transcript += final + '\n';
     interimLine.textContent = '';
-    interimBar.textContent  = '● 録音中...';
     appendTranscriptLine(final);
     saveTranscript();
   }
@@ -238,10 +231,11 @@ ${transcript}`;
     cleanProcessing.style.display = 'none';
     const card = document.createElement('div');
     card.className = 'clean-card';
+    card.contentEditable = 'true';
     card.textContent = cleanedText;
     cleanResult.appendChild(card);
 
-    if (auto) showToast('✨ 清書完了！清書タブで確認できます', 'ok');
+    if (auto) switchPanel('clean');
   } catch (err) {
     cleanProcessing.style.display = 'none';
     showToast('清書エラー: ' + err.message, 'error');
@@ -255,7 +249,10 @@ ${transcript}`;
 async function doCopy() {
   let text = '';
   if (activePanel === 'transcript') text = transcript;
-  else if (activePanel === 'clean')  text = cleanedText;
+  else if (activePanel === 'clean') {
+    const card = cleanResult.querySelector('.clean-card');
+    text = card ? card.textContent : cleanedText;
+  }
 
   if (!text.trim()) { showToast('コピーするテキストがありません', 'info'); return; }
   try {
@@ -269,9 +266,21 @@ async function doCopy() {
 // ============================================================
 // クリア
 // ============================================================
+let clearConfirmTimer = null;
 function doClear() {
   if (!transcript.trim() && !cleanedText) return;
-  if (!confirm('文字起こしと清書をクリアしますか？')) return;
+  if (clearBtn.dataset.confirm !== '1') {
+    clearBtn.dataset.confirm = '1';
+    clearBtn.textContent = '確認';
+    clearConfirmTimer = setTimeout(() => {
+      clearBtn.dataset.confirm = '';
+      clearBtn.textContent = '🗑️';
+    }, 3000);
+    return;
+  }
+  clearTimeout(clearConfirmTimer);
+  clearBtn.dataset.confirm = '';
+  clearBtn.textContent = '🗑️';
   transcript  = '';
   cleanedText = '';
   saveTranscript();

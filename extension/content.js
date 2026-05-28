@@ -57,12 +57,13 @@ if (!window.__mamorukun_injected) {
   }
 
   function stopRecognition() {
+    if (!recognition) { send({ type: 'STOPPED' }); return; }
     isRunning = false;
-    if (recognition) {
-      recognition.stop();
-      recognition = null;
-    }
-    send({ type: 'STOPPED' });
+    const rec = recognition;
+    recognition = null;
+    // STOPPED は onend 後に送ることで、最終 RESULT が必ず先に届く順序を保証する
+    rec.onend = () => send({ type: 'STOPPED' });
+    rec.stop();
   }
 
   chrome.runtime.onMessage.addListener((msg) => {

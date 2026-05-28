@@ -40,8 +40,20 @@ saveBtn.addEventListener('click', async () => {
   setTimeout(hideStatus, 2000);
 });
 
+let deleteConfirmTimer = null;
 deleteBtn.addEventListener('click', async () => {
-  if (!confirm('APIキーを削除しますか？\n清書機能が使えなくなります。')) return;
+  if (deleteBtn.dataset.confirm !== '1') {
+    deleteBtn.dataset.confirm = '1';
+    deleteBtn.textContent = '本当に削除しますか？';
+    deleteConfirmTimer = setTimeout(() => {
+      deleteBtn.dataset.confirm = '';
+      deleteBtn.textContent = '削除';
+    }, 3000);
+    return;
+  }
+  clearTimeout(deleteConfirmTimer);
+  deleteBtn.dataset.confirm = '';
+  deleteBtn.textContent = '削除';
   await chrome.storage.local.remove('mamoru_gemini_key');
   apiKeyInput.value = '';
   showStatus('APIキーを削除しました', 'info');
