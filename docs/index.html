@@ -1,1552 +1,476 @@
 <!DOCTYPE html>
-<html lang="ja" class="bg-slate-900">
+<html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>まもるくん - AI応対ログ・アシスタント</title>
-    <!-- ステータスバー・アドレスバーを黒系に（iOS Safari / PWA / Android Chrome） -->
-    <meta name="theme-color" content="#0f172a">
-    <meta name="theme-color" content="#0f172a" media="(prefers-color-scheme: dark)">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="まもるくん">
-    <meta name="msapplication-navbutton-color" content="#0f172a">
-    <meta name="mobile-web-app-capable" content="yes">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        html { background-color: #0f172a; }
-        body {
-            background-color: #0f172a;
-            background-image: radial-gradient(circle at top left, #1f2937 0, #020617 55%, #000000 100%);
-            color: #e5e7eb;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont,
-                "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
-            overscroll-behavior-y: none;
-        }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>まもるくん</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #0f172a; color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 15px;
+      overflow: hidden;
+    }
 
-        .log-container::-webkit-scrollbar { width: 6px; }
-        .log-container::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        
-        .ai-message {
-            background: linear-gradient(135deg, rgba(37, 99, 235, 0.9), rgba(91, 33, 182, 0.9));
-            border: 1px solid rgba(129, 140, 248, 0.5);
-            padding: 1rem 1.15rem;
-            margin-bottom: 1rem;
-            border-radius: 0.9rem;
-            word-break: break-all;
-            overflow-wrap: anywhere;
-            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.95);
-        }
+    /* ── ヘッダー ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(15,23,42,0.95);
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    #app-title {
+      font-size: 17px; font-weight: 800;
+      color: #38bdf8;
+      text-shadow: 0 0 12px rgba(56,189,248,0.35);
+      margin: 0;
+    }
 
-        .user-message {
-            background: linear-gradient(135deg, rgba(5, 150, 105, 0.95), rgba(8, 47, 73, 0.95));
-            border: 1px solid rgba(45, 212, 191, 0.55);
-            padding: 1rem 1.15rem;
-            margin-bottom: 1rem;
-            border-radius: 0.9rem;
-            word-break: break-all;
-            overflow-wrap: anywhere;
-            box-shadow: 0 16px 40px rgba(8, 47, 73, 0.9);
-        }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .whitespace-pre-wrap { white-space: pre-wrap; word-break: break-all; overflow-wrap: anywhere; }
-        
-        button:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        input, select, textarea { font-size: 16px !important; }
-        #chat-input { resize: vertical; min-height: 2.5rem; }
-        #history-panel { transition: transform 0.25s ease; }
+    /* ── タブバー ── */
+    #tab-bar {
+      display: grid; grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #64748b; font-size: 13px; font-weight: 700;
+      padding: 9px 4px; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .tab-btn .icon { font-size: 15px; line-height: 1; }
+    .tab-btn .label { font-size: 11px; line-height: 1.2; }
+    .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+    .tab-btn:hover:not(.active) { color: #94a3b8; }
 
-        /* モード切替 */
-        body:not(.mode-memo) .memo-only { display: none !important; }
-        body:not(.mode-helpdesk) .helpdesk-only { display: none !important; }
+    /* ── メインコンテンツ ── */
+    #main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .panel { display: none; flex: 1; min-height: 0; overflow-y: auto; }
 
-        /* スマホ: タブバーボタンを大きく（sm=640px未満） */
-        @media (max-width: 639px) {
-            #tab-bar button {
-                min-height: 3.75rem;
-                padding-top: 0.625rem;
-                padding-bottom: 0.625rem;
-                gap: 0.3rem;
-            }
-            #tab-bar button span:first-child {
-                font-size: 1.5rem;
-                line-height: 1;
-            }
-            #tab-bar button span:last-child {
-                font-size: 0.7rem;
-                line-height: 1.2;
-            }
+    /* ── ログパネル ── */
+    #panel-transcript { padding: 14px; }
+    #panel-transcript::-webkit-scrollbar { width: 4px; }
+    #panel-transcript::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #transcript-lines { display: flex; flex-direction: column; gap: 6px; min-height: 20px; }
+    .transcript-line {
+      margin: 0; padding: 5px 10px;
+      border-left: 2px solid #334155;
+      color: #cbd5e1; font-size: 14px; line-height: 1.7;
+      word-break: break-all;
+    }
+    #interim-line {
+      padding: 5px 10px; margin-top: 6px;
+      color: #475569; font-style: italic; font-size: 14px;
+      line-height: 1.6; word-break: break-all; min-height: 6px;
+    }
 
-            /* スマホ: 録音ボタンを大きく押しやすく */
-            #toggle-btn {
-                padding-top: 1.1rem;
-                padding-bottom: 1.1rem;
-                border-radius: 1rem;
-                gap: 0.4rem;
-            }
-            #toggle-btn span:first-child {
-                font-size: 1.75rem;
-                line-height: 1;
-            }
-            #toggle-btn span:last-child {
-                font-size: 1rem;
-                line-height: 1.2;
-                font-weight: 800;
-            }
+    /* ── 履歴パネル ── */
+    #panel-history { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    #panel-history::-webkit-scrollbar { width: 4px; }
+    #panel-history::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .history-empty {
+      color: #475569; font-size: 14px; text-align: center; padding: 40px 16px;
+    }
+    .history-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 7px;
+    }
+    .history-meta { color: #64748b; font-size: 12px; font-weight: 700; }
+    .history-body {
+      color: #cbd5e1; font-size: 13px; line-height: 1.7; word-break: break-all;
+      display: -webkit-box; -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .history-copy-btn {
+      align-self: flex-end;
+      background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);
+      border-radius: 8px; color: #38bdf8;
+      font-size: 12px; font-weight: 700;
+      padding: 6px 14px; cursor: pointer; transition: all 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .history-copy-btn:active { background: rgba(56,189,248,0.25); }
 
-            /* スマホ: アクションカードの上下余白を増やす */
-            #action-card {
-                padding-top: 0.5rem;
-                padding-bottom: 0.5rem;
-            }
-        }
-    </style>
+    /* ── アクションバー ── */
+    #action-bar {
+      flex-shrink: 0;
+      padding: 10px 12px;
+      border-top: 1px solid #1e293b;
+      background: rgba(15,23,42,0.97);
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    #toggle-btn {
+      width: 100%; padding: 14px;
+      border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+      transition: all 0.15s; letter-spacing: 0.02em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #toggle-btn.idle {
+      background: linear-gradient(135deg, #10b981, #06b6d4);
+      color: #0f172a;
+      box-shadow: 0 4px 20px rgba(16,185,129,0.35);
+    }
+    #toggle-btn.recording {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+      color: white; animation: recpulse 1.5s ease-in-out infinite;
+      box-shadow: 0 4px 20px rgba(239,68,68,0.45);
+    }
+    @keyframes recpulse {
+      0%,100%{ box-shadow: 0 4px 20px rgba(239,68,68,0.45); }
+      50%{ box-shadow: 0 4px 30px rgba(239,68,68,0.75); }
+    }
+
+    /* 全体レイアウト */
+    #wrapper { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* トースト */
+    #toast {
+      position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%);
+      padding: 8px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 700;
+      z-index: 9999; pointer-events: none;
+      transition: opacity 0.3s; opacity: 0;
+      white-space: nowrap;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 p-2 sm:p-5 h-[100dvh] flex flex-col text-base overflow-hidden">
-    <div class="max-w-4xl mx-auto w-full flex-grow flex flex-col h-full gap-1 sm:gap-3">
-        <header class="flex justify-between items-center mb-0 shrink-0 bg-slate-900/70 border border-slate-800 rounded-xl px-2.5 sm:px-4 py-1 sm:py-1.5 shadow-[0_12px_40px_rgba(15,23,42,0.9)] backdrop-blur">
-            <h1 id="app-title" class="text-base sm:text-lg md:text-xl font-extrabold tracking-wide text-sky-400 drop-shadow-[0_0_14px_rgba(56,189,248,0.4)] leading-tight">
-                🛡️ まもるくん
-            </h1>
-            <div class="flex items-center gap-1.5 sm:gap-2">
-                <button id="mode-toggle-btn" class="bg-slate-800/90 border border-indigo-500/60 text-indigo-300 text-xs rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-indigo-900/50 transition-all shadow-inner shadow-black/40 font-bold" title="モード切替">📝 Memo</button>
-                <button id="history-btn" class="helpdesk-only bg-slate-800/90 border border-slate-600 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-slate-700 transition-all shadow-inner shadow-black/40" title="セッション履歴">📂</button>
-                <button id="kb-btn" class="helpdesk-only bg-slate-800/90 border border-emerald-600/60 text-slate-200 text-sm rounded-xl px-2.5 py-1.5 cursor-pointer hover:bg-emerald-900/40 transition-all shadow-inner shadow-black/40" title="知識ベース管理">📚</button>
-                <select id="lang-toggle" class="helpdesk-only bg-slate-900/80 border border-slate-600 text-slate-200 text-xs sm:text-sm rounded-xl px-2.5 py-1.5 cursor-pointer outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 shadow-inner shadow-black/40">
-                    <option value="ja" selected>🇯🇵 日本語</option>
-                    <option value="en">🇺🇸 English</option>
-                </select>
-            </div>
-        </header>
+<body>
+  <div id="wrapper">
+    <header id="header">
+      <h1 id="app-title">🛡️ まもるくん</h1>
+    </header>
 
-        <div id="error-banner" class="hidden mb-3 relative z-[60]">
-            <div class="bg-rose-600 text-white text-xs sm:text-sm px-3 py-2 rounded-lg flex justify-between items-start gap-2 shadow-lg">
-                <div id="error-banner-message" class="whitespace-pre-wrap"></div>
-                <button id="error-banner-close" class="text-white/80 hover:text-white text-lg leading-none px-1">×</button>
-            </div>
-        </div>
-
-        <!-- 疑問文トースト（最大5件・右下に縦積み・新しいほど下） -->
-        <div id="auto-question-toast-stack" class="fixed bottom-24 right-2 sm:right-3 z-[70] flex flex-col gap-2 items-end pointer-events-none w-[calc(100%-1rem)] max-w-[20rem] sm:max-w-[22rem]" aria-live="polite"></div>
-
-        <div class="flex flex-col flex-1 min-h-0 gap-1.5 sm:gap-2 mt-0 sm:mt-1">
-            <!-- 文字起こし / ログ & レポート カード -->
-            <div class="bg-slate-900/70 border border-slate-800 rounded-2xl shadow-[0_22px_60px_rgba(15,23,42,0.98)] backdrop-blur flex flex-col flex-1 min-h-0 overflow-hidden">
-                <div id="tab-bar" class="grid grid-cols-5 gap-0 border-b border-slate-700/80 w-full shrink-0 min-w-0 pr-1">
-                    <button id="tab-btn-transcript" class="py-1 sm:py-1.5 px-0.5 font-bold text-sky-400 border-b-2 border-sky-400 tracking-tight flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-[10px] sm:text-xs leading-none">🎙️</span>
-                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">ログ</span>
-                    </button>
-                    <button id="tab-btn-clean" class="memo-only py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-[10px] sm:text-xs leading-none">✏️</span>
-                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">清書</span>
-                    </button>
-                    <button id="tab-btn-chat" class="helpdesk-only py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-[10px] sm:text-xs leading-none">💬</span>
-                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">AI回答</span>
-                    </button>
-                    <button id="tab-btn-summary" class="helpdesk-only py-1 sm:py-1.5 px-0.5 font-bold text-slate-400 hover:text-slate-100/90 tracking-tight transition-colors flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] transition-transform overflow-hidden">
-                        <span class="text-[10px] sm:text-xs leading-none">📄</span>
-                        <span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">要約</span>
-                    </button>
-                    <button id="copy-btn" class="py-1 sm:py-1.5 px-0.5 font-semibold text-slate-100 bg-slate-900/80 border border-slate-600 hover:bg-slate-800 hover:text-white transition-all flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] shadow-sm shadow-slate-900/40 rounded-lg overflow-hidden">
-                        <span class="text-[10px] sm:text-xs leading-none">📋</span>
-                        <span id="copy-text" class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">コピー</span>
-                    </button>
-                    <button id="clear-btn" class="py-1 sm:py-1.5 px-0.5 font-semibold text-rose-300 bg-slate-900/80 border border-rose-500/40 hover:bg-rose-500/20 hover:text-rose-100 transition-all flex flex-col items-center justify-center gap-0 min-w-0 min-h-[2rem] sm:min-h-[2.25rem] active:scale-[0.98] shadow-sm shadow-rose-900/40 rounded-lg overflow-hidden">
-                        <span class="text-[10px] sm:text-xs leading-none">🗑️</span>
-                        <span id="clear-text" class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">クリア</span>
-                    </button>
-                </div>
-
-                <div id="log-display" class="log-container rounded-b-xl sm:rounded-b-2xl px-3 sm:px-4 pb-3 sm:pb-4 pt-2 sm:pt-3 flex-1 min-h-0 overflow-y-auto relative text-base leading-relaxed">
-                    <div id="content-transcript" class="tab-content active">
-                        <div id="transcript-area" class="space-y-3"></div>
-                        <div id="interim-text-area" class="text-slate-500 italic mt-2"></div>
-                    </div>
-                    <div id="content-chat" class="tab-content">
-                        <div id="chat-area"></div>
-                    </div>
-                    <div id="content-summary" class="tab-content">
-                        <div id="summary-area"></div>
-                    </div>
-                    <div id="content-clean" class="tab-content memo-only">
-                        <div id="clean-processing" class="hidden text-center py-10 text-slate-400">
-                            <div class="text-3xl mb-3">✍️</div>
-                            <div class="text-sm">清書中...</div>
-                        </div>
-                        <div id="clean-area"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- カメラ / チャット入力 カード -->
-            <div class="helpdesk-only bg-slate-900/75 border border-slate-800 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.96)] backdrop-blur px-3 sm:px-4 py-2 sm:py-3 flex flex-col gap-2 shrink-0">
-                <div id="image-preview-container" class="hidden relative inline-block w-20 h-20 sm:w-24 sm:h-24 ml-1 sm:ml-2 mt-1">
-                    <img id="image-preview" class="w-full h-full object-cover rounded-xl border border-slate-600 shadow-lg shadow-slate-900/70">
-                    <button id="remove-image-btn" class="absolute -top-2 -right-2 bg-rose-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-lg hover:bg-rose-400">×</button>
-                </div>
-                <div class="flex gap-2.5 sm:gap-3 w-full items-end">
-                    <label for="image-upload" class="cursor-pointer bg-slate-800/90 hover:bg-slate-700/90 px-3.5 py-3 sm:px-4 sm:py-3 rounded-2xl flex items-center justify-center transition-all shadow-lg shadow-slate-900/70 hover:shadow-sky-500/40 text-xl sm:text-2xl mb-1 shrink-0 border border-slate-600/80" title="画像を添付">
-                        📸
-                    </label>
-                    <input type="file" id="image-upload" accept="image/*;capture=camera" class="hidden">
-                    <textarea id="chat-input" rows="2" placeholder="質問を入力、または画像をペースト・添付..." class="flex-grow bg-slate-950/80 border border-slate-700 rounded-2xl px-3.5 py-3 text-slate-100 focus:ring-1 focus:ring-sky-500 outline-none resize-y shadow-inner shadow-black/60 max-h-40 overflow-y-auto"></textarea>
-                    <button id="send-btn" class="bg-gradient-to-r from-sky-500 to-indigo-500 hover:from-sky-400 hover:to-indigo-400 px-4 py-3 sm:px-5 sm:py-3 rounded-2xl font-bold text-xs sm:text-sm text-slate-50 tracking-wide shadow-lg shadow-sky-900/60 hover:shadow-sky-500/60 transition-all active:scale-95 mb-1 shrink-0 hover:-translate-y-[1px]">
-                        送信
-                    </button>
-                </div>
-            </div>
-
-            <!-- アクションボタン / レポート カード -->
-            <div id="action-card" class="bg-slate-900/80 border border-slate-800 rounded-xl shadow-[0_14px_44px_rgba(15,23,42,0.94)] backdrop-blur px-2 sm:px-3 py-1 sm:py-1.5 shrink-0">
-                <div id="action-grid" class="grid grid-cols-3 gap-1 sm:gap-1.5">
-                    <button id="toggle-btn" class="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50">
-                        <span class="text-xs sm:text-sm leading-none">🎙️</span>
-                        <span class="leading-tight">録音開始</span>
-                    </button>
-                    <button id="advice-btn" class="helpdesk-only bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-amber-900/50 hover:shadow-amber-400/50">
-                        <span class="text-xs sm:text-sm leading-none">💡</span>
-                        <span class="leading-tight">ヒアリング確認</span>
-                    </button>
-                    <button id="summarize-btn" class="helpdesk-only bg-gradient-to-r from-indigo-500 to-violet-500 hover:from-indigo-400 hover:to-violet-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 shadow-md shadow-indigo-900/50 hover:shadow-indigo-400/50">
-                        <span class="text-xs sm:text-sm leading-none">📄</span>
-                        <span class="leading-tight">要約作成</span>
-                    </button>
-                </div>
-            </div>
-        </div>
+    <div id="tab-bar">
+      <button id="tab-transcript" class="tab-btn active">
+        <span class="icon">🎙️</span><span class="label">ログ</span>
+      </button>
+      <button id="tab-history" class="tab-btn">
+        <span class="icon">🕐</span><span class="label">履歴</span>
+      </button>
     </div>
 
-    <!-- KB管理パネル -->
-    <div id="kb-overlay" class="hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onclick="closeKBPanel()"></div>
-    <div id="kb-panel" class="hidden fixed top-0 left-0 w-full sm:w-[30rem] h-full bg-slate-900 border-r border-slate-700/80 z-50 flex flex-col shadow-2xl overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
-            <h2 class="font-bold text-emerald-400 text-sm">📚 知識ベース管理</h2>
-            <button onclick="closeKBPanel()" class="text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition-all">×</button>
-        </div>
-        <div class="flex flex-col gap-2 px-3 py-2.5 border-b border-slate-700/60 shrink-0">
-            <button onclick="showKBAddForm()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-1.5 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95 flex items-center justify-center gap-1.5">
-                <span>＋</span><span>エントリを手動追加</span>
-            </button>
-            <button onclick="showKBBatchImport()" class="bg-slate-800/80 border border-slate-600 hover:bg-slate-700 py-1.5 rounded-xl font-bold text-xs text-slate-300 transition-all active:scale-95 flex items-center justify-center gap-1.5">
-                <span>📋</span><span>テキストから一括登録（NotebookLMエクスポート等）</span>
-            </button>
-        </div>
-        <div id="kb-panel-content" class="flex-1 overflow-y-auto p-3 log-container">
-            <div id="kb-list-view">
-                <p class="text-xs text-slate-500 mb-3">NotebookLMからエクスポートした内容を登録すると、ヒアリング確認時に関連情報を自動サジェストします</p>
-                <div id="kb-entry-list" class="flex flex-col gap-2"></div>
-            </div>
-            <div id="kb-form-view" class="hidden"></div>
-        </div>
+    <div id="main">
+      <div id="panel-transcript" class="panel" style="display:block;">
+        <div id="transcript-lines"></div>
+        <div id="interim-line"></div>
+      </div>
+      <div id="panel-history" class="panel"></div>
     </div>
 
-    <!-- 履歴パネル -->
-    <div id="history-overlay" class="hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm" onclick="closeHistoryPanel()"></div>
-    <div id="history-panel" class="hidden fixed top-0 right-0 w-full sm:w-96 h-full bg-slate-900 border-l border-slate-700/80 z-50 flex flex-col shadow-2xl overflow-hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b border-slate-700 shrink-0">
-            <h2 class="font-bold text-sky-400 text-sm">📂 セッション履歴</h2>
-            <button onclick="closeHistoryPanel()" class="text-slate-400 hover:text-white text-xl leading-none w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-800 transition-all">×</button>
-        </div>
-        <div class="flex-1 overflow-y-auto p-3 log-container">
-            <div id="session-list-view">
-                <p class="text-xs text-slate-500 mb-3">過去の通話セッションを確認・復元できます（最大20件）</p>
-                <div id="session-list" class="flex flex-col gap-2"></div>
-            </div>
-            <div id="session-detail" class="hidden"></div>
-        </div>
+    <div id="action-bar">
+      <button id="toggle-btn" class="idle">▶ 開始</button>
     </div>
-
-    <script>
-        // === 初期設定と状態管理 ===
-        let currentMode = localStorage.getItem('mamoru_mode') || 'helpdesk';
-        document.body.classList.add('mode-' + currentMode);
-        let cleanedText = '';
-        let isRecording = false;
-        let manualStop = true;
-        let recognition;
-        let rawLogText = localStorage.getItem('mamoru_rawLogText') || "";
-        let chatHistoryForReport = localStorage.getItem('mamoru_chatHistory') || "";
-        let aiChatContext = []; 
-        try {
-            const savedContext = localStorage.getItem('mamoru_aiContext');
-            if (savedContext) aiChatContext = JSON.parse(savedContext);
-        } catch(e) {}
-
-        let currentImageData = null; 
-        let startDateTime = new Date();
-        // ★修正：リロード時に過去の開始時間を復元する処理（対応時間がリセットされないようにするため）
-        const savedStartTime = localStorage.getItem('mamoru_startTime');
-        if (savedStartTime) {
-            startDateTime = new Date(savedStartTime);
-        } else {
-            localStorage.setItem('mamoru_startTime', startDateTime.toISOString());
-        }
-
-        let currentLang = 'ja';
-        let lastAutoSelectedText = "";
-        /** 疑問文検知用: 直近30秒以内に確定した final テキスト（言い淀みの分割をまたぐ文脈用） */
-        let transcriptFinalTimeSegments = [];
-        /** トリガーワード方式: 「質問です」〜「以上です」抽出済み位置（rawLogText 先頭からのオフセット） */
-        let triggerScanPointer = 0;
-        // sentiment 関連は削除（感情スコア表示を完全にオフ）
-
-        const errorBanner = document.getElementById('error-banner');
-        const errorBannerMessage = document.getElementById('error-banner-message');
-        const errorBannerClose = document.getElementById('error-banner-close');
-        let errorBannerAutoHideTimer = null;
-
-        function hideErrorBanner() {
-            if (errorBannerAutoHideTimer) {
-                clearTimeout(errorBannerAutoHideTimer);
-                errorBannerAutoHideTimer = null;
-            }
-            if (errorBanner) errorBanner.classList.add('hidden');
-        }
-
-        function showError(message) {
-            if (!errorBanner || !errorBannerMessage) return;
-            if (errorBannerAutoHideTimer) {
-                clearTimeout(errorBannerAutoHideTimer);
-                errorBannerAutoHideTimer = null;
-            }
-            errorBannerMessage.textContent = message;
-            errorBanner.classList.remove('hidden');
-            errorBannerAutoHideTimer = setTimeout(() => {
-                errorBannerAutoHideTimer = null;
-                if (errorBanner) errorBanner.classList.add('hidden');
-            }, 3000);
-        }
-
-        if (errorBannerClose) {
-            errorBannerClose.onclick = () => hideErrorBanner();
-        }
-
-        // === 言語とUIテキスト ===
-        const i18n = {
-            ja: {
-                title: "🛡️ まもるくん", tabTranscript: "🎙️ ログ", tabChat: "💬 AI回答", tabSummary: "📄 要約",
-                tabTranscriptLabel: "ログ", tabChatLabel: "AI回答", tabSummaryLabel: "要約",
-                placeholder: "質問を入力、または画像をペースト・添付...", btnSend: "送信", btnStart: "録音開始",
-                btnStop: "録音停止", btnAdvice: "ヒアリング確認", btnSummarize: "要約作成",
-                btnCopy: "コピー", btnClear: "クリア", msgCopied: "コピー完了！",
-                statusReport1: "要約作成中...", statusReport2: "文章修正中(2/2)...",
-                labelYou: "あなた", labelAI: "AI", labelSummary: "生成要約", msgImageAttached: "[📷 画像添付]",
-                noChatHistory: "AIとのやり取りはありません。",
-                autoQuestionTitle: "疑問文を検知しました",
-                autoQuestionHint: "送信するかキャンセルを押してください",
-                autoQuestionApprove: "送信する",
-                autoQuestionCancel: "キャンセル"
-            },
-            en: {
-                title: "🛡️ MAMORU-KUN", tabTranscript: "🎙️ Log", tabChat: "💬 AI", tabSummary: "📄 Summary",
-                tabTranscriptLabel: "Log", tabChatLabel: "AI", tabSummaryLabel: "Summary",
-                placeholder: "Type a question or paste/attach an image...", btnSend: "Send", btnStart: "Record",
-                btnStop: "Stop", btnAdvice: "Hearing Check", btnSummarize: "Create Summary",
-                btnCopy: "Copy", btnClear: "Clear", msgCopied: "Copied!",
-                statusReport1: "Creating Summary...", statusReport2: "Cleaning text (2/2)...",
-                labelYou: "You", labelAI: "AI", labelSummary: "Generated Summary", msgImageAttached: "[📷 Image]",
-                noChatHistory: "No AI interactions.",
-                autoQuestionTitle: "Detected a question",
-                autoQuestionHint: "Tap to send or cancel",
-                autoQuestionApprove: "Send",
-                autoQuestionCancel: "Cancel"
-            }
-        };
-
-        // === プロンプト設定 ===
-        const aiPrompts = {
-    ja: {
-        chatContext: (date, log, q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【絶対厳守】「〜という質問ですね」「〜ということですね」などと質問を繰り返すことは禁止。必ず即座に回答内容から始めること。\n\nあなたはアシスタントです。現在日時: ${date}。\nログを前提に回答してください。\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\nログ:\n${log}\n\n質問:${q}`,
-        chatDirect: (q) => `音声認識による文字起こしのため、固有名詞や人名が誤変換されている場合があります。文脈から正しく解釈して回答してください。\n\n【絶対厳守】「〜という質問ですね」「〜ということですね」などと質問を繰り返すことは禁止。必ず即座に回答内容から始めること。\n\n【超重要】「確認します」等の相槌はせず、すぐに回答を出してください。必ず日本語で回答してください。\n\n質問: ${q}`,
-                imageOnly: "添付した画像について分析・回答してください。(日本語で)",
-                advice: (log) => `以下の応対ログを確認し、オペレーターとして「今この時点でヒアリングが漏れていること」や「次に顧客に確認・提案すべきこと」を1〜2点、簡潔に箇条書きで教えてください。\n\nログ:\n${log}`,
-                exportReport: (timeText, log, chat) => `以下の応対ログとAIチャット履歴から、日本語で真の要約を作成してください。
-
-【最重要・情報の網羅性と要約方針】
-・全体は、要点を絞った簡潔で読みやすい「真の要約」にしてください。ダラダラと長文を書かないこと。
-・ただし、ユーザー／顧客が発言した【具体的な固有名詞（地名、施設名、薬の名前、システム名など）】や【具体的な要望事項】のキーワードだけは、絶対に抽出して要約内に残してください。
-・長文をそのまま残すのではなく、短い文章や箇条書きの中にこれらの重要キーワードが自然に組み込まれている状態が理想です。
-・全文の書き起こしは不要です。詳細な全文は別項目（全文記録）に任せ、ここでは「後から読んだ担当者が要点と重要キーワードをすぐ把握できる要約」にしてください。
-
-【必須構成】
-対応時間: ${timeText}
-
-1. 応対概要（上記の方針に従い、簡潔な要約としつつ、重要な固有名詞と要望のキーワードは必ず含める）
-2. 決定事項
-3. ToDo（アクションアイテム。顧客の要望・依頼内容は具体的な表現のまま列挙すること）
-4. 💡AIディレクション（ログから推測される「ヒアリング漏れ」「次に確認すべきトラブルシューティング」を指摘）
-
-ログ:\n${log}\n\nチャット:\n${chat}`,
-                exportCombined: (timeText, log, chat) => `以下の応対ログとAIチャット履歴を使って、【要約】と【全文修正】の2つを作成してください。
-
-【出力形式・厳守】
-最初に要約を出力し、次の区切り文字を単独の行に出力し、その後に全文修正を出力してください。
-区切り文字: ===CLEANED_LOG===
-
----
-【要約の方針】
-・要点を絞った簡潔で読みやすい要約にすること。
-・固有名詞（地名、施設名、薬名、システム名など）や具体的な要望のキーワードは必ず残すこと。
-・全文転記は不要。「後から読んだ担当者が要点をすぐ把握できる要約」が理想。
-
-【要約の必須構成】
-対応時間: ${timeText}
-
-1. 応対概要（簡潔な要約、重要な固有名詞と要望のキーワードを含める）
-2. 決定事項
-3. ToDo（顧客の要望・依頼内容は具体的な表現のまま列挙）
-4. 💡AIディレクション（ヒアリング漏れや次に確認すべきことを指摘）
-
----
-【全文修正の方針】
-ログを自然な日本語に修正すること。修正済みの文章のみを出力し、前置きや後書きは一切不要。
-
----
-ログ:\n${log}\n\nチャット:\n${chat}`,
-                exportClean: (log) => `以下の文章を自然な日本語に修正してください。\n【厳守事項】修正後の文章のみを出力すること。「了解しました」などの前置きや後書きは一切出力しない。\n\n${log}`,
-                memoClean: (log) => `以下の音声文字起こしテキストを読みやすく整形してください。\n【ルール】\n・えー、あのー、えっと、なんか等のフィラーを除去する\n・重複・言い淀みを削除する\n・適切な句読点を追加する\n・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）\n・箇条書きや見出しにしない\n・整形後のテキストのみ出力する（前置き・後書き禁止）\n\nテキスト:\n${log}`,
-                reportTemplate: (report, clean, chat) => `■■ 応対要約記録 ■■\n\n${report}\n\n--- 修正済み全文記録 ---\n${clean}\n\n--- AIチャット履歴 ---\n${chat}`
-            },
-            en: {
-                chatContext: (date, log, q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*ABSOLUTE RULE* Never open by restating or echoing the question (e.g. "So you're asking..." / "I understand you want to know..."). Start immediately with the substantive answer.\n\nYou are an assistant. Time: ${date}.\nUse the transcript for context.\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nTranscript:\n${log}\n\nQuestion:${q}`,
-                chatDirect: (q) => `Note: The transcript may contain speech recognition errors, especially for proper nouns. Please interpret from context.\n\n*ABSOLUTE RULE* Never open by restating or echoing the question (e.g. "So you're asking..." / "I understand you want to know..."). Start immediately with the substantive answer.\n\n*IMPORTANT* Do NOT say "Let me check". Provide the answer immediately.\n\nQuestion: ${q}`,
-                imageOnly: "Please analyze the attached image in English.",
-                advice: (log) => `Review the following log and briefly point out 1-2 missing questions or next steps for the operator.\n\nLog:\n${log}`,
-                exportReport: (timeText, log, chat) => `Create a summary in English based on the following.
-
-【CRITICAL - Information completeness】
-Do NOT omit or paraphrase any concrete details the customer stated: place names, facility names, proper nouns (e.g. drug names), or specific requests (e.g. preference for online consultation, preferred dates/times). Write them verbatim in "Summary" and "ToDo".
-Prioritize "a staff reading this log later must not miss a single concrete customer need" over keeping the summary short. Preserve exact wording for proper nouns, numbers, and conditions.
-
-【Required structure】
-Time: ${timeText}
-1. Summary (include all concrete details from the customer, no omission)
-2. Decisions
-3. ToDo (list customer requests in their concrete wording)
-4. 💡AI Direction (gaps in hearing, next steps to confirm)
-
-Log:\n${log}\n\nChat:\n${chat}`,
-                exportCombined: (timeText, log, chat) => `Using the transcript and chat history below, produce TWO outputs: a SUMMARY and a CLEANED TRANSCRIPT.
-
-【Output format - strictly follow】
-Output the summary first, then output the following delimiter on its own line, then output the cleaned transcript.
-Delimiter: ===CLEANED_LOG===
-
----
-【Summary guidelines】
-- Concise, focused on key points. Do not write long paragraphs.
-- Preserve all proper nouns (place names, facility names, drug names, system names) and specific customer requests verbatim.
-- A staff member reading later must immediately grasp the key points and important details.
-
-【Required summary structure】
-Time: ${timeText}
-1. Summary (concise, include all proper nouns and specific requests)
-2. Decisions
-3. ToDo (list customer requests in their exact wording)
-4. 💡AI Direction (identify gaps in hearing, next steps to confirm)
-
----
-【Cleaned transcript guidelines】
-Correct the transcript to natural English. Output ONLY the corrected text, no preamble or closing remarks.
-
----
-Log:\n${log}\n\nChat:\n${chat}`,
-                exportClean: (log) => `Correct the following text in natural English. Output ONLY the corrected text.\n\n${log}`,
-                reportTemplate: (report, clean, chat) => `■■ Operator Summary ■■\n\n${report}\n\n--- Cleaned Transcript ---\n${clean}\n\n--- AI Chat History ---\n${chat}`
-            }
-        };
-
-        // === API通信処理（Workers 経由） ===
-        // opts.useSearch=false で Google Search グラウンディングを無効化（要約・アドバイス等で使用）
-        async function askAI(contentsArray, opts = {}, _retry = 0) {
-            const MAX_RETRY = 3;
-            const useSearch = opts.useSearch !== false; // デフォルトは true
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: contentsArray,
-                        ...(useSearch ? {} : { tools: [] })
-                    }),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-                const data = await res.json();
-
-                // 429 レート制限 → 自動リトライ（5s, 10s, 15s）
-                if (res.status === 429 && _retry < MAX_RETRY) {
-                    const waitSec = (_retry + 1) * 5;
-                    const retryMsg = currentLang === 'en'
-                        ? `Rate limited. Auto-retry in ${waitSec}s... (${_retry + 1}/${MAX_RETRY})`
-                        : `APIレート制限中。${waitSec}秒後に自動リトライします... (${_retry + 1}/${MAX_RETRY}回)`;
-                    showError(retryMsg);
-                    await new Promise(r => setTimeout(r, waitSec * 1000));
-                    if (errorBanner) errorBanner.classList.add('hidden');
-                    return askAI(contentsArray, opts, _retry + 1);
-                }
-
-                if (!res.ok || data.error) {
-                    const errMsg = (currentLang === 'en')
-                        ? `API Error: ${data.error ? data.error.message : 'Unknown Error'}`
-                        : `APIエラーが発生しました: ${data.error ? data.error.message : '不明なエラー'}`;
-                    showError(errMsg);
-                    return errMsg;
-                }
-
-                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts && data.candidates[0].content.parts[0].text) {
-                    let responseText = data.candidates[0].content.parts[0].text;
-                    
-                    if (data.candidates[0].groundingMetadata && data.candidates[0].groundingMetadata.groundingChunks) {
-                        const chunks = data.candidates[0].groundingMetadata.groundingChunks;
-                        let links = [];
-                        chunks.forEach(chunk => {
-                            if (chunk.web && chunk.web.uri && chunk.web.title) {
-                                if (!links.some(l => l.uri === chunk.web.uri)) links.push(chunk.web);
-                            }
-                        });
-                        
-                        if (links.length > 0) {
-                            responseText += "\n\n**【参考リンク】**\n";
-                            links.forEach(link => {
-                                responseText += `* [${link.title}](${link.uri})\n`;
-                            });
-                        }
-                    }
-                    
-                    responseText = responseText.replace(/\[([^\]\n]+)\]\(https:\/\/vertexaisearch\.cloud\.google\.com[^\)]+\)/g, "$1");
-                    responseText = responseText.replace(/https:\/\/vertexaisearch\.cloud\.google\.com[^\s\)]+/g, "");
-                    // 【参考リンク】およびそれに続くURLリストを表示前に削除
-                    responseText = responseText.replace(/\s*【参考リンク】[\s\S]*$/g, "").trim();
-
-                    return responseText;
-                }
-                return (currentLang === 'en') ? "Response from AI was empty." : "AIからの応答が空でした。";
-            } catch (err) { 
-                clearTimeout(timeoutId);
-                let msg;
-                if (err.name === 'AbortError') {
-                    msg = (currentLang === 'en')
-                        ? "Request timeout: no response from AI for over 30 seconds.\nPlease wait a bit and press \"Send\" again to retry."
-                        : "通信タイムアウト: 30秒以上応答がありません。\n少し待ってから、もう一度「送信」ボタンを押してリトライしてください。";
-                } else {
-                    msg = (currentLang === 'en')
-                        ? "Network error: " + err.toString()
-                        : "通信失敗: " + err.toString();
-                }
-                showError(msg);
-                return msg; 
-            }
-        }
-
-        const summarizeBtn = document.getElementById('summarize-btn');
-        let summarizeBlinkTimer = null;
-        const sendBtn = document.getElementById('send-btn');
-        const chatInput = document.getElementById('chat-input');
-        const toggleBtn = document.getElementById('toggle-btn');
-        const langToggle = document.getElementById('lang-toggle');
-
-        function autoSave() {
-            localStorage.setItem('mamoru_rawLogText', rawLogText);
-            localStorage.setItem('mamoru_chatHistory', chatHistoryForReport);
-            localStorage.setItem('mamoru_aiContext', JSON.stringify(aiChatContext));
-        }
-
-        function updateUIText() {
-            const t = i18n[currentLang];
-            document.getElementById('app-title').innerText = t.title;
-            document.getElementById('tab-btn-transcript').innerHTML = `<span class="text-[10px] sm:text-xs leading-none">🎙️</span><span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">${t.tabTranscriptLabel}</span>`;
-            document.getElementById('tab-btn-chat').innerHTML = `<span class="text-[10px] sm:text-xs leading-none">💬</span><span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">${t.tabChatLabel}</span>`;
-            document.getElementById('tab-btn-summary').innerHTML = `<span class="text-[10px] sm:text-xs leading-none">📄</span><span class="text-[10px] sm:text-xs whitespace-nowrap leading-tight">${t.tabSummaryLabel}</span>`;
-            chatInput.placeholder = t.placeholder;
-            sendBtn.innerText = t.btnSend;
-            
-            if (isRecording) {
-                toggleBtn.className = "bg-gradient-to-r from-rose-500 to-rose-600 hover:from-rose-400 hover:to-rose-500 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-50 animate-pulse shadow-md shadow-rose-900/50";
-                toggleBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">⏹️</span><span class="leading-tight">${t.btnStop}</span>`;
-            } else {
-                toggleBtn.className = "bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 py-1 sm:py-1.5 rounded-lg font-bold transition-all active:scale-95 text-[10px] sm:text-xs flex flex-col items-center justify-center gap-0 leading-tight text-slate-950 shadow-md shadow-emerald-900/50 hover:shadow-emerald-400/50";
-                toggleBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">🎙️</span><span class="leading-tight">${t.btnStart}</span>`;
-            }
-            
-            document.getElementById('advice-btn').innerHTML = `<span class="text-xs sm:text-sm leading-none">💡</span><span class="leading-tight">${t.btnAdvice}</span>`;
-            summarizeBtn.innerHTML = `<span class="text-xs sm:text-sm leading-none">📄</span><span class="leading-tight">${t.btnSummarize}</span>`;
-            document.getElementById('copy-text').innerText = t.btnCopy;
-            document.getElementById('clear-text').innerText = t.btnClear;
-        }
-
-        langToggle.onchange = (e) => { currentLang = e.target.value; updateUIText(); if(recognition) recognition.lang = (currentLang==='ja')?'ja-JP':'en-US'; };
-
-        // === 疑問文の半自動AI送信（通知→承認・最大5件スタック） ===
-        /** 疑問文のみのフィンガープリントで120秒抑制（文脈の変化は無関係） */
-        const QUESTION_SUPPRESS_MS = 120000;
-        const MAX_AUTO_QUESTION_TOASTS = 5;
-
-        const autoQuestionToastStackEl = document.getElementById('auto-question-toast-stack');
-        /** @type {{ el: HTMLElement, fpQuestion: string }[]} */
-        let autoQuestionToastStack = [];
-        /** 疑問文fp → この時刻まで再表示しない（送信・キャンセルで更新） */
-        let questionSuppressUntil = {};
-
-        function removeAutoQuestionToastEntry(el) {
-            const idx = autoQuestionToastStack.findIndex(t => t.el === el);
-            if (idx >= 0) autoQuestionToastStack.splice(idx, 1);
-            if (el && el.parentNode) el.remove();
-        }
-
-        /** 録音停止時: 残っている疑問トーストをすべて削除 */
-        function clearAllAutoQuestionToasts() {
-            while (autoQuestionToastStack.length) {
-                const entry = autoQuestionToastStack.shift();
-                if (entry && entry.el && entry.el.parentNode) entry.el.remove();
-            }
-        }
-
-        function normalizeFingerprint(s) {
-            return (s || '').replace(/\s+/g, ' ').trim();
-        }
-
-        /** 重複判定・抑制は疑問文（検知した一文）のみ。文脈付きcomposedは比較に使わない */
-        function fingerprintQuestionOnly(questionSentence) {
-            return normalizeFingerprint(questionSentence);
-        }
-
-        function isQuestionSuppressed(fpQuestion) {
-            const until = questionSuppressUntil[fpQuestion];
-            if (until == null) return false;
-            if (Date.now() < until) return true;
-            delete questionSuppressUntil[fpQuestion];
-            return false;
-        }
-
-        function suppressQuestionForMs(fpQuestion, ms) {
-            questionSuppressUntil[fpQuestion] = Date.now() + ms;
-        }
-
-        /** 疑問検知後に送る本文: 直近30秒の確定文から「今の1件より前」だけをつなぎ、その末尾300文字を文脈として質問と結合 */
-        function buildComposedQuestionWithContext(latest) {
-            const q = (latest || '').trim();
-            if (!q) return '';
-            const segs = transcriptFinalTimeSegments;
-            let contextSource = '';
-            if (segs.length > 1) {
-                contextSource = segs.slice(0, -1).map(s => s.text).join('\n');
-            } else {
-                const rt = (rawLogText || '').replace(/\n+$/, '');
-                const idx = rt.lastIndexOf('\n');
-                contextSource = idx >= 0 ? rt.slice(0, idx) : '';
-            }
-            const context300 = contextSource.slice(-300).trim();
-            const ctxLabel = currentLang === 'en'
-                ? 'Context (last ~30s of speech, last 300 chars):'
-                : '【直前の文脈（直近30秒・末尾300文字相当）】';
-            const qLabel = currentLang === 'en' ? 'Question:' : '【質問】';
-            if (!context300) return q;
-            return `${ctxLabel}\n${context300}\n\n${qLabel}\n${q}`;
-        }
-
-        async function sendChatQuestionText(q) {
-            const question = (q || '').trim();
-            if (!question) return;
-            if (sendBtn.disabled) return;
-
-            const t = i18n[currentLang];
-            const p = aiPrompts[currentLang];
-
-            switchTab('chat', { scrollToBottom: true });
-            sendBtn.disabled = true;
-            const originalSendText = sendBtn.innerText;
-            sendBtn.innerText = currentLang === 'en' ? "Thinking..." : "⏳思考中...";
-
-            appendMsg('chat-area', t.labelYou, question, "user-message");
-
-            let currentParts = [];
-            if (aiChatContext.length === 0) {
-                currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, question) });
-            } else {
-                currentParts.push({ text: p.chatDirect(question) });
-            }
-
-            aiChatContext.push({ role: "user", parts: currentParts });
-            const res = await askAI(aiChatContext.slice(-10));
-            appendMsg('chat-area', t.labelAI, res, "ai-message");
-            aiChatContext.push({ role: "model", parts: [{ text: res }] });
-            chatHistoryForReport += `${t.labelYou}: ${question}\n${t.labelAI}: ${res}\n\n`;
-            autoSave();
-
-            sendBtn.innerText = originalSendText;
-            sendBtn.disabled = false;
-        }
-
-        /** displayText: トースト表示は質問文のみ。sendPayload: Gemini 送信本文（文脈付き・重複判定には使わない） */
-        function showAutoQuestionToast(displayText, sendPayload) {
-            console.log('[DEBUG] showAutoQuestionToast called, display:', displayText);
-            if (!autoQuestionToastStackEl) return;
-
-            const fpQuestion = fingerprintQuestionOnly(displayText);
-            if (autoQuestionToastStack.some(entry => entry.fpQuestion === fpQuestion)) return;
-
-            while (autoQuestionToastStack.length >= MAX_AUTO_QUESTION_TOASTS) {
-                const oldest = autoQuestionToastStack.shift();
-                if (oldest && oldest.el.parentNode) oldest.el.remove();
-            }
-
-            const t = i18n[currentLang];
-            const card = document.createElement('div');
-            card.className = 'pointer-events-auto bg-slate-900/95 border border-slate-700/80 rounded-2xl shadow-[0_18px_55px_rgba(15,23,42,0.95)] backdrop-blur px-3 py-2 flex items-start gap-2 w-full';
-
-            const icon = document.createElement('div');
-            icon.className = 'text-sky-400 text-lg leading-none mt-0.5 shrink-0';
-            icon.textContent = '❓';
-
-            const mid = document.createElement('div');
-            mid.className = 'flex-1 min-w-0';
-            const qEl = document.createElement('div');
-            qEl.className = 'text-[11px] sm:text-xs text-slate-200 whitespace-pre-wrap break-words';
-            qEl.textContent = displayText;
-            mid.appendChild(qEl);
-
-            const btnCol = document.createElement('div');
-            btnCol.className = 'flex flex-col gap-1.5 shrink-0';
-            const approveBtn = document.createElement('button');
-            approveBtn.type = 'button';
-            approveBtn.className = 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 px-2.5 py-1.5 rounded-xl font-bold text-[10px] sm:text-xs text-slate-950 transition-all active:scale-95 shadow-lg shadow-emerald-900/60';
-            approveBtn.textContent = t.autoQuestionApprove;
-            const cancelBtn = document.createElement('button');
-            cancelBtn.type = 'button';
-            cancelBtn.className = 'text-[10px] sm:text-xs text-slate-400 hover:text-white px-2 py-1 rounded-lg border border-slate-700/60 hover:border-sky-500/40 transition-all';
-            cancelBtn.textContent = t.autoQuestionCancel;
-
-            approveBtn.disabled = !!sendBtn.disabled;
-            approveBtn.onclick = async () => {
-                suppressQuestionForMs(fpQuestion, QUESTION_SUPPRESS_MS);
-                removeAutoQuestionToastEntry(card);
-                await sendChatQuestionText(sendPayload);
-            };
-            cancelBtn.onclick = () => {
-                suppressQuestionForMs(fpQuestion, QUESTION_SUPPRESS_MS);
-                removeAutoQuestionToastEntry(card);
-            };
-
-            btnCol.appendChild(approveBtn);
-            btnCol.appendChild(cancelBtn);
-            card.appendChild(icon);
-            card.appendChild(mid);
-            card.appendChild(btnCol);
-
-            autoQuestionToastStackEl.appendChild(card);
-            autoQuestionToastStack.push({ el: card, fpQuestion });
-        }
-
-        /**
-         * トリガーワード方式: 開始「質問です|しつもんです」→ 終了「以上です|いじょうです」の間を1質問として抽出。
-         * トリガー文言は含めない。語尾パターン（ですか等）による自動検知は行わない。
-         */
-        function maybeCheckTriggerKeywordQuestions() {
-            if (!isRecording) return;
-            if (!autoQuestionToastStackEl) return;
-            const text = rawLogText;
-            let from = triggerScanPointer;
-            while (from < text.length) {
-                const sub = text.slice(from);
-                const mStart = sub.match(/(質問です|しつもんです)/);
-                if (!mStart) return;
-                const contentStart = from + mStart.index + mStart[0].length;
-                const afterStart = text.slice(contentStart);
-                const mEnd = afterStart.match(/(以上です|いじょうです)/);
-                if (!mEnd) return;
-                const body = text.slice(contentStart, contentStart + mEnd.index).trim();
-                const nextPointer = contentStart + mEnd.index + mEnd[0].length;
-                triggerScanPointer = nextPointer;
-                from = nextPointer;
-                if (!body) continue;
-                const fpQuestion = fingerprintQuestionOnly(body);
-                if (isQuestionSuppressed(fpQuestion)) continue;
-                const composed = buildComposedQuestionWithContext(body);
-                console.log('[DEBUG] triggerKeywordQuestion body:', body);
-                clearAllAutoQuestionToasts();
-                showAutoQuestionToast(body, composed);
-                return;
-            }
-        }
-
-        // === 音声認識処理 ===
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (SpeechRecognition) {
-            recognition = new SpeechRecognition();
-            recognition.continuous = true;
-            recognition.interimResults = true;
-            recognition.lang = 'ja-JP';
-            recognition.onresult = (e) => {
-                let interim = '', final = '';
-                for (let i = e.resultIndex; i < e.results.length; ++i) {
-                    if (e.results[i].isFinal) final += e.results[i][0].transcript;
-                    else interim += e.results[i][0].transcript;
-                }
-                document.getElementById('interim-text-area').innerText = interim;
-                if (interim || final) autoScroll(false);
-                if (final) {
-                    rawLogText += final + "\n";
-                    const p = document.createElement('p');
-                    p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1";
-                    p.textContent = final;
-                    document.getElementById('transcript-area').appendChild(p);
-                    autoScroll(false); autoSave();
-                    const nowTs = Date.now();
-                    transcriptFinalTimeSegments.push({ t: nowTs, text: final });
-                    transcriptFinalTimeSegments = transcriptFinalTimeSegments.filter(s => nowTs - s.t <= 30000);
-                    console.log('[DEBUG] final:', final);
-                    maybeCheckTriggerKeywordQuestions();
-                }
-            };
-            recognition.onend = () => { if (!manualStop && isRecording) recognition.start(); };
-            recognition.onerror = (e) => {
-                const msg = (currentLang === 'en')
-                    ? `Speech recognition error: ${e.error || 'unknown error'}`
-                    : `音声認識エラーが発生しました: ${e.error || '不明なエラー'}`;
-                showError(msg);
-            };
-        }
-
-        let wakeLock = null;
-        const requestWakeLock = async () => { 
-            try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (err) {} 
-        };
-        const releaseWakeLock = () => {
-            if (wakeLock !== null) wakeLock.release().then(() => { wakeLock = null; });
-        };
-
-        // === メモモード: 清書処理 ===
-        async function runMemoClean() {
-            if (!rawLogText.trim()) return;
-            const processingEl = document.getElementById('clean-processing');
-            const cleanArea = document.getElementById('clean-area');
-            cleanArea.innerHTML = '';
-            processingEl.classList.remove('hidden');
-            switchTab('clean');
-
-            const result = await askAI([{
-                role: "user",
-                parts: [{ text: aiPrompts.ja.memoClean(rawLogText) }]
-            }]);
-
-            cleanedText = result;
-            processingEl.classList.add('hidden');
-
-            const div = document.createElement('div');
-            div.className = 'ai-message';
-            div.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-1">清書</div><div class="whitespace-pre-wrap">${formatText(result)}</div>`;
-            cleanArea.appendChild(div);
-            const d = document.getElementById('log-display');
-            if (d) d.scrollTop = d.scrollHeight;
-        }
-
-        // === モード切替 ===
-        function updateModeUI() {
-            const isMemo = currentMode === 'memo';
-            document.body.classList.toggle('mode-memo', isMemo);
-            document.body.classList.toggle('mode-helpdesk', !isMemo);
-
-            const tabBar = document.getElementById('tab-bar');
-            tabBar.classList.toggle('grid-cols-5', !isMemo);
-            tabBar.classList.toggle('grid-cols-4', isMemo);
-
-            const actionGrid = document.getElementById('action-grid');
-            actionGrid.classList.toggle('grid-cols-3', !isMemo);
-            actionGrid.classList.toggle('grid-cols-1', isMemo);
-
-            const modeBtn = document.getElementById('mode-toggle-btn');
-            if (isMemo) {
-                modeBtn.textContent = '🛡️ HD';
-                modeBtn.title = 'ヘルプデスクモードに切替';
-            } else {
-                modeBtn.textContent = '📝 Memo';
-                modeBtn.title = 'メモモードに切替';
-            }
-
-            // モード切替時にアクティブタブが非表示になる場合はログへ戻す
-            const activeTab = document.querySelector('.tab-content.active');
-            if (activeTab) {
-                const id = activeTab.id.replace('content-', '');
-                const btnEl = document.getElementById('tab-btn-' + id);
-                if (btnEl && (btnEl.classList.contains('memo-only') || btnEl.classList.contains('helpdesk-only'))) {
-                    switchTab('transcript');
-                }
-            }
-        }
-
-        document.getElementById('mode-toggle-btn').onclick = () => {
-            currentMode = (currentMode === 'memo') ? 'helpdesk' : 'memo';
-            localStorage.setItem('mamoru_mode', currentMode);
-            updateModeUI();
-        };
-
-        toggleBtn.onclick = () => {
-            if (!isRecording) {
-                // ログが空のとき（新しい通話）は開始時刻をリセット
-                if (!rawLogText.trim()) {
-                    startDateTime = new Date();
-                    localStorage.setItem('mamoru_startTime', startDateTime.toISOString());
-                }
-                manualStop = false; recognition.start(); isRecording = true; requestWakeLock();
-            }
-            else {
-                manualStop = true; recognition.stop(); isRecording = false; releaseWakeLock();
-                clearAllAutoQuestionToasts(); triggerScanPointer = rawLogText.length;
-                if (currentMode === 'memo' && rawLogText.trim()) runMemoClean();
-            }
-            updateUIText();
-        };
-
-        // === 画像アップロード ===
-        function handleImageUpload(file) {
-            if (!file || !file.type.startsWith('image/')) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    const canvas = document.createElement('canvas');
-                    const scaleSize = 800 / img.width;
-                    canvas.width = 800; canvas.height = img.height * scaleSize;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = "#FFFFFF"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-                    document.getElementById('image-preview').src = dataUrl;
-                    document.getElementById('image-preview-container').classList.remove('hidden');
-                    currentImageData = { mimeType: 'image/jpeg', data: dataUrl.split(',')[1] };
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        document.getElementById('image-upload').onchange = (e) => handleImageUpload(e.target.files[0]);
-        chatInput.onpaste = (e) => {
-            const items = (e.clipboardData || e.originalEvent.clipboardData).items;
-            for (let i in items) if (items[i].kind === 'file') handleImageUpload(items[i].getAsFile());
-        };
-        document.getElementById('remove-image-btn').onclick = () => { currentImageData = null; document.getElementById('image-preview-container').classList.add('hidden'); document.getElementById('image-upload').value = ''; };
-
-        // === チャット送信処理 ===
-        const sendQuestion = async () => {
-            const q = chatInput.value.trim();
-            if (!q && !currentImageData) return;
-            const t = i18n[currentLang], p = aiPrompts[currentLang];
-            
-            switchTab('chat', { scrollToBottom: true }); 
-            sendBtn.disabled = true;
-            const originalSendText = sendBtn.innerText;
-            sendBtn.innerText = "⏳思考中...";
-
-            let displayMsg = q + (currentImageData ? "\n"+t.msgImageAttached : "");
-            appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
-            
-            chatInput.value = '';
-            lastAutoSelectedText = '';
-            window.getSelection().removeAllRanges();
-
-            let currentParts = [];
-            if (aiChatContext.length === 0) {
-                currentParts.push({ text: p.chatContext(new Date().toLocaleString('ja-JP'), rawLogText, q) });
-            } else {
-                currentParts.push({ text: q ? p.chatDirect(q) : p.imageOnly });
-            }
-
-            if (currentImageData) { 
-                currentParts.push({ inlineData: { mimeType: currentImageData.mimeType, data: currentImageData.data } }); 
-                document.getElementById('remove-image-btn').click(); 
-            }
-
-            aiChatContext.push({ role: "user", parts: currentParts });
-            const res = await askAI(aiChatContext.slice(-10));
-            appendMsg('chat-area', t.labelAI, res, "ai-message");
-            aiChatContext.push({ role: "model", parts: [{ text: res }] });
-            chatHistoryForReport += `${t.labelYou}: ${displayMsg}\n${t.labelAI}: ${res}\n\n`;
-            autoSave(); 
-            
-            sendBtn.innerText = originalSendText;
-            sendBtn.disabled = false;
-        };
-
-        sendBtn.onclick = sendQuestion;
-        chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendQuestion(); } };
-
-        // === 💡AIアドバイス機能 ===
-        document.getElementById('advice-btn').onclick = async () => {
-            if (!rawLogText) {
-                alert("まだログがありません。少し録音してからお試しください。");
-                return;
-            }
-            const t = i18n[currentLang], p = aiPrompts[currentLang];
-            switchTab('chat', { scrollToBottom: true });
-
-            const btn = document.getElementById('advice-btn');
-            const originalHTML = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = `<span class="text-sm">⏳</span><span>思考中</span>`;
-
-            let displayMsg = "現在の状況から、ヒアリング漏れや次に確認すべきことを教えてください。";
-            appendMsg('chat-area', t.labelYou, displayMsg, "user-message");
-
-            // AIアドバイスとKB検索を並列実行
-            const [res] = await Promise.all([
-                askAI([{ role: "user", parts: [{ text: p.advice(rawLogText) }] }], { useSearch: false }),
-                searchKBForSuggestions(rawLogText)
-            ]);
-            appendMsg('chat-area', t.labelAI, res, "ai-message");
-
-            chatHistoryForReport += `${t.labelYou}: ${displayMsg}\n${t.labelAI}: ${res}\n\n`;
-            autoSave();
-
-            btn.innerHTML = originalHTML;
-            btn.disabled = false;
-        };
-
-        // === 要約作成処理 ===
-        summarizeBtn.onclick = async () => {
-            if (!rawLogText) return;
-            const endDateTime = new Date();
-            
-            const diffMs = endDateTime - startDateTime;
-            const diffMins = Math.floor(diffMs / 60000);
-            const timeText = `${startDateTime.toLocaleString('ja-JP')} 〜 ${endDateTime.toLocaleString('ja-JP')} (${diffMins}分間)`;
-            
-            const t = i18n[currentLang];
-            const p = aiPrompts[currentLang];
-            
-            switchTab('summary'); 
-            const originalHTML = summarizeBtn.innerHTML;
-            summarizeBtn.disabled = true;
-            
-            // 手動点滅アニメーション（opacity を往復させる）
-            let dimmed = false;
-            summarizeBtn.style.transition = 'opacity 0.4s ease-in-out';
-            summarizeBtn.style.opacity = '0.6';
-            summarizeBlinkTimer = setInterval(() => {
-                dimmed = !dimmed;
-                summarizeBtn.style.opacity = dimmed ? '0.6' : '1';
-            }, 1000);
-
-            try {
-                summarizeBtn.innerHTML = `<span class="text-sm">⏳</span><span>${t.statusReport1}</span>`;
-                // 要約と全文修正を1回のAPIコールで取得（429エラー防止）
-                const combined = await askAI([{ role: "user", parts: [{ text: p.exportCombined(timeText, rawLogText, chatHistoryForReport) }] }], { useSearch: false });
-                const DELIMITER = "===CLEANED_LOG===";
-                const delimIdx = combined.indexOf(DELIMITER);
-                const finalReport = delimIdx >= 0 ? combined.slice(0, delimIdx).trim() : combined.trim();
-                const cleanLog = delimIdx >= 0 ? combined.slice(delimIdx + DELIMITER.length).trim() : rawLogText;
-
-                const fullContent = p.reportTemplate(finalReport, cleanLog, chatHistoryForReport || t.noChatHistory);
-                
-                document.getElementById('summary-area').innerHTML = "";
-                appendMsg('summary-area', t.labelSummary, fullContent, "ai-message");
-            } finally {
-                if (summarizeBlinkTimer) {
-                    clearInterval(summarizeBlinkTimer);
-                    summarizeBlinkTimer = null;
-                }
-                summarizeBtn.style.opacity = '1';
-                summarizeBtn.innerHTML = originalHTML;
-                summarizeBtn.disabled = false;
-            }
-        };
-
-        // === コピー機能 ===
-        document.getElementById('copy-btn').onclick = async () => {
-            const activeTabId = document.querySelector('.tab-content.active').id;
-            let text = "";
-            if (activeTabId === 'content-transcript') text = rawLogText;
-            else if (activeTabId === 'content-chat') text = chatHistoryForReport;
-            else if (activeTabId === 'content-clean') text = cleanedText;
-            else text = document.getElementById('summary-area').innerText;
-            
-            try {
-                await navigator.clipboard.writeText(text);
-                const span = document.getElementById('copy-text'), old = span.innerText;
-                span.innerText = i18n[currentLang].msgCopied;
-                setTimeout(() => span.innerText = old, 2000);
-            } catch (err) {
-                alert("テキストを手動で選択してコピーしてください。");
-            }
-        };
-
-        // === タブ切り替え ===
-        function scrollLogDisplayToBottom() {
-            const d = document.getElementById('log-display');
-            if (!d) return;
-            requestAnimationFrame(() => {
-                d.scrollTop = d.scrollHeight;
-            });
-        }
-
-        function switchTab(id, opts = {}) {
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById('content-' + id).classList.add('active');
-            document.querySelectorAll('[id^="tab-btn-"]').forEach(b => { 
-                b.classList.remove('text-sky-400', 'border-b-2', 'border-sky-400'); 
-                b.classList.add('text-slate-500'); 
-            });
-            document.getElementById('tab-btn-' + id).classList.add('text-sky-400', 'border-b-2', 'border-sky-400');
-            const logDisplay = document.getElementById('log-display');
-            if (opts.scrollToBottom) {
-                scrollLogDisplayToBottom();
-            } else {
-                logDisplay.scrollTop = 0;
-            }
-        }
-        document.getElementById('tab-btn-transcript').onclick = () => switchTab('transcript');
-        document.getElementById('tab-btn-chat').onclick = () => switchTab('chat');
-        document.getElementById('tab-btn-summary').onclick = () => switchTab('summary');
-        document.getElementById('tab-btn-clean').onclick = () => switchTab('clean');
-
-        // === URLリンク化処理 ===
-        function formatText(text) {
-            let html = text.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            html = html.replace(/\[([^\]\n]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline break-all">$1</a>');
-            html = html.replace(/(?<!href=")(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline break-all">$1</a>');
-            html = html.replace(/\*\*([^\*]+)\*\*/g, '<strong>$1</strong>');
-            return html;
-        }
-
-        function appendMsg(id, label, text, cls) {
-            const div = document.createElement('div'); div.className = cls;
-            if (cls === 'user-message') { document.querySelectorAll('.latest-q').forEach(e => e.classList.remove('latest-q')); div.classList.add('latest-q'); }
-            div.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-1">${label}</div><div class="whitespace-pre-wrap">${formatText(text)}</div>`;
-            document.getElementById(id).appendChild(div);
-            if (id === 'transcript-area') autoScroll(true);
-            if (id === 'chat-area' && (cls === 'user-message' || cls === 'ai-message')) {
-                if (document.getElementById('content-chat').classList.contains('active')) {
-                    setTimeout(() => scrollLogDisplayToBottom(), 0);
-                }
-            }
-        }
-
-        function autoScroll(force = false) {
-            const d = document.getElementById('log-display');
-            if (force || document.getElementById('content-transcript').classList.contains('active')) d.scrollTop = d.scrollHeight;
-        }
-
-        // === テキストエリア オートリサイズ（スマホで resize が効かないため） ===
-        function resizeChatInput(ta) {
-            ta.style.height = 'auto';
-            const maxH = 160; // max-h-40 に合わせる (10rem)
-            ta.style.height = Math.min(ta.scrollHeight, maxH) + 'px';
-        }
-        chatInput.addEventListener('input', function() {
-            if (chatInput.value !== lastAutoSelectedText) lastAutoSelectedText = "";
-            resizeChatInput(this);
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // ============================================================
+    // 設定
+    // ============================================================
+    const GAS_URL    = "https://script.google.com/macros/s/AKfycbzozKf-NO20PtpWfi3hzNMvzQAQ9Uy80b_hJmjfDSA4-JyIAVSIJxWa5plNZRrAi2s/exec";
+    const ACCESS_KEY = "Gomao!";
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let isRecording    = false;
+    let recognition    = null;
+    let recognitionAlive = false;
+    let transcript     = '';
+    let history        = [];
+
+    // ============================================================
+    // ストレージ（localStorage）
+    // ============================================================
+    function loadStorage() {
+      transcript = localStorage.getItem('mamoru_transcript') || '';
+      try { history = JSON.parse(localStorage.getItem('mamoru_history') || '[]'); } catch(e) { history = []; }
+    }
+
+    function saveTranscript() {
+      localStorage.setItem('mamoru_transcript', transcript);
+    }
+
+    function saveHistory() {
+      localStorage.setItem('mamoru_history', JSON.stringify(history));
+    }
+
+    function addToHistory(t, c) {
+      if (!t.trim()) return;
+      history.unshift({
+        id:         Date.now(),
+        date:       new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        transcript: t,
+        cleaned:    c || '',
+      });
+      if (history.length > 3) history = history.slice(0, 3);
+      saveHistory();
+    }
+
+    // ============================================================
+    // UI 要素
+    // ============================================================
+    const tabTranscript   = document.getElementById('tab-transcript');
+    const tabHistory      = document.getElementById('tab-history');
+    const panelTranscript = document.getElementById('panel-transcript');
+    const panelHistory    = document.getElementById('panel-history');
+    const transcriptLines = document.getElementById('transcript-lines');
+    const interimLine     = document.getElementById('interim-line');
+    const toggleBtn       = document.getElementById('toggle-btn');
+
+    // ============================================================
+    // パネル切り替え
+    // ============================================================
+    function switchPanel(id) {
+      [tabTranscript, tabHistory].forEach(t => t.classList.remove('active'));
+      panelTranscript.style.display = 'none';
+      panelHistory.style.display    = 'none';
+      if (id === 'transcript') {
+        panelTranscript.style.display = 'block';
+        tabTranscript.classList.add('active');
+      } else {
+        panelHistory.style.display = 'block';
+        tabHistory.classList.add('active');
+        renderHistory();
+      }
+    }
+
+    // ============================================================
+    // ログ表示
+    // ============================================================
+    function renderTranscript() {
+      transcriptLines.innerHTML = '';
+      if (!transcript.trim()) return;
+      transcript.split('\n').forEach(line => {
+        if (!line.trim()) return;
+        const p = document.createElement('p');
+        p.className = 'transcript-line';
+        p.textContent = line;
+        transcriptLines.appendChild(p);
+      });
+      scrollToBottom();
+    }
+
+    function appendLine(text) {
+      if (!text.trim()) return;
+      const p = document.createElement('p');
+      p.className = 'transcript-line';
+      p.textContent = text;
+      transcriptLines.appendChild(p);
+      scrollToBottom();
+    }
+
+    function scrollToBottom() {
+      panelTranscript.scrollTop = panelTranscript.scrollHeight;
+    }
+
+    // ============================================================
+    // 履歴表示
+    // ============================================================
+    function renderHistory() {
+      panelHistory.innerHTML = '';
+      if (history.length === 0) {
+        const e = document.createElement('div');
+        e.className = 'history-empty';
+        e.textContent = '履歴はまだありません';
+        panelHistory.appendChild(e);
+        return;
+      }
+      history.forEach(entry => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+
+        const meta = document.createElement('div');
+        meta.className = 'history-meta';
+        meta.textContent = entry.date + (entry.cleaned ? '　✏️ 清書あり' : '　🎙️ ログのみ');
+
+        const body = document.createElement('div');
+        body.className = 'history-body';
+        const text = entry.cleaned || entry.transcript;
+        body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+
+        const btn = document.createElement('button');
+        btn.className = 'history-copy-btn';
+        btn.textContent = '📋 コピー';
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = '✓ コピー済';
+            setTimeout(() => { btn.textContent = '📋 コピー'; }, 1500);
+          }).catch(() => showToast('コピーに失敗しました', 'error'));
         });
-        chatInput.addEventListener('paste', () => { lastAutoSelectedText = ""; setTimeout(() => resizeChatInput(chatInput), 0); });
 
-        // === 選択テキストの自動入力 ===
-        function handleSelection() {
-            if (document.activeElement === chatInput) return;
-            setTimeout(() => {
-                const sel = window.getSelection().toString().trim();
-                if (sel && (chatInput.value === "" || chatInput.value === lastAutoSelectedText)) {
-                    chatInput.value = sel; lastAutoSelectedText = sel;
-                    resizeChatInput(chatInput);
-                }
-            }, 200); 
-        }
-        document.addEventListener('mouseup', handleSelection);
-        document.addEventListener('touchend', handleSelection);
-        document.addEventListener('selectionchange', handleSelection);
+        card.appendChild(meta);
+        card.appendChild(body);
+        card.appendChild(btn);
+        panelHistory.appendChild(card);
+      });
+    }
 
-        // === 初期化処理 ===
-        window.addEventListener('DOMContentLoaded', () => {
-            updateModeUI();
-            if (rawLogText) {
-                rawLogText.split('\n').forEach(line => {
-                    if (line.trim()) {
-                        const p = document.createElement('p'); p.className = "pl-3 sm:pl-4 border-l-2 border-slate-700 py-1"; p.textContent = line;
-                        document.getElementById('transcript-area').appendChild(p);
-                    }
-                });
-                autoScroll(true);
-            }
-            if (chatHistoryForReport) {
-                const div = document.createElement('div'); div.className = "ai-message opacity-75";
-                div.innerHTML = `<div class="text-[10px] font-bold text-rose-400 mb-1">※復元</div><div class="whitespace-pre-wrap">${formatText(chatHistoryForReport)}</div>`;
-                document.getElementById('chat-area').appendChild(div);
-            }
-            updateUIText();
-        });
-        document.getElementById('clear-btn').onclick = () => {
-            if (confirm('記録されているログやチャット履歴をすべて消去して、最初からやり直しますか？\n（現在のセッションは履歴に自動保存されます）')) {
-                saveCurrentSession();
-                localStorage.removeItem('mamoru_rawLogText'); localStorage.removeItem('mamoru_chatHistory'); localStorage.removeItem('mamoru_aiContext');
-                localStorage.removeItem('mamoru_startTime');
-                location.reload();
-            }
-        };
-        // ============================================================
-        // 知識ベース管理（KB）
-        // ============================================================
-        function getKBEntries() {
-            try { return JSON.parse(localStorage.getItem('mamoru_kb') || '[]'); } catch(e) { return []; }
-        }
-        function saveKBEntries(entries) {
-            localStorage.setItem('mamoru_kb', JSON.stringify(entries));
-        }
+    // ============================================================
+    // 録音制御
+    // ============================================================
+    function startRecording() {
+      if (recognitionAlive) return;
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
 
-        function openKBPanel() {
-            renderKBList();
-            document.getElementById('kb-panel').classList.remove('hidden');
-            document.getElementById('kb-overlay').classList.remove('hidden');
-        }
-        function closeKBPanel() {
-            document.getElementById('kb-panel').classList.add('hidden');
-            document.getElementById('kb-overlay').classList.add('hidden');
-        }
+      recognition = new SR();
+      recognition.continuous     = true;
+      recognition.interimResults = true;
+      recognition.lang           = 'ja-JP';
 
-        function renderKBList() {
-            const entries = getKBEntries();
-            document.getElementById('kb-form-view').classList.add('hidden');
-            document.getElementById('kb-list-view').classList.remove('hidden');
-            const list = document.getElementById('kb-entry-list');
-            if (entries.length === 0) {
-                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">知識ベースにエントリがありません</p>';
-                return;
-            }
-            list.innerHTML = entries.map(e => `
-                <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3">
-                    <div class="flex justify-between items-start gap-2 mb-1">
-                        <div class="text-xs font-bold text-emerald-300 flex-1 min-w-0 truncate">📄 ${e.title}</div>
-                        <div class="flex gap-1 shrink-0">
-                            <button onclick="showKBEditForm(${e.id})" class="text-slate-400 hover:text-sky-400 text-xs px-1.5 py-0.5 rounded border border-slate-600 hover:border-sky-500 transition-all">編集</button>
-                            <button onclick="deleteKBEntry(${e.id})" class="text-slate-400 hover:text-rose-400 text-xs px-1.5 py-0.5 rounded border border-slate-600 hover:border-rose-500 transition-all">削除</button>
-                        </div>
-                    </div>
-                    ${e.source ? `<div class="text-xs text-slate-500 mb-1">出典: ${e.source}</div>` : ''}
-                    <div class="text-xs text-slate-400 line-clamp-2">${e.content.slice(0, 100)}${e.content.length > 100 ? '…' : ''}</div>
-                </div>`).join('');
+      recognition.onstart = () => { recognitionAlive = true; onStarted(); };
+      recognition.onresult = (e) => {
+        let interim = '', final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) final += t;
+          else interim += t;
         }
-
-        function showKBAddForm(prefill = {}) {
-            document.getElementById('kb-list-view').classList.add('hidden');
-            const form = document.getElementById('kb-form-view');
-            form.classList.remove('hidden');
-            form.innerHTML = `
-                <div class="flex items-center gap-2 mb-3">
-                    <button onclick="renderKBList()" class="text-sky-400 hover:text-sky-300 text-xs">← 一覧に戻る</button>
-                    <span class="text-xs font-bold text-slate-300">新規エントリ追加</span>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <div>
-                        <label class="text-xs text-slate-400 mb-0.5 block">タイトル <span class="text-rose-400">*</span></label>
-                        <input id="kb-title-input" type="text" value="${prefill.title || ''}" placeholder="例: パスワードリセット手順" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 mb-0.5 block">出典（NotebookLMのソース名など）</label>
-                        <input id="kb-source-input" type="text" value="${prefill.source || ''}" placeholder="例: NotebookLM - 社内マニュアル2024" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 mb-0.5 block">内容 <span class="text-rose-400">*</span></label>
-                        <textarea id="kb-content-input" rows="6" placeholder="NotebookLMからコピーした内容を貼り付けてください" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 resize-y">${prefill.content || ''}</textarea>
-                    </div>
-                    <button onclick="submitKBAdd()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">保存</button>
-                </div>`;
+        if (interim) { interimLine.textContent = interim; scrollToBottom(); }
+        if (final) {
+          transcript += final + '\n';
+          interimLine.textContent = '';
+          appendLine(final);
+          saveTranscript();
         }
+      };
+      recognition.onend = () => { if (recognitionAlive) recognition.start(); };
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech') return;
+        showToast('音声認識エラー: ' + e.error, 'error');
+        if (e.error !== 'aborted') { recognitionAlive = false; onStopped(); }
+      };
+      recognition.start();
+    }
 
-        function showKBEditForm(id) {
-            const entry = getKBEntries().find(e => e.id === id);
-            if (!entry) return;
-            document.getElementById('kb-list-view').classList.add('hidden');
-            const form = document.getElementById('kb-form-view');
-            form.classList.remove('hidden');
-            form.innerHTML = `
-                <div class="flex items-center gap-2 mb-3">
-                    <button onclick="renderKBList()" class="text-sky-400 hover:text-sky-300 text-xs">← 一覧に戻る</button>
-                    <span class="text-xs font-bold text-slate-300">エントリ編集</span>
-                </div>
-                <div class="flex flex-col gap-2">
-                    <div>
-                        <label class="text-xs text-slate-400 mb-0.5 block">タイトル</label>
-                        <input id="kb-title-input" type="text" value="${entry.title}" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 mb-0.5 block">出典</label>
-                        <input id="kb-source-input" type="text" value="${entry.source || ''}" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500">
-                    </div>
-                    <div>
-                        <label class="text-xs text-slate-400 mb-0.5 block">内容</label>
-                        <textarea id="kb-content-input" rows="6" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 resize-y">${entry.content}</textarea>
-                    </div>
-                    <button onclick="submitKBEdit(${id})" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">更新</button>
-                </div>`;
-        }
+    function stopRecording() {
+      if (!recognition) return;
+      recognitionAlive = false;
+      const rec = recognition;
+      recognition = null;
+      rec.onend = () => onStopped();
+      rec.stop();
+    }
 
-        function submitKBAdd() {
-            const title = document.getElementById('kb-title-input').value.trim();
-            const content = document.getElementById('kb-content-input').value.trim();
-            const source = document.getElementById('kb-source-input').value.trim();
-            if (!title || !content) { alert('タイトルと内容は必須です'); return; }
-            const entries = getKBEntries();
-            entries.unshift({ id: Date.now(), title, content, source, createdAt: new Date().toISOString() });
-            saveKBEntries(entries);
-            renderKBList();
-        }
+    function onStarted() {
+      isRecording = true;
+      toggleBtn.textContent = '■ 停止';
+      toggleBtn.className = 'recording';
+      switchPanel('transcript');
+    }
 
-        function submitKBEdit(id) {
-            const title = document.getElementById('kb-title-input').value.trim();
-            const content = document.getElementById('kb-content-input').value.trim();
-            const source = document.getElementById('kb-source-input').value.trim();
-            if (!title || !content) { alert('タイトルと内容は必須です'); return; }
-            const entries = getKBEntries().map(e => e.id === id ? { ...e, title, content, source } : e);
-            saveKBEntries(entries);
-            renderKBList();
-        }
+    function onStopped() {
+      isRecording = false;
+      toggleBtn.textContent = '▶ 開始';
+      toggleBtn.className = 'idle';
 
-        function deleteKBEntry(id) {
-            if (!confirm('このエントリを削除しますか？')) return;
-            saveKBEntries(getKBEntries().filter(e => e.id !== id));
-            renderKBList();
-        }
+      const pending = interimLine.textContent.trim();
+      if (pending) {
+        transcript += pending + '\n';
+        appendLine(pending);
+        saveTranscript();
+      }
+      interimLine.textContent = '';
 
-        function showKBBatchImport() {
-            document.getElementById('kb-list-view').classList.add('hidden');
-            const form = document.getElementById('kb-form-view');
-            form.classList.remove('hidden');
-            form.innerHTML = `
-                <div class="flex items-center gap-2 mb-3">
-                    <button onclick="renderKBList()" class="text-sky-400 hover:text-sky-300 text-xs">← 一覧に戻る</button>
-                    <span class="text-xs font-bold text-slate-300">テキストから一括登録</span>
-                </div>
-                <p class="text-xs text-slate-400 mb-2">NotebookLMからエクスポートしたテキスト、または会社のマニュアル・FAQをそのまま貼り付けてください。AIが自動でトピックごとに分割して登録します。</p>
-                <div>
-                    <label class="text-xs text-slate-400 mb-0.5 block">出典名</label>
-                    <input id="kb-batch-source" type="text" placeholder="例: NotebookLM - 社内マニュアル2024" class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 mb-2">
-                </div>
-                <div>
-                    <label class="text-xs text-slate-400 mb-0.5 block">テキスト <span class="text-rose-400">*</span></label>
-                    <textarea id="kb-batch-input" rows="10" placeholder="ここにテキストを貼り付け..." class="w-full bg-slate-950/80 border border-slate-700 rounded-xl px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1 focus:ring-emerald-500 resize-y"></textarea>
-                </div>
-                <button id="kb-batch-btn" onclick="submitKBBatchImport()" class="mt-2 w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">AIで自動分割して登録</button>`;
-        }
+      if (transcript.trim()) runClean();
+    }
 
-        async function submitKBBatchImport() {
-            const text = document.getElementById('kb-batch-input').value.trim();
-            const source = document.getElementById('kb-batch-source').value.trim();
-            if (!text) { alert('テキストを入力してください'); return; }
-            const btn = document.getElementById('kb-batch-btn');
-            btn.disabled = true;
-            btn.textContent = '⏳ AI処理中...';
-            const prompt = `以下のテキストをトピックごとのナレッジエントリに分割してください。
-JSONのみを返してください（説明文不要）:
-[{"title":"タイトル1","content":"内容1"},{"title":"タイトル2","content":"内容2"}]
+    // ============================================================
+    // 清書（GAS経由）
+    // ============================================================
+    async function runClean() {
+      showToast('✍️ 清書中...', 'info');
 
-・各エントリはオペレーターが通話中に参照できる形で簡潔にまとめてください
-・1つのエントリは独立した手順・ポリシー・FAQの単位にしてください
-・10エントリを上限とします
+      const prompt = `以下の音声文字起こしテキストを読みやすく整形してください。
+【ルール】
+・えー、あのー、えっと、なんか等のフィラーを除去する
+・重複・言い淀みを削除する
+・適切な句読点を追加する
+・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）
+・箇条書きや見出しにしない
+・整形後のテキストのみ出力する（前置き・後書き禁止）
 
 テキスト:
-${text.slice(0, 3000)}`;
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
-                });
-                const data = await res.json();
-                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-                    const raw = data.candidates[0].content.parts[0].text.trim();
-                    const match = raw.match(/\[[\s\S]*\]/);
-                    if (match) {
-                        const parsed = JSON.parse(match[0]);
-                        const entries = getKBEntries();
-                        const now = Date.now();
-                        parsed.forEach((item, i) => {
-                            if (item.title && item.content) {
-                                entries.unshift({ id: now + i, title: item.title, content: item.content, source, createdAt: new Date().toISOString() });
-                            }
-                        });
-                        saveKBEntries(entries);
-                        alert(`${parsed.length}件のエントリを登録しました`);
-                        renderKBList();
-                        return;
-                    }
-                }
-                alert('AIの応答を解析できませんでした。手動追加をお試しください。');
-            } catch(e) {
-                alert('エラーが発生しました: ' + e.message);
-            }
-            btn.disabled = false;
-            btn.textContent = 'AIで自動分割して登録';
-        }
+${transcript}`;
 
-        document.getElementById('kb-btn').onclick = openKBPanel;
+      try {
+        const res = await fetch(GAS_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain' },
+          body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] })
+        });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        const cleanedText = data.text || '';
 
-        // ============================================================
-        // KB検索・サジェスト（ヒアリング確認時）
-        // ============================================================
-        async function searchKBForSuggestions(transcript) {
-            const entries = getKBEntries();
-            if (entries.length === 0) return;
-            const summaries = entries.map((e, i) => `[${i}] ${e.title}: ${e.content.slice(0, 120)}`).join('\n');
-            const prompt = `以下の応対ログと知識ベースを照合し、現在の会話内容に関連するエントリのインデックス番号を返してください。
-JSONのみを返してください（説明文不要）:
-{"relevant":[0,2],"none":false}
-関連するものが一切なければ: {"relevant":[],"none":true}
+        addToHistory(transcript, cleanedText);
 
-応対ログ（最新500文字）:
-${transcript.slice(-500)}
+        navigator.clipboard.writeText(cleanedText).then(() => {
+          showToast('✅ 清書してコピーしました', 'ok');
+          setTimeout(() => autoClear(), 800);
+        }).catch(() => {
+          showToast('清書完了（コピーは手動でどうぞ）', 'info');
+          setTimeout(() => autoClear(), 800);
+        });
 
-知識ベース（全${entries.length}件）:
-${summaries}`;
-            try {
-                const res = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], tools: [] })
-                });
-                const data = await res.json();
-                if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts[0]) {
-                    const raw = data.candidates[0].content.parts[0].text.trim();
-                    const match = raw.match(/\{[\s\S]*?\}/);
-                    if (match) {
-                        const json = JSON.parse(match[0]);
-                        if (!json.none && json.relevant && json.relevant.length > 0) {
-                            const relevant = json.relevant.map(i => entries[i]).filter(Boolean);
-                            displayKBSuggestions(relevant);
-                        }
-                    }
-                }
-            } catch(e) {}
-        }
+      } catch (err) {
+        showToast('清書エラー: ' + err.message, 'error');
+      }
+    }
 
-        function displayKBSuggestions(entries) {
-            const cards = entries.map(e => `
-                <div class="bg-slate-800/60 border border-emerald-500/30 rounded-lg p-2.5 mb-2">
-                    <div class="text-xs font-bold text-emerald-300 mb-0.5">📄 ${e.title}</div>
-                    ${e.source ? `<div class="text-[10px] text-slate-400 mb-1">出典: ${e.source}</div>` : ''}
-                    <div class="text-xs text-slate-300 whitespace-pre-wrap">${e.content.slice(0, 250)}${e.content.length > 250 ? '…' : ''}</div>
-                </div>`).join('');
-            const container = document.createElement('div');
-            container.className = 'ai-message';
-            container.style.background = 'linear-gradient(135deg, rgba(5,46,22,0.9), rgba(6,78,59,0.8))';
-            container.style.borderColor = 'rgba(52,211,153,0.4)';
-            container.innerHTML = `<div class="text-[10px] opacity-60 font-bold mb-2">📚 関連する知識ベース</div>${cards}`;
-            document.getElementById('chat-area').appendChild(container);
-            setTimeout(() => container.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-            chatHistoryForReport += `AI: 📚 関連KB:\n${entries.map(e => `・${e.title}（${e.source || '出典未設定'}）`).join('\n')}\n\n`;
-            autoSave();
-        }
+    // ============================================================
+    // 自動クリア
+    // ============================================================
+    function autoClear() {
+      transcript = '';
+      saveTranscript();
+      renderTranscript();
+      switchPanel('transcript');
+    }
 
-        // ============================================================
-        // セッション履歴管理
-        // ============================================================
-        function getSessions() {
-            try { return JSON.parse(localStorage.getItem('mamoru_sessions') || '[]'); } catch(e) { return []; }
-        }
+    // ============================================================
+    // トースト
+    // ============================================================
+    let toastTimer = null;
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('toast');
+      const colors = {
+        ok:    { bg: '#052e16', fg: '#4ade80' },
+        error: { bg: '#450a0a', fg: '#f87171' },
+        info:  { bg: '#0f172a', fg: '#94a3b8' },
+      };
+      const c = colors[type] || colors.info;
+      toast.style.background = c.bg;
+      toast.style.color      = c.fg;
+      toast.style.border     = `1px solid ${c.fg}44`;
+      toast.textContent = msg;
+      toast.style.opacity = '1';
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+    }
 
-        function saveCurrentSession() {
-            if (!rawLogText.trim()) return;
-            const sessions = getSessions();
-            const session = {
-                id: Date.now(),
-                startTime: startDateTime.toISOString(),
-                endTime: new Date().toISOString(),
-                rawLogText,
-                chatHistory: chatHistoryForReport,
-                aiContext: JSON.stringify(aiChatContext),
-                summary: document.getElementById('summary-area').innerText || ''
-            };
-            sessions.unshift(session);
-            if (sessions.length > 20) sessions.pop();
-            localStorage.setItem('mamoru_sessions', JSON.stringify(sessions));
-        }
+    // ============================================================
+    // イベント
+    // ============================================================
+    toggleBtn.addEventListener('click', () => {
+      if (!isRecording) startRecording();
+      else stopRecording();
+    });
+    tabTranscript.addEventListener('click', () => switchPanel('transcript'));
+    tabHistory.addEventListener('click',    () => switchPanel('history'));
 
-        function openHistoryPanel() {
-            renderSessionList();
-            document.getElementById('history-panel').classList.remove('hidden');
-            document.getElementById('history-overlay').classList.remove('hidden');
-        }
-
-        function closeHistoryPanel() {
-            document.getElementById('history-panel').classList.add('hidden');
-            document.getElementById('history-overlay').classList.add('hidden');
-        }
-
-        function renderSessionList() {
-            const sessions = getSessions();
-            const list = document.getElementById('session-list');
-            document.getElementById('session-detail').classList.add('hidden');
-            document.getElementById('session-list-view').classList.remove('hidden');
-            if (sessions.length === 0) {
-                list.innerHTML = '<p class="text-slate-500 text-sm text-center py-6">保存された履歴はありません</p>';
-                return;
-            }
-            list.innerHTML = sessions.map(s => {
-                const start = new Date(s.startTime);
-                const end = new Date(s.endTime);
-                const diffMins = Math.floor((end - start) / 60000);
-                const preview = (s.rawLogText || '').slice(0, 60).replace(/\n/g, ' ');
-                return `<div class="bg-slate-800/80 border border-slate-700 rounded-xl p-3 cursor-pointer hover:border-sky-500/60 transition-all active:scale-[0.98]" onclick="viewSession(${s.id})">
-                    <div class="flex justify-between items-start gap-2">
-                        <div class="flex-1 min-w-0">
-                            <div class="text-xs text-sky-400 font-bold mb-0.5">${start.toLocaleDateString('ja-JP')} ${start.toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'})}〜 (${diffMins}分)</div>
-                            <div class="text-xs text-slate-300 truncate">${preview || '(ログなし)'}</div>
-                        </div>
-                        <button class="text-slate-500 hover:text-rose-400 text-lg leading-none shrink-0 w-7 h-7 flex items-center justify-center" onclick="event.stopPropagation();if(confirm('この履歴を削除しますか？'))deleteSession(${s.id})">×</button>
-                    </div>
-                </div>`;
-            }).join('');
-        }
-
-        function deleteSession(id) {
-            const sessions = getSessions().filter(s => s.id !== id);
-            localStorage.setItem('mamoru_sessions', JSON.stringify(sessions));
-            renderSessionList();
-        }
-
-        function viewSession(id) {
-            const session = getSessions().find(s => s.id === id);
-            if (!session) return;
-            const start = new Date(session.startTime);
-            const end = new Date(session.endTime);
-            const diffMins = Math.floor((end - start) / 60000);
-            const timeText = `${start.toLocaleString('ja-JP')} 〜 ${end.toLocaleString('ja-JP')} (${diffMins}分間)`;
-            const detail = document.getElementById('session-detail');
-            detail.innerHTML = `
-                <div class="flex items-center justify-between mb-3">
-                    <button onclick="renderSessionList()" class="text-sky-400 hover:text-sky-300 text-xs flex items-center gap-1">← 一覧に戻る</button>
-                    <span class="text-xs text-slate-400">${diffMins}分間</span>
-                </div>
-                <div class="text-xs text-slate-500 mb-3">${timeText}</div>
-                <div class="text-xs font-bold text-slate-400 mb-1">ログ:</div>
-                <div class="bg-slate-950/60 rounded-lg p-2 mb-3 max-h-36 overflow-y-auto text-xs text-slate-300 whitespace-pre-wrap log-container">${session.rawLogText || '(なし)'}</div>
-                ${session.summary ? `<div class="text-xs font-bold text-slate-400 mb-1">要約:</div>
-                <div class="bg-slate-950/60 rounded-lg p-2 mb-3 max-h-36 overflow-y-auto text-xs text-slate-300 whitespace-pre-wrap log-container">${session.summary}</div>` : ''}
-                <button onclick="restoreSession(${id})" class="w-full bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 py-2 rounded-xl font-bold text-xs text-slate-50 transition-all active:scale-95">このセッションを復元</button>`;
-            document.getElementById('session-list-view').classList.add('hidden');
-            detail.classList.remove('hidden');
-        }
-
-        function restoreSession(id) {
-            const session = getSessions().find(s => s.id === id);
-            if (!session) return;
-            if (!confirm('現在のセッションを履歴に保存して、このセッションを復元しますか？')) return;
-            saveCurrentSession();
-            localStorage.setItem('mamoru_rawLogText', session.rawLogText);
-            localStorage.setItem('mamoru_chatHistory', session.chatHistory);
-            localStorage.setItem('mamoru_aiContext', session.aiContext || '[]');
-            localStorage.setItem('mamoru_startTime', session.startTime);
-            closeHistoryPanel();
-            location.reload();
-        }
-
-        document.getElementById('history-btn').onclick = openHistoryPanel;
-
-        // sentiment 関連は削除（感情スコア表示を完全にオフ）
-    </script>
+    // ============================================================
+    // 初期化
+    // ============================================================
+    loadStorage();
+    renderTranscript();
+  </script>
 </body>
 </html>
