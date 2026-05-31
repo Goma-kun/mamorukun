@@ -37,9 +37,9 @@
     }
     .header-btn:hover { background: #334155; color: #e2e8f0; }
 
-    /* ── タブバー（ログ・清書・履歴） ── */
+    /* ── タブバー（ログ・履歴） ── */
     #tab-bar {
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr;
       border-bottom: 1px solid #1e293b;
       flex-shrink: 0;
     }
@@ -53,12 +53,6 @@
     .tab-btn .label { font-size: 10px; line-height: 1.2; }
     .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
     .tab-btn:hover:not(.active) { color: #94a3b8; }
-    .tab-btn.tier2-locked { color: #374151; cursor: default; }
-    .tab-btn.tier2-locked:hover { color: #374151; }
-
-    /* APIキーなしは清書タブ非表示 → ログ・履歴の2列 */
-    body:not(.tier2) #tab-clean { display: none; }
-    body:not(.tier2) #tab-bar   { grid-template-columns: 1fr 1fr; }
 
     /* ── 履歴パネル ── */
     #panel-history {
@@ -86,14 +80,14 @@
       display: -webkit-box; -webkit-line-clamp: 4;
       -webkit-box-orient: vertical; overflow: hidden;
     }
-    .history-restore-btn {
+    .history-copy-btn {
       align-self: flex-end;
       background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);
       border-radius: 6px; color: #38bdf8;
       font-size: 11px; font-weight: 700;
       padding: 4px 10px; cursor: pointer; transition: all 0.15s;
     }
-    .history-restore-btn:hover { background: rgba(56,189,248,0.2); }
+    .history-copy-btn:hover { background: rgba(56,189,248,0.2); }
 
     /* ── メインコンテンツ ── */
     #main {
@@ -125,71 +119,6 @@
       min-height: 4px;
     }
 
-    /* ── 清書パネル ── */
-    #panel-clean {
-      padding: 12px; overflow-y: auto;
-      flex-direction: column; gap: 8px;
-    }
-    #panel-clean::-webkit-scrollbar { width: 4px; }
-    #panel-clean::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-
-    .tier1-lock {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 10px; padding: 32px 16px; text-align: center;
-    }
-    .lock-icon { font-size: 32px; opacity: 0.4; }
-    .lock-text { color: #64748b; font-size: 13px; line-height: 1.6; }
-    .lock-text strong { color: #94a3b8; }
-    .go-settings-btn {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      border: none; border-radius: 10px;
-      color: white; font-size: 12px; font-weight: 700;
-      padding: 8px 18px; cursor: pointer; transition: opacity 0.15s;
-    }
-    .go-settings-btn:hover { opacity: 0.85; }
-
-    #clean-processing {
-      display: none; text-align: center; padding: 32px 16px;
-      color: #64748b; font-size: 13px;
-    }
-    #clean-processing .spin { font-size: 24px; display: block; margin-bottom: 8px; animation: spin 1.2s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    #clean-result { display: flex; flex-direction: column; gap: 8px; }
-    .clean-card {
-      background: linear-gradient(135deg, rgba(37,99,235,0.15), rgba(91,33,182,0.15));
-      border: 1px solid rgba(99,102,241,0.3);
-      border-radius: 10px; padding: 12px;
-      color: #c7d2fe; font-size: 13px; line-height: 1.7;
-      white-space: pre-wrap; word-break: break-all;
-      cursor: text; outline: none;
-    }
-    .clean-card:focus {
-      border-color: rgba(99,102,241,0.7);
-      box-shadow: 0 0 0 2px rgba(99,102,241,0.15);
-    }
-
-    /* 清書パネルのコピーボタン（上下共通） */
-    .clean-copy-row {
-      display: none;
-      justify-content: flex-end;
-    }
-    .clean-copy-row.visible { display: flex; }
-
-    /* コードブロック風コピーボタン */
-    .code-copy-btn {
-      background: rgba(30,41,59,0.85);
-      border: 1px solid #334155;
-      border-radius: 7px;
-      color: #94a3b8;
-      font-size: 12px; font-weight: 600;
-      padding: 5px 12px;
-      cursor: pointer;
-      transition: all 0.15s;
-    }
-    .code-copy-btn:hover { color: #38bdf8; border-color: #38bdf8; background: rgba(15,39,68,0.9); }
-    .code-copy-btn.copied { color: #4ade80; border-color: #4ade80; }
-
     /* ── アクションバー ── */
     #action-bar {
       flex-shrink: 0;
@@ -216,9 +145,8 @@
     }
     @keyframes recpulse { 0%,100%{box-shadow:0 4px 15px rgba(239,68,68,0.4)} 50%{box-shadow:0 4px 22px rgba(239,68,68,0.7)} }
 
-/* 全体レイアウト */
+    /* 全体レイアウト */
     #wrapper { height: 100vh; display: flex; flex-direction: column; }
-
 
     /* ── コンパクト表示 ── */
     @media (max-width: 280px) {
@@ -228,10 +156,8 @@
       .header-btn { padding: 3px 7px; font-size: 11px; }
       #action-bar { padding: 6px 8px; }
       #toggle-btn { padding: 9px; font-size: 13px; }
-      #clean-btn { padding: 6px; font-size: 11px; }
-      #panel-transcript, #panel-clean { padding: 8px; }
+      #panel-transcript { padding: 8px; }
       .transcript-line { font-size: 12px; }
-      .clean-card { font-size: 12px; padding: 10px; }
     }
   </style>
 </head>
@@ -245,13 +171,10 @@
       </div>
     </header>
 
-    <!-- タブバー：ログ・清書・履歴 -->
+    <!-- タブバー：ログ・履歴 -->
     <div id="tab-bar">
       <button id="tab-transcript" class="tab-btn active">
         <span class="icon">🎙️</span><span class="label">ログ</span>
-      </button>
-      <button id="tab-clean" class="tab-btn tier2-locked" title="APIキーを設定すると使えます">
-        <span class="icon">✏️</span><span class="label">清書</span>
       </button>
       <button id="tab-history" class="tab-btn">
         <span class="icon">🕐</span><span class="label">履歴</span>
@@ -268,33 +191,6 @@
 
       <!-- 履歴パネル -->
       <div id="panel-history" class="panel"></div>
-
-      <!-- 清書パネル -->
-      <div id="panel-clean" class="panel">
-        <div id="clean-tier1-lock" class="tier1-lock">
-          <div class="lock-icon">🔑</div>
-          <div class="lock-text">
-            <strong>Gemini API キーを設定すると<br>清書機能が使えます</strong><br>
-            録音を停止すると、話し言葉を<br>整った文章に自動で清書します。
-          </div>
-          <button class="go-settings-btn" id="go-settings-btn">⚙️ 設定画面を開く</button>
-        </div>
-        <div id="clean-processing">
-          <span class="spin">✍️</span>清書中...
-        </div>
-
-        <!-- 上部コピーボタン -->
-        <div id="clean-copy-top" class="clean-copy-row">
-          <button id="clean-copy-top-btn" class="code-copy-btn">📋 コピー</button>
-        </div>
-
-        <div id="clean-result"></div>
-
-        <!-- 下部コピーボタン -->
-        <div id="clean-copy-bottom" class="clean-copy-row">
-          <button id="clean-copy-bottom-btn" class="code-copy-btn">📋 コピー</button>
-        </div>
-      </div>
     </div>
 
     <!-- アクションバー -->
@@ -302,7 +198,6 @@
       <button id="toggle-btn" class="idle">▶ 開始</button>
     </div>
   </div>
-
 
   <script src="sidepanel.js"></script>
 </body>
