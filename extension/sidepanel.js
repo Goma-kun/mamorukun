@@ -8,42 +8,61 @@ let recognitionAlive = false;
 let transcript     = '';  // 確定テキスト（改行区切り）
 let cleanedText    = '';
 let activePanel    = 'transcript';
+let history        = []; // [{id, date, transcript, cleaned}]
 
 // ============================================================
 // ストレージ
 // ============================================================
 async function loadStorage() {
-  const d = await chrome.storage.local.get(['mamoru_transcript', 'mamoru_gemini_key']);
+  const d = await chrome.storage.local.get(['mamoru_transcript', 'mamoru_gemini_key', 'mamoru_history']);
   transcript = d.mamoru_transcript || '';
   geminiKey  = d.mamoru_gemini_key || '';
+  history    = d.mamoru_history    || [];
 }
 
 function saveTranscript() {
   chrome.storage.local.set({ mamoru_transcript: transcript });
 }
 
+function saveHistory() {
+  chrome.storage.local.set({ mamoru_history: history });
+}
+
+function addToHistory(t, c) {
+  if (!t.trim()) return;
+  const entry = {
+    id:         Date.now(),
+    date:       new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    transcript: t,
+    cleaned:    c || '',
+  };
+  history.unshift(entry);
+  if (history.length > 3) history = history.slice(0, 3);
+  saveHistory();
+}
+
 // ============================================================
 // UI 要素
 // ============================================================
-const settingsBtn       = document.getElementById('settings-btn');
-const tabTranscript     = document.getElementById('tab-transcript');
-const tabClean          = document.getElementById('tab-clean');
-const clearBtn          = document.getElementById('clear-btn');
-const panelTranscript   = document.getElementById('panel-transcript');
-const panelClean        = document.getElementById('panel-clean');
-const transcriptLines   = document.getElementById('transcript-lines');
-const interimLine       = document.getElementById('interim-line');
-const toggleBtn         = document.getElementById('toggle-btn');
-const cleanBtn          = document.getElementById('clean-btn');
-const cleanTier1Lock    = document.getElementById('clean-tier1-lock');
-const cleanProcessing   = document.getElementById('clean-processing');
-const cleanResult       = document.getElementById('clean-result');
-const goSettingsBtn     = document.getElementById('go-settings-btn');
-const cleanCopyTop      = document.getElementById('clean-copy-top');
-const cleanCopyTopBtn   = document.getElementById('clean-copy-top-btn');
-const cleanCopyBottom   = document.getElementById('clean-copy-bottom');
+const settingsBtn        = document.getElementById('settings-btn');
+const tabTranscript      = document.getElementById('tab-transcript');
+const tabClean           = document.getElementById('tab-clean');
+const tabHistory         = document.getElementById('tab-history');
+const clearBtn           = document.getElementById('clear-btn');
+const panelTranscript    = document.getElementById('panel-transcript');
+const panelClean         = document.getElementById('panel-clean');
+const panelHistory       = document.getElementById('panel-history');
+const transcriptLines    = document.getElementById('transcript-lines');
+const interimLine        = document.getElementById('interim-line');
+const toggleBtn          = document.getElementById('toggle-btn');
+const cleanTier1Lock     = document.getElementById('clean-tier1-lock');
+const cleanProcessing    = document.getElementById('clean-processing');
+const cleanResult        = document.getElementById('clean-result');
+const goSettingsBtn      = document.getElementById('go-settings-btn');
+const cleanCopyTop       = document.getElementById('clean-copy-top');
+const cleanCopyTopBtn    = document.getElementById('clean-copy-top-btn');
+const cleanCopyBottom    = document.getElementById('clean-copy-bottom');
 const cleanCopyBottomBtn = document.getElementById('clean-copy-bottom-btn');
-const clearModal        = document.getElementById('clear-modal');
 
 // ============================================================
 // ティア UI（APIキーの有無で変わる）
@@ -55,14 +74,10 @@ function applyTier() {
   if (hasKey) {
     tabClean.classList.remove('tier2-locked');
     tabClean.title = '';
-    cleanBtn.textContent = '✏️ 清書';
-    cleanBtn.style.opacity = '';
     cleanTier1Lock.style.display = 'none';
   } else {
     tabClean.classList.add('tier2-locked');
     tabClean.title = 'APIキーを設定すると使えます';
-    cleanBtn.textContent = '🔑 APIキーを設定して清書';
-    cleanBtn.style.opacity = '0.7';
     cleanTier1Lock.style.display = '';
   }
 }
@@ -74,17 +89,22 @@ function switchPanel(id) {
   if (id === 'clean' && tabClean.classList.contains('tier2-locked')) return;
 
   activePanel = id;
-  [tabTranscript, tabClean].forEach(t => t.classList.remove('active'));
+  [tabTranscript, tabClean, tabHistory].forEach(t => t.classList.remove('active'));
+
+  panelTranscript.style.display = 'none';
+  panelClean.style.display      = 'none';
+  panelHistory.style.display    = 'none';
 
   if (id === 'transcript') {
-    // inline style で確実に切り替え（CSS 詳細度の競合を回避）
     panelTranscript.style.display = 'block';
-    panelClean.style.display = 'none';
     tabTranscript.classList.add('active');
-  } else {
-    panelTranscript.style.display = 'none';
+  } else if (id === 'clean') {
     panelClean.style.display = 'flex';
     tabClean.classList.add('active');
+  } else if (id === 'history') {
+    panelHistory.style.display = 'block';
+    tabHistory.classList.add('active');
+    renderHistory();
   }
 }
 
@@ -113,13 +133,78 @@ function appendTranscriptLine(text) {
   scrollTranscriptToBottom();
 }
 
-// display:block コンテナに対して直接 scrollTop を設定
 function scrollTranscriptToBottom() {
   panelTranscript.scrollTop = panelTranscript.scrollHeight;
 }
 
 // ============================================================
-// 録音制御（まもるくんウィンドウ内で直接実行）
+// 履歴パネル表示
+// ============================================================
+function renderHistory() {
+  panelHistory.innerHTML = '';
+
+  if (history.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'history-empty';
+    empty.textContent = '履歴はまだありません';
+    panelHistory.appendChild(empty);
+    return;
+  }
+
+  history.forEach((entry) => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+
+    const meta = document.createElement('div');
+    meta.className = 'history-meta';
+    meta.textContent = entry.date + (entry.cleaned ? '　✏️ 清書あり' : '　🎙️ ログのみ');
+
+    const body = document.createElement('div');
+    body.className = 'history-body';
+    body.textContent = (entry.cleaned || entry.transcript).slice(0, 200) + ((entry.cleaned || entry.transcript).length > 200 ? '…' : '');
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'history-restore-btn';
+    copyBtn.textContent = '📋 コピー';
+    copyBtn.addEventListener('click', () => {
+      const text = entry.cleaned || entry.transcript;
+      navigator.clipboard.writeText(text).then(() => {
+        copyBtn.textContent = '✓ コピー済';
+        setTimeout(() => { copyBtn.textContent = '📋 コピー'; }, 1500);
+      }).catch(() => showToast('コピーに失敗しました', 'error'));
+    });
+
+    card.appendChild(meta);
+    card.appendChild(body);
+    card.appendChild(copyBtn);
+    panelHistory.appendChild(card);
+  });
+}
+
+function restoreEntry(entry) {
+  transcript  = entry.transcript;
+  cleanedText = entry.cleaned || '';
+  saveTranscript();
+  renderTranscript();
+
+  if (cleanedText) {
+    cleanResult.innerHTML = '';
+    const card = document.createElement('div');
+    card.className = 'clean-card';
+    card.contentEditable = 'true';
+    card.textContent = cleanedText;
+    cleanResult.appendChild(card);
+    cleanCopyTop.classList.add('visible');
+    cleanCopyBottom.classList.add('visible');
+    cleanTier1Lock.style.display = 'none';
+  }
+
+  switchPanel('transcript');
+  showToast('復元しました', 'ok');
+}
+
+// ============================================================
+// 録音制御
 // ============================================================
 function startRecording() {
   if (recognitionAlive) return;
@@ -147,7 +232,7 @@ function startRecording() {
   };
 
   recognition.onend = () => {
-    if (recognitionAlive) recognition.start(); // continuous 維持
+    if (recognitionAlive) recognition.start();
   };
 
   recognition.onerror = (e) => {
@@ -167,7 +252,6 @@ function stopRecording() {
   recognitionAlive = false;
   const rec = recognition;
   recognition = null;
-  // onend 後に処理することで最終 RESULT が先に届く順序を保証
   rec.onend = () => onRecordingStopped();
   rec.stop();
 }
@@ -176,6 +260,7 @@ function onRecordingStarted() {
   isRecording = true;
   toggleBtn.textContent = '■ 停止';
   toggleBtn.className = 'recording';
+  switchPanel('transcript');
 }
 
 function onRecordingStopped() {
@@ -183,7 +268,6 @@ function onRecordingStopped() {
   toggleBtn.textContent = '▶ 開始';
   toggleBtn.className = 'idle';
 
-  // 停止時に未確定の中間テキストを確定済みとして保存
   const pending = interimLine.textContent.trim();
   if (pending) {
     transcript += pending + '\n';
@@ -195,7 +279,8 @@ function onRecordingStopped() {
   if (geminiKey && transcript.trim()) {
     runClean(true);
   } else if (!geminiKey && transcript.trim()) {
-    // APIキーなし → 書き起こしを自動コピー
+    // APIキーなし → 書き起こしを自動コピー＆履歴保存
+    addToHistory(transcript, '');
     navigator.clipboard.writeText(transcript).then(() => {
       showToast('📋 書き起こしをコピーしました', 'ok');
     }).catch(() => {});
@@ -267,8 +352,10 @@ ${transcript}`;
     cleanCopyTop.classList.add('visible');
     cleanCopyBottom.classList.add('visible');
 
+    // 清書完了 → 履歴に保存
+    addToHistory(transcript, cleanedText);
+
     if (auto) {
-      // 清書完了後に自動コピー → 貼り付けるだけの状態にする
       navigator.clipboard.writeText(cleanedText).then(() => {
         showToast('✅ 清書してコピーしました', 'ok');
       }).catch(() => {
@@ -309,15 +396,10 @@ function getCleanText() {
 }
 
 // ============================================================
-// クリア（モーダル確認）
+// クリア（確認なし即実行）
 // ============================================================
 function doClear() {
   if (!transcript.trim() && !cleanedText) return;
-  clearModal.classList.add('open');
-}
-
-function executeClear() {
-  clearModal.classList.remove('open');
   transcript  = '';
   cleanedText = '';
   saveTranscript();
@@ -341,7 +423,7 @@ function showToast(msg, type = 'info') {
     toast.id = 'toast';
     const style = toast.style;
     style.position = 'fixed';
-    style.bottom   = '90px';
+    style.bottom   = '70px';
     style.left     = '50%';
     style.transform = 'translateX(-50%)';
     style.padding  = '7px 14px';
@@ -365,7 +447,7 @@ function showToast(msg, type = 'info') {
 }
 
 // ============================================================
-// ストレージ変更監視（options から API キーが保存されたとき即反映）
+// ストレージ変更監視
 // ============================================================
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.mamoru_gemini_key) {
@@ -387,27 +469,12 @@ goSettingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 
 tabTranscript.addEventListener('click', () => switchPanel('transcript'));
 tabClean.addEventListener('click',      () => switchPanel('clean'));
+tabHistory.addEventListener('click',    () => switchPanel('history'));
 
 clearBtn.addEventListener('click', doClear);
 
-// 清書パネル：上下コピーボタン
 cleanCopyTopBtn.addEventListener('click',    () => copyText(getCleanText(), cleanCopyTopBtn));
 cleanCopyBottomBtn.addEventListener('click', () => copyText(getCleanText(), cleanCopyBottomBtn));
-
-// モーダル
-document.getElementById('modal-cancel-btn').addEventListener('click', () => {
-  clearModal.classList.remove('open');
-});
-document.getElementById('modal-confirm-btn').addEventListener('click', executeClear);
-clearModal.addEventListener('click', (e) => {
-  if (e.target === clearModal) clearModal.classList.remove('open');
-});
-
-cleanBtn.addEventListener('click', () => {
-  if (!geminiKey) { chrome.runtime.openOptionsPage(); return; }
-  if (!transcript.trim()) { showToast('文字起こしがありません', 'info'); return; }
-  runClean();
-});
 
 // ============================================================
 // 初期化
@@ -415,8 +482,8 @@ cleanBtn.addEventListener('click', () => {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadStorage();
   applyTier();
-  // 初期表示状態を inline style で確定（CSS 詳細度の競合を排除）
   panelTranscript.style.display = 'block';
-  panelClean.style.display = 'none';
+  panelClean.style.display      = 'none';
+  panelHistory.style.display    = 'none';
   renderTranscript();
 });
