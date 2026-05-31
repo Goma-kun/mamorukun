@@ -145,6 +145,15 @@
     }
     @keyframes recpulse { 0%,100%{box-shadow:0 4px 15px rgba(239,68,68,0.4)} 50%{box-shadow:0 4px 22px rgba(239,68,68,0.7)} }
 
+    /* 監視ツールステータス */
+    #watcher-status {
+      font-size: 11px; font-weight: 600; text-align: center;
+      padding: 3px 0; min-height: 18px;
+    }
+    #watcher-status.ok      { color: #4ade80; }
+    #watcher-status.warn    { color: #fb923c; }
+    #watcher-status.unknown { color: #475569; }
+
     /* 全体レイアウト */
     #wrapper { height: 100vh; display: flex; flex-direction: column; }
 
@@ -196,6 +205,7 @@
     <!-- アクションバー -->
     <div id="action-bar">
       <button id="toggle-btn" class="idle">▶ 開始</button>
+      <div id="watcher-status"></div>
     </div>
   </div>
 

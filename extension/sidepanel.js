@@ -333,6 +333,30 @@ function showToast(msg, type = 'info') {
 }
 
 // ============================================================
+// 監視ツール（clipboard_watcher）の死活確認
+// ============================================================
+const watcherStatus = document.getElementById('watcher-status');
+
+async function checkWatcher() {
+  try {
+    const res = await fetch('http://localhost:57890/', { signal: AbortSignal.timeout(1500) });
+    if (res.ok) {
+      watcherStatus.className = 'ok';
+      watcherStatus.textContent = '● Claude自動貼り付け: 稼働中';
+    } else {
+      throw new Error();
+    }
+  } catch {
+    watcherStatus.className = 'warn';
+    watcherStatus.textContent = '⚠ 自動貼り付けツールが停止中 — ターミナルを再起動してください';
+  }
+}
+
+// 起動時チェック＋30秒ごとに定期確認
+checkWatcher();
+setInterval(checkWatcher, 30000);
+
+// ============================================================
 // ストレージ変更監視
 // ============================================================
 chrome.storage.onChanged.addListener((changes) => {
