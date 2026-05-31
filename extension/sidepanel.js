@@ -48,7 +48,6 @@ const settingsBtn        = document.getElementById('settings-btn');
 const tabTranscript      = document.getElementById('tab-transcript');
 const tabClean           = document.getElementById('tab-clean');
 const tabHistory         = document.getElementById('tab-history');
-const clearBtn           = document.getElementById('clear-btn');
 const panelTranscript    = document.getElementById('panel-transcript');
 const panelClean         = document.getElementById('panel-clean');
 const panelHistory       = document.getElementById('panel-history');
@@ -279,10 +278,11 @@ function onRecordingStopped() {
   if (geminiKey && transcript.trim()) {
     runClean(true);
   } else if (!geminiKey && transcript.trim()) {
-    // APIキーなし → 書き起こしを自動コピー＆履歴保存
+    // APIキーなし → 書き起こしを自動コピー＆履歴保存＆自動クリア
     addToHistory(transcript, '');
     navigator.clipboard.writeText(transcript).then(() => {
-      showToast('📋 書き起こしをコピーしました', 'ok');
+      showToast('📋 コピーしました', 'ok');
+      setTimeout(() => autoClear(), 800);
     }).catch(() => {});
   }
 }
@@ -358,8 +358,10 @@ ${transcript}`;
     if (auto) {
       navigator.clipboard.writeText(cleanedText).then(() => {
         showToast('✅ 清書してコピーしました', 'ok');
+        setTimeout(() => autoClear(), 800);
       }).catch(() => {
         showToast('清書完了（コピーは手動でどうぞ）', 'info');
+        setTimeout(() => autoClear(), 800);
       });
       switchPanel('clean');
     }
@@ -396,10 +398,9 @@ function getCleanText() {
 }
 
 // ============================================================
-// クリア（確認なし即実行）
+// 自動クリア（コピー完了後に呼び出す）
 // ============================================================
-function doClear() {
-  if (!transcript.trim() && !cleanedText) return;
+function autoClear() {
   transcript  = '';
   cleanedText = '';
   saveTranscript();
@@ -409,7 +410,6 @@ function doClear() {
   cleanCopyBottom.classList.remove('visible');
   cleanTier1Lock.style.display = geminiKey ? 'none' : '';
   switchPanel('transcript');
-  showToast('クリアしました', 'ok');
 }
 
 // ============================================================
@@ -470,8 +470,6 @@ goSettingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
 tabTranscript.addEventListener('click', () => switchPanel('transcript'));
 tabClean.addEventListener('click',      () => switchPanel('clean'));
 tabHistory.addEventListener('click',    () => switchPanel('history'));
-
-clearBtn.addEventListener('click', doClear);
 
 cleanCopyTopBtn.addEventListener('click',    () => copyText(getCleanText(), cleanCopyTopBtn));
 cleanCopyBottomBtn.addEventListener('click', () => copyText(getCleanText(), cleanCopyBottomBtn));
