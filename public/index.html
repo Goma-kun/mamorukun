@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>まもるくん</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: #0f172a; color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 15px; overflow: hidden;
+    }
+
+    /* ── ヘッダー ── */
+    #header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px;
+      background: rgba(15,23,42,0.95);
+      border-bottom: 1px solid #1e293b;
+      flex-shrink: 0;
+    }
+    #app-title { font-size: 17px; font-weight: 800; color: #38bdf8; text-shadow: 0 0 12px rgba(56,189,248,0.35); margin: 0; }
+    #settings-btn {
+      background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+      border-radius: 8px; padding: 5px 11px; font-size: 13px; font-weight: 600;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    #settings-btn:active { background: #334155; }
+
+    /* ── タブバー ── */
+    #tab-bar { display: grid; border-bottom: 1px solid #1e293b; flex-shrink: 0; }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: #64748b; font-size: 13px; font-weight: 700;
+      padding: 9px 4px; cursor: pointer; transition: all 0.15s;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .tab-btn .icon { font-size: 15px; line-height: 1; }
+    .tab-btn .label { font-size: 11px; line-height: 1.2; }
+    .tab-btn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
+
+    /* ── メインコンテンツ ── */
+    #main { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+    .panel { display: none; flex: 1; min-height: 0; overflow-y: auto; }
+
+    /* ── ログパネル ── */
+    #panel-transcript { padding: 14px; }
+    #panel-transcript::-webkit-scrollbar { width: 4px; }
+    #panel-transcript::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #transcript-lines { display: flex; flex-direction: column; gap: 6px; min-height: 20px; }
+    .transcript-line { margin: 0; padding: 5px 10px; border-left: 2px solid #334155; color: #cbd5e1; font-size: 14px; line-height: 1.7; word-break: break-all; }
+    #interim-line { padding: 5px 10px; margin-top: 6px; color: #475569; font-style: italic; font-size: 14px; line-height: 1.6; word-break: break-all; min-height: 6px; }
+
+    /* ── 履歴パネル ── */
+    #panel-history { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .history-empty { color: #475569; font-size: 14px; text-align: center; padding: 40px 16px; }
+    .history-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
+    .history-meta { color: #64748b; font-size: 12px; font-weight: 700; }
+    .history-body { color: #cbd5e1; font-size: 13px; line-height: 1.7; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .history-copy-btn { align-self: flex-end; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 8px; color: #38bdf8; font-size: 12px; font-weight: 700; padding: 6px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    .history-copy-btn:active { background: rgba(56,189,248,0.25); }
+
+    /* ── ヘルプデスク：チャット・要約パネル ── */
+    #panel-chat, #panel-summary { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+    .ai-message { background: #1e1b4b; border-left: 4px solid #818cf8; padding: 12px; border-radius: 8px; }
+    .user-message { background: #0f766e; border-left: 4px solid #2dd4bf; padding: 12px; border-radius: 8px; }
+    .msg-label { font-size: 11px; font-weight: 700; opacity: 0.6; margin-bottom: 4px; }
+    .msg-body { font-size: 13px; line-height: 1.7; word-break: break-all; white-space: pre-wrap; }
+
+    /* ── ヘルプデスク：入力エリア ── */
+    #hd-input-area {
+      flex-shrink: 0; padding: 8px 12px;
+      border-top: 1px solid #1e293b;
+      background: rgba(15,23,42,0.97);
+      display: flex; gap: 8px; align-items: flex-end;
+    }
+    #hd-chat-input {
+      flex: 1; background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 10px 12px; color: #e2e8f0;
+      font-size: 14px; resize: none; outline: none;
+      font-family: inherit;
+    }
+    #hd-chat-input:focus { border-color: #38bdf8; }
+    #hd-send-btn { background: #6366f1; border: none; border-radius: 10px; color: white; font-size: 14px; font-weight: 700; padding: 10px 16px; cursor: pointer; white-space: nowrap; -webkit-tap-highlight-color: transparent; }
+    #hd-send-btn:active { opacity: 0.8; }
+
+    /* ── アクションバー ── */
+    #action-bar {
+      flex-shrink: 0; padding: 10px 12px;
+      border-top: 1px solid #1e293b;
+      background: rgba(15,23,42,0.97);
+      display: flex; flex-direction: column; gap: 8px;
+      padding-bottom: max(10px, env(safe-area-inset-bottom));
+    }
+    #toggle-btn {
+      width: 100%; padding: 14px; border: none; border-radius: 14px;
+      font-size: 16px; font-weight: 800; cursor: pointer;
+      transition: all 0.15s; letter-spacing: 0.02em;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #toggle-btn.idle { background: linear-gradient(135deg, #10b981, #06b6d4); color: #0f172a; box-shadow: 0 4px 20px rgba(16,185,129,0.35); }
+    #toggle-btn.recording { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; animation: recpulse 1.5s ease-in-out infinite; }
+    @keyframes recpulse { 0%,100%{ box-shadow: 0 4px 20px rgba(239,68,68,0.45); } 50%{ box-shadow: 0 4px 30px rgba(239,68,68,0.75); } }
+
+    /* ヘルプデスク用サブボタン */
+    #hd-sub-btns { display: flex; gap: 8px; }
+    #hd-sub-btns button {
+      flex: 1; padding: 10px; border: none; border-radius: 10px;
+      font-size: 13px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #hd-summarize-btn { background: #6366f1; color: white; }
+    #hd-export-btn { background: #10b981; color: #0f172a; }
+    #hd-summarize-btn:active, #hd-export-btn:active { opacity: 0.8; }
+
+    /* ── 清書結果オーバーレイ（メモモード・iOS対応） ── */
+    #clean-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.85); z-index: 1000;
+      flex-direction: column; padding: 20px 16px;
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    #clean-overlay.open { display: flex; }
+    #clean-overlay-label { color: #64748b; font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+    #clean-overlay-text {
+      flex: 1; background: #1e293b; border: 1px solid #334155;
+      border-radius: 12px; padding: 14px;
+      color: #c7d2fe; font-size: 14px; line-height: 1.8;
+      overflow-y: auto; word-break: break-all; white-space: pre-wrap;
+      -webkit-user-select: text; user-select: text;
+    }
+    #clean-copy-btn {
+      margin-top: 12px; width: 100%; padding: 16px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none; border-radius: 14px;
+      color: white; font-size: 16px; font-weight: 800;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+    }
+    #clean-copy-btn:active { opacity: 0.85; }
+
+    /* ── 設定モーダル ── */
+    #settings-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.7); z-index: 2000;
+      align-items: flex-end; justify-content: center;
+    }
+    #settings-overlay.open { display: flex; }
+    #settings-sheet {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 20px 20px 0 0;
+      width: 100%; max-width: 480px;
+      padding: 20px 16px;
+      padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    #settings-sheet h2 { font-size: 14px; color: #64748b; font-weight: 700; margin: 0 0 14px; }
+    .mode-btn {
+      width: 100%; padding: 14px; margin-bottom: 10px;
+      background: #0f172a; border: 2px solid #334155;
+      border-radius: 12px; color: #e2e8f0;
+      font-size: 14px; font-weight: 700; text-align: left;
+      cursor: pointer; -webkit-tap-highlight-color: transparent;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .mode-btn.active { border-color: #38bdf8; color: #38bdf8; }
+    .mode-btn:active { opacity: 0.8; }
+    .mode-btn .mode-desc { font-size: 12px; font-weight: 400; color: #64748b; display: block; margin-top: 2px; }
+    #settings-close {
+      width: 100%; padding: 12px; background: #334155;
+      border: none; border-radius: 10px; color: #94a3b8;
+      font-size: 14px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    #settings-close:active { background: #475569; }
+
+    /* 全体レイアウト */
+    #wrapper { height: 100dvh; display: flex; flex-direction: column; }
+
+    /* トースト */
+    #toast {
+      position: fixed; bottom: 100px; left: 50%; transform: translateX(-50%);
+      padding: 8px 16px; border-radius: 10px;
+      font-size: 13px; font-weight: 700;
+      z-index: 9999; pointer-events: none;
+      transition: opacity 0.3s; opacity: 0; white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div id="wrapper">
+    <header id="header">
+      <h1 id="app-title">🛡️ まもるくん</h1>
+      <button id="settings-btn">⚙️</button>
+    </header>
+
+    <div id="tab-bar">
+      <!-- タブはJSで動的に構築 -->
+    </div>
+
+    <div id="main">
+      <!-- ログ -->
+      <div id="panel-transcript" class="panel" style="display:block;">
+        <div id="transcript-lines"></div>
+        <div id="interim-line"></div>
+      </div>
+      <!-- 履歴（メモモード） -->
+      <div id="panel-history" class="panel"></div>
+      <!-- AI回答（ヘルプデスクモード） -->
+      <div id="panel-chat" class="panel"></div>
+      <!-- 要約（ヘルプデスクモード） -->
+      <div id="panel-summary" class="panel"></div>
+    </div>
+
+    <div id="action-bar">
+      <button id="toggle-btn" class="idle">▶ 開始</button>
+      <div id="hd-sub-btns" style="display:none;">
+        <button id="hd-summarize-btn">📝 要約</button>
+        <button id="hd-export-btn">💾 終了&保存</button>
+      </div>
+    </div>
+
+    <!-- ヘルプデスク：チャット入力（アクションバーの上） -->
+    <div id="hd-input-area" style="display:none; order:-1;">
+      <textarea id="hd-chat-input" rows="2" placeholder="質問を入力...（Enterで送信）"></textarea>
+      <button id="hd-send-btn">送信</button>
+    </div>
+  </div>
+
+  <!-- 清書結果オーバーレイ（メモモード・iOSコピー対応） -->
+  <div id="clean-overlay">
+    <div id="clean-overlay-label">✏️ 清書完了 — タップしてコピー</div>
+    <div id="clean-overlay-text"></div>
+    <button id="clean-copy-btn">📋 コピーして次へ</button>
+  </div>
+
+  <!-- 設定モーダル -->
+  <div id="settings-overlay">
+    <div id="settings-sheet">
+      <h2>モードを選択</h2>
+      <button class="mode-btn" id="mode-memo-btn">
+        📝 メモモード（個人用）
+        <span class="mode-desc">清書→自動コピー→クリア。シンプルな個人メモ用。</span>
+      </button>
+      <button class="mode-btn" id="mode-hd-btn">
+        🏢 ヘルプデスクモード
+        <span class="mode-desc">AIチャット・要約・ログ保存。業務サポート向け。</span>
+      </button>
+      <button id="settings-close">閉じる</button>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    // ============================================================
+    // 設定
+    // ============================================================
+    const GAS_URL    = "https://script.google.com/macros/s/AKfycbzozKf-NO20PtpWfi3hzNMvzQAQ9Uy80b_hJmjfDSA4-JyIAVSIJxWa5plNZRrAi2s/exec";
+    const ACCESS_KEY = "Gomao!";
+
+    // ============================================================
+    // 状態
+    // ============================================================
+    let currentMode    = localStorage.getItem('mamoru_mode') || 'memo'; // 'memo' | 'helpdesk'
+    let isRecording    = false;
+    let recognition    = null;
+    let recognitionAlive = false;
+    let transcript     = '';
+    let history        = [];
+    let pendingClean   = ''; // 清書済みテキスト（コピー待ち）
+
+    // ヘルプデスク用
+    let aiChatContext  = [];
+    let chatHistory    = '';
+    const startTime    = new Date().toLocaleString('ja-JP');
+
+    // ============================================================
+    // ストレージ
+    // ============================================================
+    function loadStorage() {
+      transcript = localStorage.getItem('mamoru_transcript') || '';
+      try { history = JSON.parse(localStorage.getItem('mamoru_history') || '[]'); } catch(e) { history = []; }
+      try { aiChatContext = JSON.parse(localStorage.getItem('mamoru_aiContext') || '[]'); } catch(e) { aiChatContext = []; }
+      chatHistory = localStorage.getItem('mamoru_chatHistory') || '';
+    }
+    function saveTranscript() { localStorage.setItem('mamoru_transcript', transcript); }
+    function saveHistory()    { localStorage.setItem('mamoru_history', JSON.stringify(history)); }
+    function saveAI()         { localStorage.setItem('mamoru_aiContext', JSON.stringify(aiChatContext)); localStorage.setItem('mamoru_chatHistory', chatHistory); }
+
+    function addToHistory(t, c) {
+      if (!t.trim()) return;
+      history.unshift({ id: Date.now(), date: new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }), transcript: t, cleaned: c || '' });
+      if (history.length > 3) history = history.slice(0, 3);
+      saveHistory();
+    }
+
+    // ============================================================
+    // UI 要素
+    // ============================================================
+    const tabBar        = document.getElementById('tab-bar');
+    const panelTranscript = document.getElementById('panel-transcript');
+    const panelHistory  = document.getElementById('panel-history');
+    const panelChat     = document.getElementById('panel-chat');
+    const panelSummary  = document.getElementById('panel-summary');
+    const transcriptLines = document.getElementById('transcript-lines');
+    const interimLine   = document.getElementById('interim-line');
+    const toggleBtn     = document.getElementById('toggle-btn');
+    const hdInputArea   = document.getElementById('hd-input-area');
+    const hdSubBtns     = document.getElementById('hd-sub-btns');
+    const cleanOverlay  = document.getElementById('clean-overlay');
+    const cleanText     = document.getElementById('clean-overlay-text');
+    const cleanCopyBtn  = document.getElementById('clean-copy-btn');
+    const settingsOverlay = document.getElementById('settings-overlay');
+
+    // ============================================================
+    // モード初期化
+    // ============================================================
+    function initMode() {
+      tabBar.innerHTML = '';
+
+      if (currentMode === 'memo') {
+        tabBar.style.gridTemplateColumns = '1fr 1fr';
+        addTab('tab-transcript', '🎙️', 'ログ', 'transcript');
+        addTab('tab-history',    '🕐', '履歴', 'history');
+        hdInputArea.style.display = 'none';
+        hdSubBtns.style.display   = 'none';
+        document.getElementById('mode-memo-btn').classList.add('active');
+        document.getElementById('mode-hd-btn').classList.remove('active');
+      } else {
+        tabBar.style.gridTemplateColumns = '1fr 1fr 1fr';
+        addTab('tab-transcript', '🎙️', 'ログ',   'transcript');
+        addTab('tab-chat',       '💬', 'AI回答', 'chat');
+        addTab('tab-summary',    '📄', '要約',   'summary');
+        hdInputArea.style.display = 'flex';
+        hdSubBtns.style.display   = 'flex';
+        document.getElementById('mode-hd-btn').classList.add('active');
+        document.getElementById('mode-memo-btn').classList.remove('active');
+      }
+
+      switchPanel('transcript');
+    }
+
+    function addTab(id, icon, label, panel) {
+      const btn = document.createElement('button');
+      btn.id = id;
+      btn.className = 'tab-btn';
+      btn.innerHTML = `<span class="icon">${icon}</span><span class="label">${label}</span>`;
+      btn.addEventListener('click', () => switchPanel(panel));
+      tabBar.appendChild(btn);
+    }
+
+    // ============================================================
+    // パネル切り替え
+    // ============================================================
+    let activePanel = 'transcript';
+    function switchPanel(id) {
+      activePanel = id;
+      tabBar.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+      [panelTranscript, panelHistory, panelChat, panelSummary].forEach(p => p.style.display = 'none');
+
+      const panelMap = { transcript: panelTranscript, history: panelHistory, chat: panelChat, summary: panelSummary };
+      const tabMap   = { transcript: 'tab-transcript', history: 'tab-history', chat: 'tab-chat', summary: 'tab-summary' };
+
+      if (panelMap[id]) panelMap[id].style.display = 'block';
+      const tab = document.getElementById(tabMap[id]);
+      if (tab) tab.classList.add('active');
+
+      if (id === 'history') renderHistory();
+    }
+
+    // ============================================================
+    // ログ表示
+    // ============================================================
+    function renderTranscript() {
+      transcriptLines.innerHTML = '';
+      transcript.split('\n').forEach(line => {
+        if (!line.trim()) return;
+        const p = document.createElement('p');
+        p.className = 'transcript-line';
+        p.textContent = line;
+        transcriptLines.appendChild(p);
+      });
+      scrollToBottom();
+    }
+    function appendLine(text) {
+      if (!text.trim()) return;
+      const p = document.createElement('p');
+      p.className = 'transcript-line';
+      p.textContent = text;
+      transcriptLines.appendChild(p);
+      scrollToBottom();
+    }
+    function scrollToBottom() { panelTranscript.scrollTop = panelTranscript.scrollHeight; }
+
+    // ============================================================
+    // 履歴表示
+    // ============================================================
+    function renderHistory() {
+      panelHistory.innerHTML = '';
+      if (!history.length) {
+        const e = document.createElement('div');
+        e.className = 'history-empty';
+        e.textContent = '履歴はまだありません';
+        panelHistory.appendChild(e);
+        return;
+      }
+      history.forEach(entry => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        const meta = document.createElement('div');
+        meta.className = 'history-meta';
+        meta.textContent = entry.date + (entry.cleaned ? '　✏️ 清書あり' : '　🎙️ ログのみ');
+        const body = document.createElement('div');
+        body.className = 'history-body';
+        const text = entry.cleaned || entry.transcript;
+        body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+        const btn = document.createElement('button');
+        btn.className = 'history-copy-btn';
+        btn.textContent = '📋 コピー';
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(text).then(() => {
+            btn.textContent = '✓ コピー済';
+            setTimeout(() => { btn.textContent = '📋 コピー'; }, 1500);
+          }).catch(() => showToast('コピーに失敗しました', 'error'));
+        });
+        card.appendChild(meta); card.appendChild(body); card.appendChild(btn);
+        panelHistory.appendChild(card);
+      });
+    }
+
+    // ============================================================
+    // 録音制御
+    // ============================================================
+    function startRecording() {
+      if (recognitionAlive) return;
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
+      recognition = new SR();
+      recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'ja-JP';
+      recognition.onstart  = () => { recognitionAlive = true; onStarted(); };
+      recognition.onresult = (e) => {
+        let interim = '', final = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) final += t; else interim += t;
+        }
+        if (interim) { interimLine.textContent = interim; scrollToBottom(); }
+        if (final) { transcript += final + '\n'; interimLine.textContent = ''; appendLine(final); saveTranscript(); }
+      };
+      recognition.onend   = () => { if (recognitionAlive) recognition.start(); };
+      recognition.onerror = (e) => {
+        if (e.error === 'no-speech') return;
+        showToast('音声認識エラー: ' + e.error, 'error');
+        if (e.error !== 'aborted') { recognitionAlive = false; onStopped(); }
+      };
+      recognition.start();
+    }
+
+    function stopRecording() {
+      if (!recognition) return;
+      recognitionAlive = false;
+      const rec = recognition; recognition = null;
+      rec.onend = () => onStopped();
+      rec.stop();
+    }
+
+    function onStarted() {
+      isRecording = true;
+      toggleBtn.textContent = '■ 停止';
+      toggleBtn.className = 'recording';
+      switchPanel('transcript');
+    }
+
+    function onStopped() {
+      isRecording = false;
+      toggleBtn.textContent = '▶ 開始';
+      toggleBtn.className = 'idle';
+      const pending = interimLine.textContent.trim();
+      if (pending) { transcript += pending + '\n'; appendLine(pending); saveTranscript(); }
+      interimLine.textContent = '';
+      if (!transcript.trim()) return;
+      if (currentMode === 'memo') runCleanMemo();
+      // ヘルプデスクモードは停止時に自動清書しない
+    }
+
+    // ============================================================
+    // 清書：メモモード（結果をオーバーレイで表示 → タップでコピー）
+    // ============================================================
+    async function runCleanMemo() {
+      showToast('✍️ 清書中...', 'info');
+      const prompt = `以下の音声文字起こしテキストを読みやすく整形してください。
+【ルール】
+・えー、あのー、えっと、なんか等のフィラーを除去する
+・重複・言い淀みを削除する
+・適切な句読点を追加する
+・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）
+・箇条書きや見出しにしない
+・整形後のテキストのみ出力する（前置き・後書き禁止）
+
+テキスト:
+${transcript}`;
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error);
+        pendingClean = data.text || '';
+        addToHistory(transcript, pendingClean);
+        // オーバーレイ表示（iOSはここでユーザータップを待つ）
+        cleanText.textContent = pendingClean;
+        cleanOverlay.classList.add('open');
+      } catch (err) {
+        showToast('清書エラー: ' + err.message, 'error');
+      }
+    }
+
+    // コピーボタン（ユーザーのタップ → iOS Safariでもコピー可能）
+    cleanCopyBtn.addEventListener('click', () => {
+      navigator.clipboard.writeText(pendingClean).then(() => {
+        cleanOverlay.classList.remove('open');
+        showToast('✅ コピーしました', 'ok');
+        autoClear();
+      }).catch(() => {
+        // clipboard API失敗時はテキスト選択でフォールバック
+        const range = document.createRange();
+        range.selectNodeContents(cleanText);
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(range);
+        showToast('テキストを選択しました。長押しでコピーしてください', 'info');
+      });
+    });
+
+    function autoClear() {
+      transcript = ''; saveTranscript();
+      renderTranscript(); switchPanel('transcript');
+    }
+
+    // ============================================================
+    // ヘルプデスクモード：AIチャット
+    // ============================================================
+    async function sendChat() {
+      const q = document.getElementById('hd-chat-input').value.trim();
+      if (!q) return;
+      document.getElementById('hd-chat-input').value = '';
+      switchPanel('chat');
+      appendMsg(panelChat, 'あなた', q, 'user-message');
+      showToast('🤔 AIが回答中...', 'info');
+
+      const promptText = aiChatContext.length === 0
+        ? `あなたはサポートアシスタントです。\n以下の文字起こしログを前提に質問に答えてください。\n\n【ログ】\n${transcript}\n\n【質問】\n${q}`
+        : q;
+      aiChatContext.push({ role: 'user', parts: [{ text: promptText }] });
+      const trimmed = aiChatContext.slice(-10);
+
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: trimmed }) });
+        const data = await res.json();
+        const reply = data.success ? data.text : 'エラー: ' + data.error;
+        appendMsg(panelChat, 'AI', reply, 'ai-message');
+        aiChatContext.push({ role: 'model', parts: [{ text: reply }] });
+        chatHistory += `あなた: ${q}\nAI: ${reply}\n\n`;
+        saveAI();
+      } catch(err) { showToast('通信エラー: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('hd-send-btn').addEventListener('click', sendChat);
+    document.getElementById('hd-chat-input').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendChat(); }
+    });
+
+    // ヘルプデスク：要約
+    document.getElementById('hd-summarize-btn').addEventListener('click', async () => {
+      if (!transcript.trim()) return;
+      switchPanel('summary');
+      showToast('📝 要約中...', 'info');
+      const prompt = `以下のログの誤字脱字を修正し、重要なポイントを箇条書きで要約してください。\n\n${transcript}`;
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) });
+        const data = await res.json();
+        panelSummary.innerHTML = '';
+        appendMsg(panelSummary, '要約', data.success ? data.text : 'エラー: ' + data.error, 'ai-message');
+      } catch(err) { showToast('エラー: ' + err.message, 'error'); }
+    });
+
+    // ヘルプデスク：終了&保存
+    document.getElementById('hd-export-btn').addEventListener('click', async () => {
+      if (!transcript.trim()) return;
+      showToast('💾 保存中...', 'info');
+      const endTime = new Date().toLocaleString('ja-JP');
+      const prompt = `以下の会話から報告書を作成してください（JSON不可）。\n開始: ${startTime} 終了: ${endTime}\n\nログ: ${transcript}\nチャット: ${chatHistory}`;
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) });
+        const data = await res.json();
+        const content = data.success ? data.text : transcript;
+        const blob = new Blob([content], { type: 'text/plain' });
+        const a = document.createElement('a');
+        const d = new Date(); a.href = URL.createObjectURL(blob);
+        a.download = `応対ログ_${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.txt`;
+        a.click();
+        localStorage.removeItem('mamoru_transcript'); localStorage.removeItem('mamoru_chatHistory'); localStorage.removeItem('mamoru_aiContext');
+        location.reload();
+      } catch(err) { showToast('エラー: ' + err.message, 'error'); }
+    });
+
+    function appendMsg(container, label, text, cls) {
+      const div = document.createElement('div');
+      div.className = cls;
+      div.innerHTML = `<div class="msg-label">${label}</div><div class="msg-body">${text}</div>`;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    // ============================================================
+    // 設定モーダル
+    // ============================================================
+    document.getElementById('settings-btn').addEventListener('click', () => settingsOverlay.classList.add('open'));
+    document.getElementById('settings-close').addEventListener('click', () => settingsOverlay.classList.remove('open'));
+    settingsOverlay.addEventListener('click', (e) => { if (e.target === settingsOverlay) settingsOverlay.classList.remove('open'); });
+
+    document.getElementById('mode-memo-btn').addEventListener('click', () => {
+      currentMode = 'memo'; localStorage.setItem('mamoru_mode', 'memo');
+      settingsOverlay.classList.remove('open');
+      initMode();
+    });
+    document.getElementById('mode-hd-btn').addEventListener('click', () => {
+      currentMode = 'helpdesk'; localStorage.setItem('mamoru_mode', 'helpdesk');
+      settingsOverlay.classList.remove('open');
+      initMode();
+    });
+
+    // ============================================================
+    // トースト
+    // ============================================================
+    let toastTimer = null;
+    function showToast(msg, type = 'info') {
+      const toast = document.getElementById('toast');
+      const colors = { ok: { bg: '#052e16', fg: '#4ade80' }, error: { bg: '#450a0a', fg: '#f87171' }, info: { bg: '#0f172a', fg: '#94a3b8' } };
+      const c = colors[type] || colors.info;
+      toast.style.background = c.bg; toast.style.color = c.fg; toast.style.border = `1px solid ${c.fg}44`;
+      toast.textContent = msg; toast.style.opacity = '1';
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2500);
+    }
+
+    // ============================================================
+    // 録音ボタン
+    // ============================================================
+    toggleBtn.addEventListener('click', () => {
+      if (!isRecording) startRecording(); else stopRecording();
+    });
+
+    // ============================================================
+    // 初期化
+    // ============================================================
+    loadStorage();
+    initMode();
+    renderTranscript();
+  </script>
+</body>
+</html>
