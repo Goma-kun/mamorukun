@@ -113,22 +113,18 @@
       </div>
 
       <div class="link-row">
-        <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">
-          🔗 Google AI Studio でAPIキーを無料取得する
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">
+          🔗 Google Cloud Console でAPIキーを取得する
         </a>
       </div>
 
       <p class="note">
-        <strong>取得手順：</strong>Google AI Studio にアクセス → ログイン → 「Get API key」→ 「Create API key」→ コピーして上の欄に貼り付け → 保存。
-      </p>
-      <p class="note" style="margin-top:8px">
-        <strong>💰 料金について：</strong>Gemini APIには無料枠があり、個人の日常的な使用であればほぼ料金がかかりません。まもるくんの清書機能は1回あたりのリクエストが小さいため、無料枠内に収まるケースがほとんどです。
+        <strong>取得手順：</strong>Google Cloud Console にアクセス → プロジェクトを選択または作成 → 「認証情報」→「APIキーを作成」→ コピーして上の欄に貼り付け → 保存。
       </p>
       <p class="note" style="margin-top:8px; border-left: 2px solid #f59e0b; padding-left: 8px;">
-        <strong>⚠️ 接続テストで「quota exceeded」エラーが出る場合：</strong><br>
-        新規プロジェクトで作成したキーは、Google Cloud の請求先アカウントが未設定だと無料枠のクォータが有効になりません。以下のいずれかで解決できます。<br>
-        ① <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud Console の請求先アカウント</a>でカードを登録する（無料枠内は課金されません）<br>
-        ② すでに請求先アカウントが設定済みの既存プロジェクトで新しいキーを作成する
+        <strong>⚠️ 日本からの利用について：</strong><br>
+        Google AI Studio（aistudio.google.com）で発行した無料APIキーは、日本からの接続では利用制限がかかる場合があります。<br>
+        その場合は <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud Console</a> で請求先アカウント（カード登録）を設定した上でAPIキーを発行してください。無料枠内の使用であれば料金は発生しません。
       </p>
       <p class="note" style="margin-top:8px">
         <strong>🔒 セキュリティについて：</strong>APIキーはお使いの Chrome 内にのみ保存され、外部サーバーへは一切送信しません。ただし以下の点にご注意ください。<br>
