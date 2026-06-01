@@ -3,7 +3,7 @@
   "name": "まもるくん",
   "version": "1.1.0",
   "description": "リアルタイム音声文字起こし & AI清書アシスタント。APIキー不要で文字起こしメモとして使えます。",
-  "permissions": ["storage"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*", "http://localhost:57890/"],
   "action": {
     "default_title": "まもるくん",
