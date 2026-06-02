@@ -1,9 +1,5 @@
 const PANEL_URL = chrome.runtime.getURL('sidepanel.html');
 
-// sidepanel.jsからのkeepалive接続を受け付ける（これがないと即disconnect→リロードループになる）
-chrome.runtime.onConnect.addListener((port) => {
-  // 接続を保持するだけ（何もしない）
-});
 
 chrome.action.onClicked.addListener(async () => {
   // 既存のまもるくんタブをURLで検索
