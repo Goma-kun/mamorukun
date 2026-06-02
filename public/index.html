@@ -257,8 +257,20 @@
     // ============================================================
     // 設定
     // ============================================================
-    const GAS_URL    = "https://script.google.com/macros/s/AKfycbzozKf-NO20PtpWfi3hzNMvzQAQ9Uy80b_hJmjfDSA4-JyIAVSIJxWa5plNZRrAi2s/exec";
-    const ACCESS_KEY = "Gomao!";
+    const WORKERS_URL = "https://mamorukun.jsphdn.workers.dev/api/chat";
+
+    // GASと同じ { success, text } 形式で返すラッパー
+    async function callAI(contents) {
+      const res = await fetch(WORKERS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents })
+      });
+      const data = await res.json();
+      if (data.error) return { success: false, error: data.error.message };
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      return { success: true, text };
+    }
 
     // ============================================================
     // 状態
@@ -502,8 +514,7 @@
 テキスト:
 ${transcript}`;
       try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) });
-        const data = await res.json();
+        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }]);
         if (!data.success) throw new Error(data.error);
         pendingClean = data.text || '';
         addToHistory(transcript, pendingClean);
@@ -554,8 +565,7 @@ ${transcript}`;
       const trimmed = aiChatContext.slice(-10);
 
       try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: trimmed }) });
-        const data = await res.json();
+        const data = await callAI(trimmed);
         const reply = data.success ? data.text : 'エラー: ' + data.error;
         appendMsg(panelChat, 'AI', reply, 'ai-message');
         aiChatContext.push({ role: 'model', parts: [{ text: reply }] });
@@ -576,8 +586,7 @@ ${transcript}`;
       showToast('📝 要約中...', 'info');
       const prompt = `以下のログの誤字脱字を修正し、重要なポイントを箇条書きで要約してください。\n\n${transcript}`;
       try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) });
-        const data = await res.json();
+        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }]);
         panelSummary.innerHTML = '';
         appendMsg(panelSummary, '要約', data.success ? data.text : 'エラー: ' + data.error, 'ai-message');
       } catch(err) { showToast('エラー: ' + err.message, 'error'); }
@@ -590,8 +599,7 @@ ${transcript}`;
       const endTime = new Date().toLocaleString('ja-JP');
       const prompt = `以下の会話から報告書を作成してください（JSON不可）。\n開始: ${startTime} 終了: ${endTime}\n\nログ: ${transcript}\nチャット: ${chatHistory}`;
       try {
-        const res = await fetch(GAS_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify({ accessKey: ACCESS_KEY, contents: [{ role: 'user', parts: [{ text: prompt }] }] }) });
-        const data = await res.json();
+        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }]);
         const content = data.success ? data.text : transcript;
         const blob = new Blob([content], { type: 'text/plain' });
         const a = document.createElement('a');
