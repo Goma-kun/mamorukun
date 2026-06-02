@@ -42,7 +42,7 @@ async function handleChatProxy(request, env) {
   }
 
   const upstreamUrl =
-    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" +
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" +
     apiKey;
 
   const controller = new AbortController();
@@ -54,6 +54,7 @@ async function handleChatProxy(request, env) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: payload.contents,
+        generationConfig: { thinkingConfig: { thinkingBudget: 0 } },
         ...(payload.tools === undefined
           ? { tools: [{ googleSearch: {} }] }
           : payload.tools.length > 0 ? { tools: payload.tools } : {}),
