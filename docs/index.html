@@ -446,17 +446,48 @@
     // ============================================================
     // 録音制御
     // ============================================================
+    // --- Screen Wake Lock + 無音AudioContext（iOS画面オフ防止） ---
+    let silentAudioCtx = null;
+
     async function acquireWakeLock() {
-      if (!('wakeLock' in navigator)) return;
-      try {
-        wakeLock = await navigator.wakeLock.request('screen');
-        wakeLock.addEventListener('release', () => { wakeLock = null; });
-      } catch (e) { /* WakeLock非対応環境は無視 */ }
+      // (1) Screen Wake Lock API（iOS 16.4+対応）
+      if ('wakeLock' in navigator) {
+        try {
+          wakeLock = await navigator.wakeLock.request('screen');
+          wakeLock.addEventListener('release', () => {
+            wakeLock = null;
+            // 録音中なら画面が表示に戻ったタイミングで再取得
+          });
+        } catch (e) { /* 非対応環境は無視 */ }
+      }
+      // (2) 無音AudioContext（iOSでWakeLockが効かない場合のバックアップ）
+      if (!silentAudioCtx) {
+        try {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) {
+            silentAudioCtx = new AudioCtx();
+            const osc = silentAudioCtx.createOscillator();
+            const gain = silentAudioCtx.createGain();
+            gain.gain.setValueAtTime(0.001, silentAudioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(silentAudioCtx.destination);
+            osc.start();
+          }
+        } catch (e) {}
+      }
     }
 
     function releaseWakeLock() {
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
+      if (silentAudioCtx) { silentAudioCtx.close(); silentAudioCtx = null; }
     }
+
+    // 画面が再表示されたらWake Lockを再取得
+    document.addEventListener('visibilitychange', async () => {
+      if (isRecording && document.visibilityState === 'visible' && !wakeLock) {
+        await acquireWakeLock();
+      }
+    });
 
     function startRecording() {
       if (recognitionAlive) return;
