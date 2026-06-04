@@ -279,6 +279,7 @@
     let isRecording    = false;
     let recognition    = null;
     let recognitionAlive = false;
+    let wakeLock       = null;
     let transcript     = '';
     let history        = [];
     let pendingClean   = ''; // 清書済みテキスト（コピー待ち）
@@ -445,10 +446,23 @@
     // ============================================================
     // 録音制御
     // ============================================================
+    async function acquireWakeLock() {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } catch (e) { /* WakeLock非対応環境は無視 */ }
+    }
+
+    function releaseWakeLock() {
+      if (wakeLock) { wakeLock.release(); wakeLock = null; }
+    }
+
     function startRecording() {
       if (recognitionAlive) return;
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
+      acquireWakeLock();
       recognition = new SR();
       recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'ja-JP';
       recognition.onstart  = () => { recognitionAlive = true; onStarted(); };
@@ -473,6 +487,7 @@
     function stopRecording() {
       if (!recognition) return;
       recognitionAlive = false;
+      releaseWakeLock();
       const rec = recognition; recognition = null;
       rec.onend = () => onStopped();
       rec.stop();
