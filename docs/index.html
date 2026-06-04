@@ -482,22 +482,26 @@
       if (silentAudioCtx) { silentAudioCtx.close(); silentAudioCtx = null; }
     }
 
-    // 画面が再表示されたらWake Lockを再取得
+    // 画面が再表示されたら Wake Lock 再取得 ＋ 録音を自動再開
     document.addEventListener('visibilitychange', async () => {
-      if (isRecording && document.visibilityState === 'visible' && !wakeLock) {
-        await acquireWakeLock();
+      if (!isRecording) return;
+      if (document.visibilityState === 'visible') {
+        if (!wakeLock) await acquireWakeLock();
+        // 画面オフで認識が止まっていたら再開
+        if (!recognitionAlive && recognition) {
+          recognitionAlive = true;
+          try { recognition.start(); } catch(e) {}
+        }
       }
     });
 
-    function startRecording() {
-      if (recognitionAlive) return;
+    function buildRecognition() {
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
-      acquireWakeLock();
-      recognition = new SR();
-      recognition.continuous = true; recognition.interimResults = true; recognition.lang = 'ja-JP';
-      recognition.onstart  = () => { recognitionAlive = true; onStarted(); };
-      recognition.onresult = (e) => {
+      if (!SR) { showToast('音声認識が利用できません', 'error'); return null; }
+      const rec = new SR();
+      rec.continuous = true; rec.interimResults = true; rec.lang = 'ja-JP';
+      rec.onstart  = () => { recognitionAlive = true; };
+      rec.onresult = (e) => {
         let interim = '', final = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript;
@@ -506,12 +510,35 @@
         if (interim) { interimLine.textContent = interim; scrollToBottom(); }
         if (final) { transcript += final + '\n'; interimLine.textContent = ''; appendLine(final); saveTranscript(); }
       };
-      recognition.onend   = () => { if (recognitionAlive) recognition.start(); };
-      recognition.onerror = (e) => {
-        if (e.error === 'no-speech') return;
-        showToast('音声認識エラー: ' + e.error, 'error');
-        if (e.error !== 'aborted') { recognitionAlive = false; onStopped(); }
+      rec.onend = () => {
+        if (!recognitionAlive) return;
+        // 画面が暗い間は visibilitychange で再開する（強制再起動を避ける）
+        if (document.hidden) return;
+        try { rec.start(); } catch(e) {}
       };
+      rec.onerror = (e) => {
+        if (e.error === 'no-speech' || e.error === 'aborted') return;
+        // 画面オフによる一時エラーは無視（visibilitychange で復帰）
+        if (document.hidden) return;
+        // audio-capture / not-allowed は少し待ってリトライ
+        if (e.error === 'audio-capture' || e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          setTimeout(() => {
+            if (recognitionAlive && !document.hidden) try { rec.start(); } catch(e2) {}
+          }, 800);
+          return;
+        }
+        showToast('音声認識エラー: ' + e.error, 'error');
+        recognitionAlive = false; onStopped();
+      };
+      return rec;
+    }
+
+    function startRecording() {
+      if (recognitionAlive) return;
+      recognition = buildRecognition();
+      if (!recognition) return;
+      acquireWakeLock();
+      onStarted();
       recognition.start();
     }
 
