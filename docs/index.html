@@ -280,6 +280,7 @@
     let recognition    = null;
     let recognitionAlive = false;
     let wakeLock       = null;
+    let wasRecording   = false; // 画面オフ前に録音中だったか記憶
     let transcript     = '';
     let history        = [];
     let pendingClean   = ''; // 清書済みテキスト（コピー待ち）
@@ -461,17 +462,29 @@
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
     }
 
-    // 画面復帰時：Wake Lock 再取得 ＋ 古い認識を破棄して強制再起動
     document.addEventListener('visibilitychange', () => {
-      if (!isRecording || document.visibilityState !== 'visible') return;
-      enableWakeLock();
-      // 古いオブジェクトを完全無効化してから新サイクル起動
-      if (recognition) {
-        const stale = recognition; recognition = null;
-        stale.onend = () => {}; stale.onerror = () => {};
-        try { stale.stop(); } catch(e) {}
+      if (document.visibilityState === 'hidden') {
+        // 画面オフ直前の録音状態を記憶
+        wasRecording = isRecording;
+      } else {
+        // 画面復帰
+        enableWakeLock();
+        if (wasRecording) {
+          wasRecording = false;
+          if (!isRecording) {
+            // 画面オフ中に停止していたら自動再開
+            startRecording();
+          } else {
+            // 録音は継続中だが認識オブジェクトをリフレッシュ
+            if (recognition) {
+              const stale = recognition; recognition = null;
+              stale.onend = () => {}; stale.onerror = () => {};
+              try { stale.stop(); } catch(e) {}
+            }
+            setTimeout(launchRecognition, 400);
+          }
+        }
       }
-      setTimeout(launchRecognition, 400);
     });
 
     // --- 音声認識ループ ---
@@ -557,6 +570,8 @@
       if (pending) { transcript += pending + '\n'; appendLine(pending); saveTranscript(); }
       interimLine.textContent = '';
       if (!transcript.trim()) return;
+      // 画面オフ中の意図しない停止では清書しない（画面復帰で録音再開するため）
+      if (document.hidden || wasRecording) return;
       if (currentMode === 'memo') runCleanMemo();
       // ヘルプデスクモードは停止時に自動清書しない
     }
