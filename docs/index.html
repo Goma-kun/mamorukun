@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>まもるくん</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
@@ -281,7 +280,6 @@
     let recognition    = null;
     let recognitionAlive = false;
     let wakeLock       = null;
-    let noSleep        = null;
     let transcript     = '';
     let history        = [];
     let pendingClean   = ''; // 清書済みテキスト（コピー待ち）
@@ -448,15 +446,9 @@
     // ============================================================
     // 録音制御
     // ============================================================
-    // --- 画面オフ防止（NoSleep.js + Wake Lock API の二重対策） ---
+    // --- Wake Lock（画面オフ防止） ---
 
-    function enableNoSleep() {
-      // NoSleep.js: iOS では内部的にループ動画を再生して画面オフを防ぐ
-      if (typeof NoSleep !== 'undefined') {
-        if (!noSleep) noSleep = new NoSleep();
-        noSleep.enable();
-      }
-      // Wake Lock API（バックアップ）
+    function enableWakeLock() {
       if ('wakeLock' in navigator) {
         navigator.wakeLock.request('screen').then(lock => {
           wakeLock = lock;
@@ -465,29 +457,28 @@
       }
     }
 
-    function disableNoSleep() {
-      if (noSleep) noSleep.disable();
+    function disableWakeLock() {
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
     }
 
-    // 画面復帰時：NoSleep 再有効化 ＋ 認識が止まっていれば再開
+    // 画面復帰時：Wake Lock 再取得
     document.addEventListener('visibilitychange', () => {
-      if (!isRecording) return;
-      if (document.visibilityState === 'visible') {
-        enableNoSleep();
-        if (!recognitionAlive && recognition) {
-          recognitionAlive = true;
-          try { recognition.start(); } catch(e) {}
-        }
+      if (isRecording && document.visibilityState === 'visible') {
+        enableWakeLock();
       }
     });
 
-    function buildRecognition() {
+    // --- 音声認識ループ（毎サイクル新オブジェクト生成） ---
+
+    function startRecognitionCycle() {
+      if (!recognitionAlive) return;
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) { showToast('音声認識が利用できません', 'error'); return null; }
+      if (!SR) return;
+
       const rec = new SR();
+      recognition = rec;
       rec.continuous = true; rec.interimResults = true; rec.lang = 'ja-JP';
-      rec.onstart  = () => { recognitionAlive = true; };
+
       rec.onresult = (e) => {
         let interim = '', final = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
@@ -497,39 +488,48 @@
         if (interim) { interimLine.textContent = interim; scrollToBottom(); }
         if (final) { transcript += final + '\n'; interimLine.textContent = ''; appendLine(final); saveTranscript(); }
       };
+
       rec.onend = () => {
-        if (!recognitionAlive) return;
-        // 常に再起動を試みる（画面オフ中も含む）
-        setTimeout(() => {
-          if (recognitionAlive) try { rec.start(); } catch(e) {}
-        }, 100);
+        // 録音継続中なら新オブジェクトで再起動
+        if (recognitionAlive) setTimeout(startRecognitionCycle, 200);
       };
+
       rec.onerror = (e) => {
-        // no-speech・aborted は無視
         if (e.error === 'no-speech' || e.error === 'aborted') return;
-        // それ以外のエラー（audio-capture, not-allowed 等）はトースト表示のみ
-        // → 録音セッションは止めない（onend → start() ループで自動復帰）
+        // エラーはトースト表示のみ・録音は止めない
+        // onend が続けて発火するので自動的に再起動される
         showToast('音声認識エラー: ' + e.error, 'error');
       };
-      return rec;
+
+      try {
+        rec.start();
+      } catch (e) {
+        // start() 自体が失敗した場合も再試行
+        if (recognitionAlive) setTimeout(startRecognitionCycle, 500);
+      }
     }
 
     function startRecording() {
       if (recognitionAlive) return;
-      recognition = buildRecognition();
-      if (!recognition) return;
-      enableNoSleep();
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
+      recognitionAlive = true;
+      enableWakeLock();
       onStarted();
-      recognition.start();
+      startRecognitionCycle();
     }
 
     function stopRecording() {
-      if (!recognition) return;
       recognitionAlive = false;
-      disableNoSleep();
-      const rec = recognition; recognition = null;
-      rec.onend = () => onStopped();
-      rec.stop();
+      disableWakeLock();
+      if (recognition) {
+        const rec = recognition; recognition = null;
+        rec.onend = () => onStopped();
+        rec.onerror = () => {};
+        try { rec.stop(); } catch(e) { onStopped(); }
+      } else {
+        onStopped();
+      }
     }
 
     function onStarted() {
