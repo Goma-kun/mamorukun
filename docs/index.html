@@ -461,20 +461,23 @@
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
     }
 
-    // 画面復帰時：Wake Lock 再取得 ＋ 認識サイクルを強制再起動
+    // 画面復帰時：Wake Lock 再取得 ＋ 古い認識を破棄して強制再起動
     document.addEventListener('visibilitychange', () => {
-      if (isRecording && document.visibilityState === 'visible') {
-        enableWakeLock();
-        // 古い認識オブジェクトを破棄して確実に再起動
-        if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
-        setTimeout(startRecognitionCycle, 300);
+      if (!isRecording || document.visibilityState !== 'visible') return;
+      enableWakeLock();
+      // 古いオブジェクトを完全無効化してから新サイクル起動
+      if (recognition) {
+        const stale = recognition; recognition = null;
+        stale.onend = () => {}; stale.onerror = () => {};
+        try { stale.stop(); } catch(e) {}
       }
+      setTimeout(launchRecognition, 400);
     });
 
-    // --- 音声認識ループ（毎サイクル新オブジェクト生成） ---
+    // --- 音声認識ループ ---
 
-    function startRecognitionCycle() {
-      if (!recognitionAlive) return;
+    function launchRecognition() {
+      if (!isRecording) return;
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) return;
 
@@ -493,36 +496,40 @@
       };
 
       rec.onend = () => {
-        if (rec !== recognition) return; // 古いオブジェクトのイベントは無視
-        if (recognitionAlive) setTimeout(startRecognitionCycle, 200);
+        if (rec !== recognition || !isRecording) return;
+        setTimeout(launchRecognition, 300);
       };
 
       rec.onerror = (e) => {
-        if (e.error === 'no-speech' || e.error === 'aborted') return;
-        // エラーはトースト表示のみ・録音は止めない
+        // Load Failed = iOS画面オフ時の一時エラー → 無視してonendに任せる
+        // no-speech / aborted も無視
+        const silent = ['no-speech', 'aborted', 'Load Failed'];
+        if (silent.includes(e.error)) return;
+        // その他エラーも録音は止めない・onendで自動復帰
         showToast('音声認識エラー: ' + e.error, 'error');
-        // onend が来ない場合のバックアップ再起動
-        if (rec === recognition && recognitionAlive) setTimeout(startRecognitionCycle, 600);
       };
 
       try {
         rec.start();
       } catch (e) {
-        if (recognitionAlive) setTimeout(startRecognitionCycle, 500);
+        if (isRecording) setTimeout(launchRecognition, 500);
       }
     }
 
     function startRecording() {
-      if (recognitionAlive) return;
+      if (isRecording) return;
       const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
+      isRecording = true;
       recognitionAlive = true;
       enableWakeLock();
       onStarted();
-      startRecognitionCycle();
+      launchRecognition();
     }
 
     function stopRecording() {
+      if (!isRecording) return;
+      isRecording = false;
       recognitionAlive = false;
       disableWakeLock();
       if (recognition) {
