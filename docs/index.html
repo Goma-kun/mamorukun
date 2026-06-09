@@ -499,23 +499,17 @@
       };
       rec.onend = () => {
         if (!recognitionAlive) return;
-        // 画面が暗い間は visibilitychange で再開する（強制再起動を避ける）
-        if (document.hidden) return;
-        try { rec.start(); } catch(e) {}
+        // 常に再起動を試みる（画面オフ中も含む）
+        setTimeout(() => {
+          if (recognitionAlive) try { rec.start(); } catch(e) {}
+        }, 100);
       };
       rec.onerror = (e) => {
+        // no-speech・aborted は無視
         if (e.error === 'no-speech' || e.error === 'aborted') return;
-        // 画面オフによる一時エラーは無視（visibilitychange で復帰）
-        if (document.hidden) return;
-        // audio-capture / not-allowed は少し待ってリトライ
-        if (e.error === 'audio-capture' || e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-          setTimeout(() => {
-            if (recognitionAlive && !document.hidden) try { rec.start(); } catch(e2) {}
-          }, 800);
-          return;
-        }
+        // それ以外のエラー（audio-capture, not-allowed 等）はトースト表示のみ
+        // → 録音セッションは止めない（onend → start() ループで自動復帰）
         showToast('音声認識エラー: ' + e.error, 'error');
-        recognitionAlive = false; onStopped();
       };
       return rec;
     }
