@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>まもるくん</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.12.0/NoSleep.min.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
@@ -280,6 +281,7 @@
     let recognition    = null;
     let recognitionAlive = false;
     let wakeLock       = null;
+    let noSleep        = null;
     let transcript     = '';
     let history        = [];
     let pendingClean   = ''; // 清書済みテキスト（コピー待ち）
@@ -446,48 +448,33 @@
     // ============================================================
     // 録音制御
     // ============================================================
-    // --- Screen Wake Lock + 無音AudioContext（iOS画面オフ防止） ---
-    let silentAudioCtx = null;
+    // --- 画面オフ防止（NoSleep.js + Wake Lock API の二重対策） ---
 
-    async function acquireWakeLock() {
-      // (1) Screen Wake Lock API（iOS 16.4+対応）
+    function enableNoSleep() {
+      // NoSleep.js: iOS では内部的にループ動画を再生して画面オフを防ぐ
+      if (typeof NoSleep !== 'undefined') {
+        if (!noSleep) noSleep = new NoSleep();
+        noSleep.enable();
+      }
+      // Wake Lock API（バックアップ）
       if ('wakeLock' in navigator) {
-        try {
-          wakeLock = await navigator.wakeLock.request('screen');
-          wakeLock.addEventListener('release', () => {
-            wakeLock = null;
-            // 録音中なら画面が表示に戻ったタイミングで再取得
-          });
-        } catch (e) { /* 非対応環境は無視 */ }
-      }
-      // (2) 無音AudioContext（iOSでWakeLockが効かない場合のバックアップ）
-      if (!silentAudioCtx) {
-        try {
-          const AudioCtx = window.AudioContext || window.webkitAudioContext;
-          if (AudioCtx) {
-            silentAudioCtx = new AudioCtx();
-            const osc = silentAudioCtx.createOscillator();
-            const gain = silentAudioCtx.createGain();
-            gain.gain.setValueAtTime(0.001, silentAudioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(silentAudioCtx.destination);
-            osc.start();
-          }
-        } catch (e) {}
+        navigator.wakeLock.request('screen').then(lock => {
+          wakeLock = lock;
+          lock.addEventListener('release', () => { wakeLock = null; });
+        }).catch(() => {});
       }
     }
 
-    function releaseWakeLock() {
+    function disableNoSleep() {
+      if (noSleep) noSleep.disable();
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
-      if (silentAudioCtx) { silentAudioCtx.close(); silentAudioCtx = null; }
     }
 
-    // 画面が再表示されたら Wake Lock 再取得 ＋ 録音を自動再開
-    document.addEventListener('visibilitychange', async () => {
+    // 画面復帰時：NoSleep 再有効化 ＋ 認識が止まっていれば再開
+    document.addEventListener('visibilitychange', () => {
       if (!isRecording) return;
       if (document.visibilityState === 'visible') {
-        if (!wakeLock) await acquireWakeLock();
-        // 画面オフで認識が止まっていたら再開
+        enableNoSleep();
         if (!recognitionAlive && recognition) {
           recognitionAlive = true;
           try { recognition.start(); } catch(e) {}
@@ -537,7 +524,7 @@
       if (recognitionAlive) return;
       recognition = buildRecognition();
       if (!recognition) return;
-      acquireWakeLock();
+      enableNoSleep();
       onStarted();
       recognition.start();
     }
@@ -545,7 +532,7 @@
     function stopRecording() {
       if (!recognition) return;
       recognitionAlive = false;
-      releaseWakeLock();
+      disableNoSleep();
       const rec = recognition; recognition = null;
       rec.onend = () => onStopped();
       rec.stop();
