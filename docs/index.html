@@ -461,10 +461,13 @@
       if (wakeLock) { wakeLock.release(); wakeLock = null; }
     }
 
-    // 画面復帰時：Wake Lock 再取得
+    // 画面復帰時：Wake Lock 再取得 ＋ 認識サイクルを強制再起動
     document.addEventListener('visibilitychange', () => {
       if (isRecording && document.visibilityState === 'visible') {
         enableWakeLock();
+        // 古い認識オブジェクトを破棄して確実に再起動
+        if (recognition) { try { recognition.stop(); } catch(e) {} recognition = null; }
+        setTimeout(startRecognitionCycle, 300);
       }
     });
 
@@ -490,21 +493,21 @@
       };
 
       rec.onend = () => {
-        // 録音継続中なら新オブジェクトで再起動
+        if (rec !== recognition) return; // 古いオブジェクトのイベントは無視
         if (recognitionAlive) setTimeout(startRecognitionCycle, 200);
       };
 
       rec.onerror = (e) => {
         if (e.error === 'no-speech' || e.error === 'aborted') return;
         // エラーはトースト表示のみ・録音は止めない
-        // onend が続けて発火するので自動的に再起動される
         showToast('音声認識エラー: ' + e.error, 'error');
+        // onend が来ない場合のバックアップ再起動
+        if (rec === recognition && recognitionAlive) setTimeout(startRecognitionCycle, 600);
       };
 
       try {
         rec.start();
       } catch (e) {
-        // start() 自体が失敗した場合も再試行
         if (recognitionAlive) setTimeout(startRecognitionCycle, 500);
       }
     }
