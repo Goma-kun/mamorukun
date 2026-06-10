@@ -129,7 +129,7 @@
       flex: 1; background: #1e293b; border: 1px solid #334155;
       border-radius: 12px; padding: 14px;
       color: #c7d2fe; font-size: 14px; line-height: 1.8;
-      overflow-y: auto; word-break: break-all; white-space: pre-wrap;
+      overflow-y: auto; word-break: normal; overflow-wrap: anywhere; white-space: pre-wrap;
       -webkit-user-select: text; user-select: text;
     }
     #clean-copy-btn {
@@ -191,7 +191,7 @@
 <body>
   <div id="wrapper">
     <header id="header">
-      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.3.7</span></h1>
+      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.4.0</span></h1>
       <button id="settings-btn">⚙️</button>
     </header>
 
@@ -573,13 +573,18 @@
     // ============================================================
     async function runCleanMemo() {
       showToast('✍️ 清書中...', 'info');
-      const prompt = `以下の音声文字起こしテキストを読みやすく整形してください。
+      const prompt = `以下の音声文字起こしテキストを、読みやすい文章に整形してください。
 【ルール】
 ・えー、あのー、えっと、なんか等のフィラーを除去する
 ・重複・言い淀みを削除する
 ・適切な句読点を追加する
 ・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）
-・箇条書きや見出しにしない
+・箇条書きや見出しにはしない
+【段落・改行のルール（重要）】
+・文の途中で改行しない。1つの文は必ず1行にまとめる
+・内容のまとまりごとに段落を分け、段落と段落の間は空行を1行入れる
+・話題が変わるところで段落を変える
+・全体が「きれいな段落の集まり」になるようにする
 ・整形後のテキストのみ出力する（前置き・後書き禁止）
 
 テキスト:
