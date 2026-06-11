@@ -219,7 +219,7 @@ function onRecordingStopped() {
     runClean();
   } else if (!geminiKey && transcript.trim()) {
     addToHistory(transcript, '');
-    navigator.clipboard.writeText(transcript).then(() => {
+    navigator.clipboard.writeText(transcript + "​").then(() => {
       showToast('📋 コピーしました', 'ok');
       setTimeout(() => autoClear(), 800);
     }).catch(() => {});
@@ -246,13 +246,18 @@ async function runClean() {
   if (!geminiKey || !transcript.trim()) return;
   showToast('✍️ 清書中...', 'info');
 
-  const prompt = `以下の音声文字起こしテキストを読みやすく整形してください。
+  const prompt = `以下の音声文字起こしテキストを、読みやすい文章に整形してください。
 【ルール】
 ・えー、あのー、えっと、なんか等のフィラーを除去する
 ・重複・言い淀みを削除する
 ・適切な句読点を追加する
 ・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）
-・箇条書きや見出しにしない
+・箇条書きや見出しにはしない
+【段落・改行のルール（重要）】
+・文の途中で改行しない。1つの文は必ず1行にまとめる
+・内容のまとまりごとに段落を分け、段落と段落の間は空行を1行入れる
+・話題が変わるところで段落を変える
+・全体が「きれいな段落の集まり」になるようにする
 ・整形後のテキストのみ出力する（前置き・後書き禁止）
 
 テキスト:
@@ -277,7 +282,7 @@ ${transcript}`;
 
     addToHistory(transcript, cleanedText);
 
-    navigator.clipboard.writeText(cleanedText).then(() => {
+    navigator.clipboard.writeText(cleanedText + "​").then(() => {
       showToast('✅ 清書してコピーしました', 'ok');
       setTimeout(() => autoClear(), 800);
     }).catch(() => {
