@@ -243,7 +243,11 @@ function onResult(interim, final) {
 // 清書（バックグラウンド処理・UIなし）
 // ============================================================
 async function runClean() {
-  if (!geminiKey || !transcript.trim()) return;
+  if (!transcript.trim()) return;
+  if (!geminiKey) {
+    showToast('⚠️ APIキー未設定のため清書をスキップしました（⚙️設定から登録できます）', 'info');
+    return;
+  }
   showToast('✍️ 清書中...', 'info');
 
   const prompt = `以下の音声文字起こしテキストを、読みやすい文章に整形してください。
