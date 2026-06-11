@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "まもるくん",
-  "version": "1.2.0",
-  "description": "リアルタイム音声文字起こし & AI清書アシスタント。APIキー不要で文字起こしメモとして使えます。",
+  "version": "1.2.2",
+  "description": "リアルタイム音声文字起こし & AI清書アシスタント。マイクとインターネット接続が必要です。Gemini APIキー設定で自動清書も可能。",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*", "http://localhost:57890/"],
   "action": {
