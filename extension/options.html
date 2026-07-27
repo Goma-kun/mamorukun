@@ -32,6 +32,18 @@
       font-family: monospace;
     }
     input:focus { border-color: #6366f1; }
+    select {
+      width: 100%; padding: 10px 12px;
+      background: #0f172a; border: 1px solid #334155;
+      border-radius: 8px; color: #e2e8f0; font-size: 13px;
+      outline: none; transition: border-color 0.15s; cursor: pointer;
+    }
+    select:focus { border-color: #6366f1; }
+    #lang-status {
+      margin-top: 10px; padding: 8px 12px;
+      border-radius: 8px; font-size: 12px; font-weight: 600;
+      display: none;
+    }
 
     .btn-row { display: flex; gap: 8px; margin-top: 10px; }
     .btn {
@@ -91,6 +103,33 @@
 
     <div id="current-tier">
       現在の機能: <span id="tier-label">確認中...</span>
+    </div>
+
+    <!-- 音声認識の言語 -->
+    <div class="section">
+      <h2>音声認識の言語</h2>
+
+      <label for="lang-select">聞き取る言語</label>
+      <select id="lang-select">
+        <option value="ja-JP">日本語</option>
+        <option value="en-US">English (US)</option>
+        <option value="en-GB">English (UK)</option>
+        <option value="es-ES">Español (España)</option>
+        <option value="es-MX">Español (México)</option>
+        <option value="zh-CN">中文（简体）</option>
+        <option value="zh-TW">中文（繁體）</option>
+        <option value="ko-KR">한국어</option>
+        <option value="fr-FR">Français</option>
+        <option value="de-DE">Deutsch</option>
+        <option value="pt-BR">Português (Brasil)</option>
+      </select>
+
+      <div id="lang-status"></div>
+
+      <p class="note">
+        話す言語を選んでください。選んだ言語で書き起こし、AI清書も同じ言語で行います。<br>
+        <strong>英語の学習などで使う場合：</strong>画面の表示は日本語のまま、ここだけ English に切り替えれば英語の書き起こしができます。
+      </p>
     </div>
 
     <!-- Gemini API キー設定 -->
