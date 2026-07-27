@@ -5,3 +5,12 @@
 .env*
 !.env.example
 .DS_Store
+
+# Claude Code のローカル設定
+.claude/
+
+# ローカル監視ツール連携版（個人環境専用・公開しない）
+extension-local/
+
+# 申請用パッケージ（ビルド成果物）
+*.zip
