@@ -19,13 +19,10 @@ const LANG_NAMES = {
 };
 const SUPPORTED = ['ja-JP','en-US','en-GB','es-ES','es-MX','zh-CN','zh-TW','ko-KR','fr-FR','de-DE','pt-BR'];
 
-// 未設定時はブラウザの言語から推測する（対応外なら日本語）
-function guessLang() {
-  const ui = (chrome.i18n.getUILanguage() || 'ja').toLowerCase();
-  return SUPPORTED.find(l => l.toLowerCase() === ui)
-      || SUPPORTED.find(l => l.toLowerCase().startsWith(ui.split('-')[0]))
-      || 'ja-JP';
-}
+// 未設定時は日本語。ブラウザのUI言語からは推測しない。
+// （英語優先のChromeを使う日本語話者が、いきなり英語認識になって困るのを防ぐ。
+//   日本語以外で使う場合は設定画面から1回選べば以後は保存される）
+const DEFAULT_LANG = 'ja-JP';
 
 function langLabel(lang) {
   return LANG_NAMES[lang.split('-')[0]] || 'the same language as the input';
@@ -40,7 +37,7 @@ async function loadStorage() {
   geminiKey  = d.mamoru_gemini_key || '';
   history    = d.mamoru_history    || [];
   // 未設定ならブラウザの言語から推測（対応外は日本語）
-  recogLang  = d.mamoru_lang || guessLang();
+  recogLang  = d.mamoru_lang || DEFAULT_LANG;
 }
 
 function saveTranscript() {
@@ -435,7 +432,7 @@ chrome.storage.onChanged.addListener((changes) => {
   }
   // 設定画面で言語を変えたら即反映（録音中の場合は次回の録音から）
   if (changes.mamoru_lang) {
-    recogLang = changes.mamoru_lang.newValue || guessLang();
+    recogLang = changes.mamoru_lang.newValue || DEFAULT_LANG;
     if (recognitionAlive) showToast('🌐 言語設定を変更しました（次の録音から反映）', 'info');
   }
 });
