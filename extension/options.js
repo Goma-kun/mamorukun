@@ -1,3 +1,5 @@
+const langSelect       = document.getElementById('lang-select');
+const langStatus       = document.getElementById('lang-status');
 const apiKeyInput      = document.getElementById('api-key-input');
 const saveBtn          = document.getElementById('save-btn');
 const testBtn          = document.getElementById('test-btn');
@@ -94,4 +96,25 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
-document.addEventListener('DOMContentLoaded', loadKey);
+// ── 音声認識の言語 ──
+// 未設定ならブラウザの言語から推測し、以後は選んだ言語を優先する
+async function loadLang() {
+  const { mamoru_lang } = await chrome.storage.local.get('mamoru_lang');
+  if (mamoru_lang) { langSelect.value = mamoru_lang; return; }
+
+  const ui = (chrome.i18n.getUILanguage() || 'ja').toLowerCase();
+  const match = [...langSelect.options].find(o => o.value.toLowerCase() === ui)
+             || [...langSelect.options].find(o => o.value.toLowerCase().startsWith(ui.split('-')[0]));
+  langSelect.value = match ? match.value : 'ja-JP';
+}
+
+langSelect.addEventListener('change', async () => {
+  await chrome.storage.local.set({ mamoru_lang: langSelect.value });
+  const label = langSelect.options[langSelect.selectedIndex].textContent;
+  langStatus.textContent = `✓ ${label} に設定しました`;
+  langStatus.className = 'status-ok';
+  langStatus.style.display = 'block';
+  setTimeout(() => { langStatus.style.display = 'none'; }, 2000);
+});
+
+document.addEventListener('DOMContentLoaded', () => { loadKey(); loadLang(); });
