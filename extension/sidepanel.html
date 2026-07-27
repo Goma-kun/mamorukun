@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>まもるくん</title>
+  <title data-i18n="extName">Mamorukun</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
@@ -165,19 +165,19 @@
   <div id="wrapper">
     <!-- ヘッダー -->
     <header id="header">
-      <h1 id="app-title">🛡️ まもるくん</h1>
+      <h1 id="app-title" data-i18n="appTitle"></h1>
       <div class="header-btns">
-        <button id="settings-btn" class="header-btn" title="設定">⚙️</button>
+        <button id="settings-btn" class="header-btn" data-i18n-title="settingsTip">⚙️</button>
       </div>
     </header>
 
     <!-- タブバー：ログ・履歴 -->
     <div id="tab-bar">
       <button id="tab-transcript" class="tab-btn active">
-        <span class="icon">🎙️</span><span class="label">ログ</span>
+        <span class="icon">🎙️</span><span class="label" data-i18n="tabLog"></span>
       </button>
       <button id="tab-history" class="tab-btn">
-        <span class="icon">🕐</span><span class="label">履歴</span>
+        <span class="icon">🕐</span><span class="label" data-i18n="tabHistory"></span>
       </button>
     </div>
 
@@ -195,7 +195,7 @@
 
     <!-- アクションバー -->
     <div id="action-bar">
-      <button id="toggle-btn" class="idle">▶ 開始</button>
+      <button id="toggle-btn" class="idle" data-i18n="btnStart"></button>
     </div>
   </div>
 
