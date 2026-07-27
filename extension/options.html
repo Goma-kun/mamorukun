@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>まもるくん 設定</title>
+  <title data-i18n="optTitle">Mamorukun Settings</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; }
     body {
@@ -99,17 +99,17 @@
 </head>
 <body>
   <div class="container">
-    <h1>⚙️ まもるくん 設定</h1>
+    <h1 data-i18n="optHeading"></h1>
 
     <div id="current-tier">
-      現在の機能: <span id="tier-label">確認中...</span>
+      <span data-i18n="currentMode"></span> <span id="tier-label" data-i18n="checking"></span>
     </div>
 
     <!-- 音声認識の言語 -->
     <div class="section">
-      <h2>音声認識の言語</h2>
+      <h2 data-i18n="secLanguage"></h2>
 
-      <label for="lang-select">聞き取る言語</label>
+      <label for="lang-select" data-i18n="labelLang"></label>
       <select id="lang-select">
         <option value="ja-JP">日本語</option>
         <option value="en-US">English (US)</option>
@@ -127,62 +127,62 @@
       <div id="lang-status"></div>
 
       <p class="note">
-        話す言語を選んでください。選んだ言語で書き起こし、AI清書も同じ言語で行います。<br>
-        <strong>英語の学習などで使う場合：</strong>画面の表示は日本語のまま、ここだけ English に切り替えれば英語の書き起こしができます。
+        <span data-i18n="langNote"></span><br>
+        <strong data-i18n="langNoteLearn"></strong><span data-i18n="langNoteLearnBody"></span>
       </p>
     </div>
 
     <!-- Gemini API キー設定 -->
     <div class="section">
-      <h2>Gemini API キー（AI清書機能の解放）</h2>
+      <h2 data-i18n="secApiKey"></h2>
 
       <div id="key-saved-indicator" style="display:none">
-        <span class="key-saved-badge">✓ APIキー設定済み</span>
+        <span class="key-saved-badge" data-i18n="keySaved"></span>
       </div>
 
-      <label for="api-key-input">APIキー</label>
+      <label for="api-key-input" data-i18n="labelApiKey"></label>
       <input type="password" id="api-key-input" placeholder="AIza..." autocomplete="off" spellcheck="false">
 
       <div id="key-status"></div>
 
       <div class="btn-row">
-        <button class="btn btn-primary" id="save-btn">保存</button>
-        <button class="btn btn-test" id="test-btn">接続テスト</button>
-        <button class="btn btn-danger" id="delete-btn">削除</button>
+        <button class="btn btn-primary" id="save-btn" data-i18n="btnSave"></button>
+        <button class="btn btn-test" id="test-btn" data-i18n="btnTest"></button>
+        <button class="btn btn-danger" id="delete-btn" data-i18n="btnDelete"></button>
       </div>
 
       <div class="link-row">
         <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">
-          🔗 Google Cloud Console でAPIキーを取得する
+          <span data-i18n="linkGetKey"></span>
         </a>
       </div>
 
       <p class="note">
-        <strong>取得手順：</strong>Google Cloud Console にアクセス → プロジェクトを選択または作成 → 「認証情報」→「APIキーを作成」→ コピーして上の欄に貼り付け → 保存。
+        <strong data-i18n="howToGet"></strong><span data-i18n="howToGetBody"></span>
       </p>
       <p class="note" style="margin-top:8px; border-left: 2px solid #f59e0b; padding-left: 8px;">
-        <strong>⚠️ 日本からの利用について：</strong><br>
-        Google AI Studio（aistudio.google.com）で発行した無料APIキーは、日本からの接続では利用制限がかかる場合があります。<br>
-        その場合は <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud Console</a> で請求先アカウント（カード登録）を設定した上でAPIキーを発行してください。無料枠内の使用であれば料金は発生しません。
+        <strong data-i18n="jpNotice"></strong><br>
+        <span data-i18n="jpNoticeBody1"></span><br>
+        <span data-i18n="jpNoticeBody2"></span> <a href="https://console.cloud.google.com/billing" target="_blank" rel="noopener">Google Cloud Console</a>
       </p>
       <p class="note" style="margin-top:8px">
-        <strong>🔒 セキュリティについて：</strong>APIキーはお使いの Chrome 内にのみ保存され、外部サーバーへは一切送信しません。ただし以下の点にご注意ください。<br>
-        ・APIキーは他人に共有しないでください<br>
-        ・キーが漏洩した場合は Google AI Studio ですぐに無効化できます<br>
-        ・このデバイスを他の人と共有している場合は使用後にキーを削除することをお勧めします
+        <strong data-i18n="security"></strong><span data-i18n="securityBody"></span><br>
+        ・<span data-i18n="securityLi1"></span><br>
+        ・<span data-i18n="securityLi2"></span><br>
+        ・<span data-i18n="securityLi3"></span>
       </p>
     </div>
 
     <!-- 機能レベル説明 -->
     <div class="section">
-      <h2>機能レベルについて</h2>
+      <h2 data-i18n="secTiers"></h2>
       <p class="note">
-        <strong>📝 文字起こしのみ（APIキー不要）</strong><br>
-        リアルタイム音声文字起こし・コピー・クリア。ゼロ設定で使えるメモツールとして機能します。
+        <strong data-i18n="tier1Title"></strong><br>
+        <span data-i18n="tier1Body"></span>
       </p>
       <p class="note" style="margin-top:10px">
-        <strong>✨ 文字起こし + AI清書（APIキーあり）</strong><br>
-        録音停止後に Gemini が自動で清書。えー・あのーなどのフィラー除去、句読点追加、話し言葉の整形を行います。清書タブでいつでも確認・コピー可能。
+        <strong data-i18n="tier2Title"></strong><br>
+        <span data-i18n="tier2Body"></span>
       </p>
     </div>
   </div>

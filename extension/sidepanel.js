@@ -1,3 +1,16 @@
+// i18n: ブラウザの言語に応じた文言を返す／DOMへ流し込む
+const T = (k, ...sub) => chrome.i18n.getMessage(k, sub.length ? sub : undefined) || k;
+function applyI18n() {
+  for (const el of document.querySelectorAll('[data-i18n]')) {
+    const m = T(el.dataset.i18n);
+    if (m) el.textContent = m;
+  }
+  for (const el of document.querySelectorAll('[data-i18n-title]')) {
+    const m = T(el.dataset.i18nTitle);
+    if (m) el.title = m;
+  }
+}
+
 // ============================================================
 // 状態
 // ============================================================
@@ -129,7 +142,7 @@ function renderHistory() {
   if (history.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'history-empty';
-    empty.textContent = '履歴はまだありません';
+    empty.textContent = T('historyEmpty');
     panelHistory.appendChild(empty);
     return;
   }
@@ -140,7 +153,7 @@ function renderHistory() {
 
     const meta = document.createElement('div');
     meta.className = 'history-meta';
-    meta.textContent = entry.date + (entry.cleaned ? '　✏️ 清書あり' : '　🎙️ ログのみ');
+    meta.textContent = entry.date + (entry.cleaned ? T('historyCleaned') : T('historyLogOnly'));
 
     const body = document.createElement('div');
     body.className = 'history-body';
@@ -149,12 +162,12 @@ function renderHistory() {
 
     const copyBtn = document.createElement('button');
     copyBtn.className = 'history-copy-btn';
-    copyBtn.textContent = '📋 コピー';
+    copyBtn.textContent = T('btnCopy');
     copyBtn.addEventListener('click', () => {
       navigator.clipboard.writeText(text).then(() => {
-        copyBtn.textContent = '✓ コピー済';
-        setTimeout(() => { copyBtn.textContent = '📋 コピー'; }, 1500);
-      }).catch(() => showToast('コピーに失敗しました', 'error'));
+        copyBtn.textContent = T('btnCopied');
+        setTimeout(() => { copyBtn.textContent = T('btnCopy'); }, 1500);
+      }).catch(() => showToast(T('copyFailed'), 'error'));
     });
 
     card.appendChild(meta);
@@ -170,7 +183,7 @@ function renderHistory() {
 function startRecording() {
   if (recognitionAlive) return;
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('音声認識が利用できません', 'error'); return; }
+  if (!SR) { showToast(T('speechUnavailable'), 'error'); return; }
 
   recognition = new SR();
   recognition.continuous     = true;
@@ -198,7 +211,7 @@ function startRecording() {
 
   recognition.onerror = (e) => {
     if (e.error === 'no-speech') return;
-    showToast('音声認識エラー: ' + e.error, 'error');
+    showToast(T('speechError') + e.error, 'error');
     if (e.error !== 'aborted') {
       recognitionAlive = false;
       onRecordingStopped();
@@ -219,14 +232,14 @@ function stopRecording() {
 
 function onRecordingStarted() {
   isRecording = true;
-  toggleBtn.textContent = '■ 停止';
+  toggleBtn.textContent = T('btnStop');
   toggleBtn.className = 'recording';
   switchPanel('transcript');
 }
 
 function onRecordingStopped() {
   isRecording = false;
-  toggleBtn.textContent = '▶ 開始';
+  toggleBtn.textContent = T('btnStart');
   toggleBtn.className = 'idle';
 
   const pending = interimLine.textContent.trim();
@@ -242,7 +255,7 @@ function onRecordingStopped() {
   } else if (!geminiKey && transcript.trim()) {
     addToHistory(transcript, '');
     navigator.clipboard.writeText(transcript + "​").then(() => {
-      showToast('📋 コピーしました', 'ok');
+      showToast(T('toastCopied'), 'ok');
       setTimeout(() => autoClear(), 800);
     }).catch(() => {});
   }
@@ -341,10 +354,10 @@ ${text}
 async function runClean() {
   if (!transcript.trim()) return;
   if (!geminiKey) {
-    showToast('⚠️ APIキー未設定のため清書をスキップしました（⚙️設定から登録できます）', 'info');
+    showToast(T('noApiKey'), 'info');
     return;
   }
-  showToast('✍️ 清書中...', 'info');
+  showToast(T('cleaning'), 'info');
 
   const prompt = buildPrompt(recogLang, transcript);
 
@@ -368,14 +381,14 @@ async function runClean() {
     addToHistory(transcript, cleanedText);
 
     navigator.clipboard.writeText(cleanedText + "​").then(() => {
-      showToast('✅ 清書してコピーしました', 'ok');
+      showToast(T('cleanedAndCopied'), 'ok');
       setTimeout(() => autoClear(), 800);
     }).catch(() => {
-      showToast('清書完了（コピーは手動でどうぞ）', 'info');
+      showToast(T('cleanedManual'), 'info');
       setTimeout(() => autoClear(), 800);
     });
   } catch (err) {
-    showToast('清書エラー: ' + err.message, 'error');
+    showToast(T('cleanError') + err.message, 'error');
   }
 }
 
@@ -433,7 +446,7 @@ chrome.storage.onChanged.addListener((changes) => {
   // 設定画面で言語を変えたら即反映（録音中の場合は次回の録音から）
   if (changes.mamoru_lang) {
     recogLang = changes.mamoru_lang.newValue || DEFAULT_LANG;
-    if (recognitionAlive) showToast('🌐 言語設定を変更しました（次の録音から反映）', 'info');
+    if (recognitionAlive) showToast(T('langChanged'), 'info');
   }
 });
 
@@ -453,6 +466,7 @@ tabHistory.addEventListener('click',    () => switchPanel('history'));
 // 初期化
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
+  applyI18n();
   await loadStorage();
   panelTranscript.style.display = 'block';
   panelHistory.style.display    = 'none';

@@ -1,12 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "まもるくん",
-  "version": "1.4.2",
-  "description": "リアルタイム音声文字起こし & AI清書アシスタント。マイクとインターネット接続が必要です。Gemini APIキー設定で自動清書も可能。",
+  "name": "__MSG_extName__",
+  "version": "1.5.0",
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["https://generativelanguage.googleapis.com/*"],
   "action": {
-    "default_title": "まもるくん",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
