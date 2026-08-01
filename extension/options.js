@@ -31,6 +31,16 @@ function hideStatus() {
   keyStatus.style.display = 'none';
 }
 
+// Gemini API のエラーを原因ごとに出し分ける
+// 403 + "denied access" はキーの誤りではなく、プロジェクトに無料枠が割り当てられていないケース
+function geminiErrorText(status, apiMessage) {
+  const msg = apiMessage || '';
+  if (status === 403 && /denied access/i.test(msg)) return T('errDenied');
+  if (status === 401) return T('errKeyInvalid');
+  if (status === 400 && /api[ _-]?key/i.test(msg)) return T('errKeyInvalid');
+  return msg || T('unknownError');
+}
+
 async function loadKey() {
   const { mamoru_gemini_key } = await chrome.storage.local.get('mamoru_gemini_key');
   const hasKey = !!mamoru_gemini_key;
@@ -99,8 +109,7 @@ testBtn.addEventListener('click', async () => {
     if (res.ok && data.candidates) {
       showStatus(T('testOk'), 'ok');
     } else {
-      const msg = data?.error?.message || T('unknownError');
-      showStatus(T('errorPrefix') + msg, 'error');
+      showStatus(T('errorPrefix') + geminiErrorText(res.status, data?.error?.message), 'error');
     }
   } catch (err) {
     showStatus(T('networkError') + err.message, 'error');

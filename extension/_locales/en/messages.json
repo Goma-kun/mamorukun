@@ -24,6 +24,7 @@
   "cleanedAndCopied":{ "message": "✅ Cleaned up and copied" },
   "cleanedManual":   { "message": "Cleanup done (copy it manually)" },
   "cleanError":      { "message": "Cleanup error: " },
+  "cleanErrDenied":  { "message": "⚠️ This project cannot use the Gemini API (see ⚙️ Settings for details)" },
   "langChanged":     { "message": "🌐 Language changed (applies from the next recording)" },
 
   "optTitle":     { "message": "Mamorukun Settings" },
@@ -50,7 +51,9 @@
   "howToGetBody": { "message": "Open Google Cloud Console → select or create a project → \"Credentials\" → \"Create API key\" → copy it into the field above → Save." },
   "jpNotice":     { "message": "⚠️ Note for users in Japan:" },
   "jpNoticeBody1":{ "message": "Free API keys issued through Google AI Studio (aistudio.google.com) may be rate-limited when accessed from Japan." },
-  "jpNoticeBody2":{ "message": "If that happens, set up a billing account in Google Cloud Console and issue the key there. You will not be charged as long as you stay within the free tier." },
+  "jpNoticeBody2":{ "message": "If that happens, set up a billing account in Google Cloud Console and issue the key there. Linking a billing account moves the project out of the free tier, so you are charged for what you use (typically well under a dollar a month for light use)." },
+  "budgetNote":   { "message": "If you are worried about spending, you can set a budget alert in Google Cloud." },
+  "budgetLink":   { "message": "🔗 How to set a budget alert" },
   "security":     { "message": "🔒 About security:" },
   "securityBody": { "message": "Your API key is stored only inside your Chrome and is never sent to any external server. Please still keep the following in mind." },
   "securityLi1":  { "message": "Do not share your API key with anyone" },
@@ -76,6 +79,8 @@
   "testing":      { "message": "⏳ Testing connection..." },
   "testOk":       { "message": "✓ Connected. Your API key works." },
   "unknownError": { "message": "Unknown error" },
+  "errDenied":    { "message": "This project is not allowed to access the Gemini API. Open the API key list in Google AI Studio and check the \"Billing tier\" column — if it says \"Unavailable\", no free tier has been assigned to the project. (Your API key itself is fine.)" },
+  "errKeyInvalid":{ "message": "The API key is not valid. Copy the key again and paste it into the field above." },
   "errorPrefix":  { "message": "✗ Error: " },
   "networkError": { "message": "✗ Network error: " },
   "langSetTo":    { "message": "✓ Set to $LABEL$", "placeholders": { "label": { "content": "$1" } } }

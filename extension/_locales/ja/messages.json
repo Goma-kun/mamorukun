@@ -24,6 +24,7 @@
   "cleanedAndCopied":{ "message": "✅ 清書してコピーしました" },
   "cleanedManual":   { "message": "清書完了（コピーは手動でどうぞ）" },
   "cleanError":      { "message": "清書エラー: " },
+  "cleanErrDenied":  { "message": "⚠️ このプロジェクトはGemini APIを利用できません（⚙️設定に詳しい説明があります）" },
   "langChanged":     { "message": "🌐 言語設定を変更しました（次の録音から反映）" },
 
   "optTitle":     { "message": "まもるくん 設定" },
@@ -50,7 +51,9 @@
   "howToGetBody": { "message": "Google Cloud Console にアクセス → プロジェクトを選択または作成 →「認証情報」→「APIキーを作成」→ コピーして上の欄に貼り付け → 保存。" },
   "jpNotice":     { "message": "⚠️ 日本からの利用について：" },
   "jpNoticeBody1":{ "message": "Google AI Studio（aistudio.google.com）で発行した無料APIキーは、日本からの接続では利用制限がかかる場合があります。" },
-  "jpNoticeBody2":{ "message": "その場合は Google Cloud Console で請求先アカウント（カード登録）を設定した上でAPIキーを発行してください。無料枠内の使用であれば料金は発生しません。" },
+  "jpNoticeBody2":{ "message": "その場合は Google Cloud Console で請求先アカウント（カード登録）を設定した上でAPIキーを発行してください。請求先アカウントを登録すると無料枠から外れ、使った分だけの従量課金になります（少量の利用なら月に数十円程度です）。" },
+  "budgetNote":   { "message": "使いすぎが心配な場合は、Google Cloud で予算アラートを設定できます。" },
+  "budgetLink":   { "message": "🔗 予算アラートの設定方法" },
   "security":     { "message": "🔒 セキュリティについて：" },
   "securityBody": { "message": "APIキーはお使いの Chrome 内にのみ保存され、外部サーバーへは一切送信しません。ただし以下の点にご注意ください。" },
   "securityLi1":  { "message": "APIキーは他人に共有しないでください" },
@@ -76,6 +79,8 @@
   "testing":      { "message": "⏳ 接続テスト中..." },
   "testOk":       { "message": "✓ 接続成功！APIキーは有効です" },
   "unknownError": { "message": "不明なエラー" },
+  "errDenied":    { "message": "このプロジェクトはGemini APIへのアクセスが許可されていません。Google AI Studio のAPIキー一覧で「請求階層」の表示をご確認ください。「使用不可」となっている場合、そのプロジェクトには無料枠が割り当てられていません（APIキー自体の間違いではありません）。" },
+  "errKeyInvalid":{ "message": "APIキーが正しくありません。キーをコピーし直して貼り付けてください。" },
   "errorPrefix":  { "message": "✗ エラー: " },
   "networkError": { "message": "✗ 通信エラー: " },
   "langSetTo":    { "message": "✓ $LABEL$ に設定しました", "placeholders": { "label": { "content": "$1" } } }

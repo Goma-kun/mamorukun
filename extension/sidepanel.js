@@ -375,7 +375,15 @@ async function runClean() {
       }
     );
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
+    if (!res.ok || data.error) {
+      const msg = data?.error?.message || '';
+      // 403 + "denied access" はキーの誤りではなく、プロジェクトに無料枠が割り当てられていないケース
+      if (res.status === 403 && /denied access/i.test(msg)) {
+        showToast(T('cleanErrDenied'), 'error');
+        return;
+      }
+      throw new Error(msg || T('unknownError'));
+    }
     const cleanedText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
     addToHistory(transcript, cleanedText);
