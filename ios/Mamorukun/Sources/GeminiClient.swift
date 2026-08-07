@@ -54,12 +54,15 @@ struct GeminiClient {
     }
 
     /// 単発のプロンプトを投げる
-    static func generate(_ prompt: String) async throws -> String {
-        try await generate([Message(role: .user, text: prompt)])
+    ///
+    /// - Parameter disableThinking: 清書のように考える必要のない用途では true にする。
+    ///   拡張機能版と同じく `thinkingBudget: 0` を送って待ち時間を減らす。
+    static func generate(_ prompt: String, disableThinking: Bool = false) async throws -> String {
+        try await generate([Message(role: .user, text: prompt)], disableThinking: disableThinking)
     }
 
     /// 会話履歴つきで投げる
-    static func generate(_ messages: [Message]) async throws -> String {
+    static func generate(_ messages: [Message], disableThinking: Bool = false) async throws -> String {
         guard let key = KeychainStore.apiKey else { throw Failure.noKey }
 
         var request = URLRequest(url: endpoint)
@@ -69,12 +72,16 @@ struct GeminiClient {
         request.setValue(key, forHTTPHeaderField: "x-goog-api-key")
         request.timeoutInterval = 60
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "contents": messages.map { [
                 "role": $0.role.rawValue,
                 "parts": [["text": $0.text]],
             ] }
         ]
+        if disableThinking {
+            body["generationConfig"] = ["thinkingConfig": ["thinkingBudget": 0]]
+            body["tools"] = []
+        }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let data: Data

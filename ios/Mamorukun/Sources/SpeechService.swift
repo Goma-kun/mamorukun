@@ -49,14 +49,24 @@ final class SpeechService: ObservableObject {
 
     /// 現在の認識タスクが返している最新テキスト（このタスクの担当ぶんだけ）
     private var segmentText: String = ""
-    /// 張り直しの多重発火よけ
-    private var isRestarting = false
+    /// 締めたタスクのテキスト。最終結果が届かなかったときの保険に使う
+    private var lastClosedText = ""
+    /// 認識タスクの世代。古いタスクから遅れて届く結果を捨てるのに使う
+    private var generation = 0
 
     private var language: RecogLanguage = .default
 
     /// 電話の着信などで中断された状態か
     private var wasInterrupted = false
     private var interruptionObserver: NSObjectProtocol?
+
+    /// 発話が途切れたと判断するまでの秒数。
+    ///
+    /// Chrome の Web Speech API は無音がおよそ1秒続くと確定を返す。
+    /// Web版・拡張機能版の体感に合わせてここを 1.0 にしている。
+    /// 短くすると息継ぎで行が切れ、長くすると確定が遅れる。
+    private let silenceThreshold: TimeInterval = 1.0
+    private var silenceTimer: Timer?
 
     init() {
         interruptionObserver = NotificationCenter.default.addObserver(
@@ -206,6 +216,9 @@ final class SpeechService: ObservableObject {
 
     private func teardown() {
         UIApplication.shared.isIdleTimerDisabled = false
+        silenceTimer?.invalidate()
+        silenceTimer = nil
+        generation += 1   // 動いているタスクの結果は、もう受け取らない
 
         task?.cancel()
         task = nil
@@ -220,9 +233,17 @@ final class SpeechService: ObservableObject {
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
-    /// 認識リクエストを1本張る。終了・エラー時は自動で張り直す。
+    /// 認識リクエストを1本張る。
+    ///
+    /// 1本 ＝ ひとまとまりの発話。話が途切れたら締めて、次の1本を張る。
     private func startRecognitionTask() {
         guard isRecording, let recognizer else { return }
+
+        // 世代番号。古いタスクから遅れて届く結果を捨てるために使う。
+        // これが無いと、締めたあとに前のタスクの結果が届いて確定済みの内容が復活し、
+        // 次の区切りでもう一度確定されて二重になる
+        generation += 1
+        let generation = self.generation
 
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
@@ -233,7 +254,6 @@ final class SpeechService: ObservableObject {
         self.request = request
         sink.attach(request)
         segmentText = ""
-        isRestarting = false
 
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             // コールバックは任意スレッド。値だけ取り出してから画面側へ渡す
@@ -243,17 +263,75 @@ final class SpeechService: ObservableObject {
 
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if let text { self.updateSegment(text) }
-                // 1分制限・無音・一時的な失敗はどれもここに来る。
-                // 録音中なら黙って張り直すのが正しい（Web版で Load Failed を無視するのと同じ判断）
-                if isFinal || failed { self.restart() }
+
+                if generation == self.generation {
+                    // 現役のタスク
+                    if let text, !text.isEmpty { self.updateSegment(text) }
+                    // 1分制限や一時的な失敗で終わった場合。
+                    // 録音中なら黙って次を張るのが正しい（Web版で Load Failed を無視するのと同じ判断）
+                    if isFinal || failed { self.commitAndRestart() }
+                } else if isFinal || failed {
+                    // 締めた古いタスクから最終結果が届いた。これを確定分に積む
+                    self.commitClosed(text)
+                }
             }
         }
     }
 
+    /// 認識中テキストの更新。
+    ///
+    /// このテキストは「このタスクが受け取った音声の全文」で、精度が上がると
+    /// 前より短く書き換わることもある（言い直しの修正）。素直に差し替えるだけにして、
+    /// 区切りの判断はタイマーに任せる。
     private func updateSegment(_ text: String) {
         segmentText = text
         interim = text
+        scheduleSilenceCheck()
+    }
+
+    /// 話が途切れたら、こちらから締める。
+    ///
+    /// iOSの `isFinal` は無音が続いても返ってこないことがあるので、
+    /// 待っているだけでは発話がいつまでも確定しない。
+    private func scheduleSilenceCheck() {
+        silenceTimer?.invalidate()
+        silenceTimer = Timer.scheduledTimer(withTimeInterval: silenceThreshold, repeats: false) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.closeCurrentSegment()
+            }
+        }
+    }
+
+    /// いまの認識を締める。
+    ///
+    /// 2つの理由でこの形にしている。
+    ///
+    /// 1. `cancel()` で打ち切らず `endAudio()` で締める。締めるとiOSが最終結果を返すので、
+    ///    それで確定できる。打ち切ると結果が捨てられ、中途半端なテキストで確定することになる
+    /// 2. 締めるより先に次の認識を張る。最終結果を待ってから次を張ると、その一瞬のあいだ
+    ///    マイクの音声が行き場を失い、黙ったあとすぐ話し始めた出だしが落ちる
+    private func closeCurrentSegment() {
+        guard isRecording, !segmentText.isEmpty else { return }
+        silenceTimer?.invalidate()
+        silenceTimer = nil
+
+        let closing = request
+        // 最終結果が届かなかったときの保険。届けばそちらを優先する
+        lastClosedText = segmentText
+
+        startRecognitionTask()   // 先に次を張って、音声を途切れさせない
+        closing?.endAudio()      // そのうえで古い方を締める
+    }
+
+    /// 締めた古いタスクの最終結果を確定分に積む
+    private func commitClosed(_ text: String?) {
+        let fromTask = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let result = fromTask.isEmpty
+            ? lastClosedText.trimmingCharacters(in: .whitespacesAndNewlines)
+            : fromTask
+        lastClosedText = ""
+        guard !result.isEmpty else { return }
+        transcript += result + "\n"
     }
 
     /// 現在のセグメントを確定分へ移す
@@ -265,24 +343,18 @@ final class SpeechService: ObservableObject {
         transcript += text + "\n"
     }
 
-    /// 認識タスクだけを張り直す。オーディオエンジンは止めない。
-    private func restart() {
-        guard isRecording, !isRestarting else { return }
-        isRestarting = true
+    /// 確定して次の1本を張る。オーディオエンジンは止めない。
+    private func commitAndRestart() {
+        guard isRecording else { return }
 
+        silenceTimer?.invalidate()
+        silenceTimer = nil
         commitSegment()
 
-        task?.cancel()
         task = nil
         sink.attach(nil)
-        request?.endAudio()
         request = nil
 
-        Task { @MainActor in
-            // 立て続けの再生成でCPUを食わないよう、わずかに間を置く
-            try? await Task.sleep(for: .milliseconds(200))
-            guard self.isRecording else { return }
-            self.startRecognitionTask()
-        }
+        startRecognitionTask()
     }
 }
