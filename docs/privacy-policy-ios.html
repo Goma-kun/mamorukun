@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>プライバシーポリシー — まもるくん（iOS版）</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+      font-size: 15px;
+      line-height: 1.8;
+    }
+    .container {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 48px 24px 80px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 800;
+      color: #38bdf8;
+      margin: 0 0 8px;
+      text-shadow: 0 0 12px rgba(56,189,248,0.3);
+    }
+    .subtitle {
+      color: #64748b;
+      font-size: 13px;
+      margin: 0 0 40px;
+    }
+    h2 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #94a3b8;
+      margin: 32px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #1e293b;
+    }
+    p { margin: 0 0 12px; color: #cbd5e1; }
+    ul { margin: 0 0 12px; padding-left: 20px; color: #cbd5e1; }
+    li { margin-bottom: 4px; }
+    a { color: #38bdf8; }
+    .note {
+      background: rgba(15,23,42,0.6);
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #94a3b8;
+      margin-top: 12px;
+    }
+    .lang { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+    .updated {
+      font-size: 12px;
+      color: #475569;
+      margin-top: 48px;
+    }
+    hr { border: none; border-top: 1px solid #1e293b; margin: 56px 0 40px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ まもるくん（iOS版）</h1>
+    <p class="subtitle">プライバシーポリシー</p>
+    <p class="lang"><a href="#english">English version below</a></p>
+
+    <h2>はじめに</h2>
+    <p>まもるくん（iOS版）は、話した内容をその場で文字にし、AIで読みやすく整えるアプリです。</p>
+    <div class="note">
+      <strong>開発者は、あなたのデータを一切受け取りません。</strong>音声・文字起こしテキスト・APIキーが、開発者（ニシラ）のサーバーに送られることはありません。開発者はサーバーを運用していません。
+    </div>
+
+    <h2>1. アプリが扱う情報</h2>
+    <ul>
+      <li><strong>音声</strong>：録音ボタンを押している間だけ、マイクから取得します。<strong>音声ファイルとして保存することはありません。</strong>文字に変換したあと、音声データは破棄されます。</li>
+      <li><strong>文字起こしテキスト・清書結果・履歴</strong>：お使いのiPhone／iPadの中にのみ保存します。</li>
+      <li><strong>Gemini APIキー</strong>：あなたが設定画面で入力したものを、iOSのキーチェーン（Keychain）に保存します。</li>
+    </ul>
+
+    <h2>2. 音声認識について（Apple）</h2>
+    <p>文字起こしにはAppleの音声認識機能（Speech framework）を使用します。iOSの仕様上、音声データがAppleのサーバーで処理される場合があります。これはiOSの標準機能であり、当アプリが内容を制御するものではありません。詳細は<a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Appleのプライバシーポリシー</a>をご確認ください。</p>
+    <div class="note">
+      音声は開発者には一切送信されません。送信先はAppleの音声認識サービスのみです。
+    </div>
+
+    <h2>3. AIによる清書・要約について（Google Gemini）</h2>
+    <p>清書・要約・AIチャットの機能を使ったときにかぎり、<strong>文字起こしされたテキスト</strong>をGoogleのGemini APIに送信します。</p>
+    <ul>
+      <li>送信は<strong>あなた自身が設定したAPIキー</strong>を使って、あなたの端末からGoogleのサーバーへ直接行われます。開発者を経由しません。</li>
+      <li>APIキーを設定していない場合、テキストが外部に送信されることはありません。文字起こし機能はキーなしでもお使いいただけます。</li>
+      <li>送信されるのはテキストのみで、音声そのものは送信されません。</li>
+    </ul>
+    <p>Googleにおけるデータの取り扱いは、<a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Gemini APIの利用規約</a>および<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Googleのプライバシーポリシー</a>に従います。</p>
+
+    <h2>4. 情報の共有・販売</h2>
+    <p>当アプリは、ユーザーの情報を第三者に販売・提供・共有しません。広告・解析（アクセス解析、クラッシュ収集を含む）のためのSDKを一切組み込んでいません。</p>
+
+    <h2>5. データの保持と削除</h2>
+    <ul>
+      <li>文字起こし・履歴は端末内にのみ保存され、アプリ内でいつでも削除できます。</li>
+      <li>APIキーは設定画面から削除できます。</li>
+      <li><strong>アプリを削除すると、保存されたすべてのデータが端末から削除されます。</strong></li>
+    </ul>
+
+    <h2>6. 求める許可（パーミッション）</h2>
+    <ul>
+      <li><strong>マイク</strong>：話した内容を文字にするため</li>
+      <li><strong>音声認識</strong>：取得した音声を文字に変換するため</li>
+    </ul>
+    <p>どちらも初回に確認が表示され、許可しない選択もできます（その場合は文字起こしが利用できません）。</p>
+
+    <h2>7. お子様のプライバシー</h2>
+    <p>当アプリは13歳未満のお子様を対象としておらず、お子様から意図的に情報を収集することはありません。</p>
+
+    <h2>8. お問い合わせ</h2>
+    <p>本ポリシーに関するご質問は、<a href="https://github.com/Goma-kun/mamorukun/issues">GitHub Issues</a> よりお問い合わせください。</p>
+    <p>提供者：ニシラ</p>
+
+    <h2>9. 変更について</h2>
+    <p>本ポリシーを変更する場合は、このページを更新します。重要な変更がある場合は、アプリのアップデート情報でお知らせします。</p>
+
+    <hr>
+
+    <h1 id="english">🛡️ Mamorukun for iOS</h1>
+    <p class="subtitle">Privacy Policy</p>
+
+    <h2>Overview</h2>
+    <p>Mamorukun turns what you say into text on the spot, and can clean it up with AI.</p>
+    <div class="note">
+      <strong>The developer receives none of your data.</strong> Your audio, transcripts, and API key are never sent to the developer (Nishira). The developer operates no server.
+    </div>
+
+    <h2>1. Information the app handles</h2>
+    <ul>
+      <li><strong>Audio</strong>: captured from the microphone only while recording. <strong>It is never saved as an audio file</strong> and is discarded once converted to text.</li>
+      <li><strong>Transcripts, cleaned-up text, and history</strong>: stored only on your iPhone or iPad.</li>
+      <li><strong>Gemini API key</strong>: stored in the iOS Keychain after you enter it in Settings.</li>
+    </ul>
+
+    <h2>2. Speech recognition (Apple)</h2>
+    <p>Transcription uses Apple's Speech framework. Depending on iOS, audio may be processed on Apple's servers. This is a standard iOS behavior that this app does not control. See <a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's Privacy Policy</a>.</p>
+
+    <h2>3. AI clean-up and summaries (Google Gemini)</h2>
+    <p>Only when you use the clean-up, summary, or AI chat features, the <strong>transcribed text</strong> is sent to Google's Gemini API.</p>
+    <ul>
+      <li>The request is made from your device directly to Google, using <strong>your own API key</strong>. It does not pass through the developer.</li>
+      <li>If no API key is set, nothing is sent anywhere. Transcription works without a key.</li>
+      <li>Only text is sent — never the audio itself.</li>
+    </ul>
+    <p>Google's handling of that data is governed by the <a href="https://ai.google.dev/gemini-api/terms" target="_blank" rel="noopener">Gemini API Terms</a> and <a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>.</p>
+
+    <h2>4. Sharing and selling</h2>
+    <p>We do not sell, share, or provide your information to third parties. The app contains no advertising or analytics SDKs of any kind, including crash reporting.</p>
+
+    <h2>5. Retention and deletion</h2>
+    <p>Transcripts and history are stored on your device only and can be deleted at any time within the app. The API key can be removed from Settings. <strong>Deleting the app removes all stored data from your device.</strong></p>
+
+    <h2>6. Permissions</h2>
+    <ul>
+      <li><strong>Microphone</strong>: to capture what you say</li>
+      <li><strong>Speech Recognition</strong>: to convert that audio into text</li>
+    </ul>
+
+    <h2>7. Children's privacy</h2>
+    <p>This app is not directed to children under 13 and does not knowingly collect information from them.</p>
+
+    <h2>8. Contact</h2>
+    <p>Questions about this policy: <a href="https://github.com/Goma-kun/mamorukun/issues">GitHub Issues</a>.</p>
+    <p>Provider: Nishira</p>
+
+    <p class="updated">最終更新 / Last updated: 2026年8月7日</p>
+  </div>
+</body>
+</html>

@@ -14,3 +14,10 @@ extension-local/
 
 # 申請用パッケージ（ビルド成果物）
 *.zip
+
+# Xcode（iOS版）
+ios/build/
+ios/DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
