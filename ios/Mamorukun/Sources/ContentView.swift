@@ -11,7 +11,6 @@ struct ContentView: View {
 
     @State private var tab: Tab = .transcript
     @State private var showSettings = false
-    @State private var cleaned: String?          // 清書結果（オーバーレイ表示中）
     @State private var isBusy = false
     @State private var busyLabel = ""
     @State private var toast: ToastMessage?
@@ -34,18 +33,6 @@ struct ContentView: View {
                 panel
                 if settings.mode == .helpdesk { questionField }
                 actionBar
-            }
-
-            if let cleaned {
-                CleanupOverlay(text: cleaned) {
-                    UIPasteboard.general.string = cleaned
-                    self.cleaned = nil
-                    speech.clearTranscript()
-                    tab = .transcript
-                    show("✅ コピーしました", .ok)
-                } onClose: {
-                    self.cleaned = nil
-                }
             }
 
             if isBusy { BusyOverlay(label: busyLabel) }
@@ -288,14 +275,15 @@ struct ContentView: View {
         }
     }
 
+    /// 録音を止めたあとの流れ。拡張機能版と同じく、清書したらそのままコピーして次に進む。
     private func runCleanup() async {
         let text = speech.fullText
         guard !text.isEmpty else { return }
 
-        // キーがなくても書き起こしは残す。清書だけができない、と伝える
+        // キーが無くても、書き起こしはコピーできる（拡張機能版と同じ）
         guard settings.hasAPIKey else {
             history.add(transcript: text, cleaned: "")
-            show("書き起こしを履歴に保存しました。AIの清書には設定からAPIキーの登録が必要です。", .info)
+            copyAndClear(text, message: "📋 コピーしました（AIの清書には設定からキーの登録が必要です）")
             return
         }
 
@@ -304,13 +292,25 @@ struct ContentView: View {
         defer { isBusy = false }
 
         do {
-            let result = try await GeminiClient.generate(Prompts.cleanup(text, language: settings.language))
+            // 清書は考える必要がないので、思考を切って待ち時間を減らす
+            let result = try await GeminiClient.generate(
+                Prompts.cleanup(text, language: settings.language),
+                disableThinking: true
+            )
             history.add(transcript: text, cleaned: result)
-            cleaned = result
+            copyAndClear(result, message: "✏️ 清書してコピーしました")
         } catch {
+            // 清書に失敗しても書き起こしは消さない
             history.add(transcript: text, cleaned: "")
             show(message(for: error), .error)
         }
+    }
+
+    private func copyAndClear(_ text: String, message: String) {
+        UIPasteboard.general.string = text
+        speech.clearTranscript()
+        tab = .transcript
+        show(message, .ok)
     }
 
     private func summarize() async {
