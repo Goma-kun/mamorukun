@@ -17,6 +17,7 @@ struct ContentView: View {
     @State private var toast: ToastMessage?
     @State private var question = ""
     @State private var report: ReportDocument?   // 共有シート用
+    @State private var showClearConfirm = false
     @FocusState private var questionFocused: Bool
 
     private var tabs: [Tab] {
@@ -56,7 +57,23 @@ struct ContentView: View {
             SettingsView().environmentObject(settings)
         }
         .sheet(item: $report) { doc in
-            ShareSheet(text: doc.text)
+            ShareSheet(text: doc.text) { completed in
+                // 書き出しまでいったら、ログと会話を片付けて次の応対に備える
+                guard completed else { return }
+                speech.clearTranscript()
+                helpdesk.reset()
+                tab = .transcript
+                show("✅ 書き出しました。ログを片付けました。", .ok)
+            }
+        }
+        .alert("書き起こしを消しますか？", isPresented: $showClearConfirm) {
+            Button("消す", role: .destructive) {
+                speech.clearTranscript()
+                show("ログを消しました", .info)
+            }
+            Button("やめる", role: .cancel) {}
+        } message: {
+            Text("画面に出ている書き起こしを消します。履歴に保存済みのものは残ります。")
         }
         .onChange(of: settings.mode) { _, _ in
             tab = .transcript
@@ -68,6 +85,15 @@ struct ContentView: View {
         }
         // マイクと音声認識の許可は、起動直後ではなく
         // 「開始」を押したときに求める（何のための許可かが伝わる場面で聞く）
+        #if DEBUG
+        // 画面確認用。シミュレータで設定画面を開いた状態から起動できる
+        // （SIMCTL_CHILD_MAMORU_OPEN_SETTINGS=1 xcrun simctl launch …）
+        .onAppear {
+            if ProcessInfo.processInfo.environment["MAMORU_OPEN_SETTINGS"] == "1" {
+                showSettings = true
+            }
+        }
+        #endif
     }
 
     // MARK: - ヘッダー
@@ -86,6 +112,20 @@ struct ContentView: View {
                     .background(Theme.badge.opacity(0.15), in: RoundedRectangle(cornerRadius: 6))
             }
             Spacer()
+
+            // 書き起こしが残っているときだけ、消す手段を出す
+            if tab == .transcript, !speech.isRecording, !speech.fullText.isEmpty {
+                Button {
+                    showClearConfirm = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Theme.textDim)
+                }
+                .accessibilityLabel("書き起こしを消す")
+                .padding(.trailing, 14)
+            }
+
             Button {
                 showSettings = true
             } label: {

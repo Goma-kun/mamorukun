@@ -126,9 +126,15 @@ struct ToastView: View {
 
 struct ShareSheet: UIViewControllerRepresentable {
     let text: String
+    /// 実際に保存・送信までいったら true で呼ばれる（キャンセルなら false）
+    var onFinish: (Bool) -> Void = { _ in }
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, completed, _, _ in
+            onFinish(completed)
+        }
+        return controller
     }
 
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
