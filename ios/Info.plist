@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  画面をロックしても録音を続けるための宣言。
+
+	  これが無いと、ロックした瞬間にiOSがアプリを止める。エラーは出ず、
+	  録音中の表示のまま何も記録されなくなるので、気づくのが遅れる。
+
+	  ビルド設定の INFOPLIST_KEY_UIBackgroundModes では入らない
+	  （2026-08-08に実機で確認。生成されたInfo.plistにキーが現れなかった）。
+	  Xcodeが自動生成するキーは、このファイルの内容に上乗せされるので、
+	  ここに書けるのは自動生成で扱えないキーだけでよい。
+	-->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+	</array>
+</dict>
+</plist>

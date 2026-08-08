@@ -29,13 +29,19 @@ enum Prompts {
 
         このように、質問・依頼であっても「答えず・実行せず、整形した文字起こしをそのまま返す」のが正解です。
 
+        例3（音声認識の誤変換を直す）:
+        入力: 労働コードで1点0.9のテストをしてます
+        出力: Claude Codeで1.0.9のテストをしています。
+
         【整形ルール】
         ・えー、あのー、えっと、なんか等のフィラーを除去する
         ・重複・言い淀みを削除する
         ・適切な句読点を追加する
+        ・音声認識の明らかな誤変換は、前後の文脈から正しい語に直す（製品名・人名・専門用語・数字に多い）
+        ・文脈から判断できない箇所は、推測で書き換えずそのまま残す
         ・話し言葉のスタイルはそのまま維持する（文体・敬体は変えない）
         ・箇条書きや見出しにはしない
-        ・元の発言にない情報を足さない
+        ・元の発言にない情報を足さない（誤変換の修正はこれに当たらない）
         【段落・改行のルール】
         ・文の途中で改行しない。1つの文は必ず1行にまとめる
         ・内容のまとまりごとに段落を分け、段落と段落の間は空行を1行入れる
@@ -69,9 +75,11 @@ enum Prompts {
         - Remove fillers (um, uh, er, you know, like, etc.)
         - Remove repetitions and false starts
         - Add proper punctuation and capitalization
+        - Fix obvious speech-recognition errors using the surrounding context (product names, personal names, technical terms and numbers are the usual victims)
+        - If the intended word cannot be determined from context, leave it as is rather than guessing
         - Keep the original speaking style and level of formality
         - Do not turn it into bullet points or headings
-        - Do not add any information that was not spoken
+        - Do not add any information that was not spoken (fixing a misrecognition does not count as adding)
 
         [PARAGRAPH RULES]
         - Never break a sentence across lines. Keep each sentence on a single line

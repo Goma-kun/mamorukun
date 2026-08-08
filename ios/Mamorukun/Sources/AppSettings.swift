@@ -36,12 +36,25 @@ final class AppSettings: ObservableObject {
         didSet { UserDefaults.standard.set(language.rawValue, forKey: Keys.language) }
     }
 
+    /// 音声認識を端末の中だけで行うか。
+    ///
+    /// 端末内は通信せず、音声が外に出ず、画面を消しても止まらない。
+    /// 代わりに辞書が小さく、製品名や専門用語を取り違えやすい。
+    /// サーバー側はその逆で、精度は上がるが通信が要る。
+    ///
+    /// **既定は端末内。** 画面を消したまま録音できることがiOS版を作った理由なので、
+    /// 何も選んでいない人がそれを失わないほうを初期値にする。
+    @Published var onDeviceRecognition: Bool {
+        didSet { UserDefaults.standard.set(onDeviceRecognition, forKey: Keys.onDevice) }
+    }
+
     /// APIキーの有無だけをUIに伝えるためのフラグ（キー本体はKeychainから都度読む）
     @Published private(set) var hasAPIKey: Bool
 
     private enum Keys {
         static let mode = "mamoru_mode"
         static let language = "mamoru_lang"
+        static let onDevice = "mamoru_ondevice"
     }
 
     init() {
@@ -50,6 +63,9 @@ final class AppSettings: ObservableObject {
 
         let lang = UserDefaults.standard.string(forKey: Keys.language)
         language = RecogLanguage(rawValue: lang ?? "") ?? .default
+
+        // 未設定なら端末内。object(forKey:) で「未設定」と「false」を区別する
+        onDeviceRecognition = (UserDefaults.standard.object(forKey: Keys.onDevice) as? Bool) ?? true
 
         hasAPIKey = KeychainStore.hasKey
     }

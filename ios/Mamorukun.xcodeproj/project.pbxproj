@@ -209,7 +209,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "まもるくん";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "話した内容をその場で文字にするためにマイクを使います。録音した音声を保存したり、外部に送ったりすることはありません。";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "話した内容を文字にするために音声認識を使います。認識された文字は、あなたが設定したAI（Google Gemini）で読みやすく整えるときにのみ送信されます。";
-				INFOPLIST_KEY_UIBackgroundModes = audio;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -219,7 +219,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.7;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = jp.nishira.mamorukun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -240,7 +240,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "まもるくん";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "話した内容をその場で文字にするためにマイクを使います。録音した音声を保存したり、外部に送ったりすることはありません。";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "話した内容を文字にするために音声認識を使います。認識された文字は、あなたが設定したAI（Google Gemini）で読みやすく整えるときにのみ送信されます。";
-				INFOPLIST_KEY_UIBackgroundModes = audio;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UIStatusBarStyle = UIStatusBarStyleLightContent;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -250,7 +250,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0.7;
+				MARKETING_VERSION = 1.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = jp.nishira.mamorukun;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

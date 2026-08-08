@@ -21,6 +21,7 @@ struct SettingsView: View {
                 modeSection
                 apiKeySection
                 languageSection
+                recognitionSection
                 aboutSection
             }
             .scrollContentBackground(.hidden)
@@ -174,6 +175,30 @@ struct SettingsView: View {
         } footer: {
             Text("画面の表示は日本語のまま、聞き取る言語だけを変えられます（英語の練習などに）。清書も同じ言語で行います。録音中に変えた場合は、次の録音から反映されます。")
                 .font(.system(size: 12))
+        }
+        .listRowBackground(Theme.bgPanel)
+    }
+
+    // MARK: - 認識の方式
+
+    private var recognitionSection: some View {
+        Section {
+            Picker("聞き取り方", selection: Binding(
+                get: { settings.onDeviceRecognition },
+                set: { settings.onDeviceRecognition = $0 }
+            )) {
+                Text("端末内で聞き取る").tag(true)
+                Text("サーバーで聞き取る").tag(false)
+            }
+        } header: {
+            Text("音声認識の方式")
+        } footer: {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("**端末内**：通信しません。話した声が端末の外に出ず、画面を消したまま長時間録音しても止まりません。そのかわり、製品名や専門用語を取り違えやすくなります。")
+                Text("**サーバー**：Appleのサーバーで聞き取ります。聞き取りの精度は上がりますが、通信が必要です。長時間の連続録音が途中で止まる可能性があります（回数の制限があるため）。")
+                Text("どちらもAppleの機能で、追加の料金やAPIキーは要りません。録音中に変えた場合は、次の録音から反映されます。")
+            }
+            .font(.system(size: 12))
         }
         .listRowBackground(Theme.bgPanel)
     }

@@ -47,7 +47,7 @@ async function loadKey() {
 
   keySavedIndicator.style.display = hasKey ? '' : 'none';
   apiKeyInput.value = hasKey ? mamoru_gemini_key : '';
-  apiKeyInput.placeholder = hasKey ? T('placeholderSaved') : 'AIza...';
+  apiKeyInput.placeholder = hasKey ? T('placeholderSaved') : T('placeholderKey');
 
   tierLabel.innerHTML = hasKey
     ? `${T('tierFull')} <span class="tier-badge tier2">${T('badgeCleanOn')}</span>`
@@ -57,7 +57,6 @@ async function loadKey() {
 saveBtn.addEventListener('click', async () => {
   const key = apiKeyInput.value.trim();
   if (!key) { showStatus(T('enterKey'), 'error'); return; }
-  if (!key.startsWith('AIza')) { showStatus(T('invalidKey'), 'error'); return; }
 
   await chrome.storage.local.set({ mamoru_gemini_key: key });
   showStatus(T('savedOk'), 'ok');
