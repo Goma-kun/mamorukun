@@ -271,7 +271,7 @@ struct ContentView: View {
             if settings.mode == .memo { Task { await runCleanup() } }
         } else {
             tab = .transcript
-            Task { await speech.start(language: settings.language) }
+            Task { await speech.start(language: settings.language, onDevice: settings.onDeviceRecognition) }
         }
     }
 
