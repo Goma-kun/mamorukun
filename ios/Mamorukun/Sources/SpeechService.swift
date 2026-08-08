@@ -11,14 +11,57 @@ private final class AudioSink: @unchecked Sendable {
     private let lock = NSLock()
     private var request: SFSpeechAudioBufferRecognitionRequest?
 
-    func attach(_ request: SFSpeechAudioBufferRecognitionRequest?) {
+    /// 直近の音声。認識を張り替えるときに、これを新しい方へ流し込む。
+    ///
+    /// 認識エンジンは動き出すまでに一瞬かかるので、張り替えた直後に話し始めると
+    /// その出だしが落ちる。少し前から渡してやることで取りこぼさない。
+    private var recent: [AVAudioPCMBuffer] = []
+    /// 1バッファ 1024フレーム（48kHzで約21ミリ秒）。10個でおよそ0.2秒。
+    ///
+    /// ここを長くしすぎると、前の発話の末尾まで巻き戻して渡すことになり、
+    /// 次の行の先頭に同じ言葉が重複して出る。iOSが認識中テキストを返すのは
+    /// 実際に喋ってから0.3〜0.5秒遅れるので、締めた時点はまだ発話終了の直後にすぎない。
+    /// 新しい認識の起動ラグ（100ミリ秒ほど）を埋められれば足りる。
+    private let recentLimit = 10
+
+    /// - Parameter withPreroll: 直前の音声を流し込むなら true
+    func attach(_ request: SFSpeechAudioBufferRecognitionRequest?, withPreroll: Bool = false) {
         lock.lock(); defer { lock.unlock() }
         self.request = request
+        guard let request, withPreroll else { return }
+        for buffer in recent { request.append(buffer) }
     }
 
     func append(_ buffer: AVAudioPCMBuffer) {
         lock.lock(); defer { lock.unlock() }
+
+        // タップが渡すバッファは使い回される可能性があるので、貯めるぶんは複製する
+        if let copy = Self.copy(buffer) {
+            recent.append(copy)
+            if recent.count > recentLimit { recent.removeFirst() }
+        }
         request?.append(buffer)
+    }
+
+    private static func copy(_ buffer: AVAudioPCMBuffer) -> AVAudioPCMBuffer? {
+        guard let out = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength) else { return nil }
+        out.frameLength = buffer.frameLength
+
+        let channels = Int(buffer.format.channelCount)
+        let frames = Int(buffer.frameLength)
+
+        if let src = buffer.floatChannelData, let dst = out.floatChannelData {
+            for ch in 0..<channels {
+                memcpy(dst[ch], src[ch], frames * MemoryLayout<Float>.size)
+            }
+        } else if let src = buffer.int16ChannelData, let dst = out.int16ChannelData {
+            for ch in 0..<channels {
+                memcpy(dst[ch], src[ch], frames * MemoryLayout<Int16>.size)
+            }
+        } else {
+            return nil
+        }
+        return out
     }
 }
 
@@ -62,10 +105,10 @@ final class SpeechService: ObservableObject {
 
     /// 発話が途切れたと判断するまでの秒数。
     ///
-    /// Chrome の Web Speech API は無音がおよそ1秒続くと確定を返す。
-    /// Web版・拡張機能版の体感に合わせてここを 1.0 にしている。
-    /// 短くすると息継ぎで行が切れ、長くすると確定が遅れる。
-    private let silenceThreshold: TimeInterval = 1.0
+    /// 短くすると確定が速くなるが、息継ぎで行が切れやすくなる。
+    /// 張り替え時に直前の音声を渡すようにした（AudioSink のプリロール）ので、
+    /// 短めでも話し始めを取りこぼさない。拡張機能版の体感に近いのはこのあたり。
+    private let silenceThreshold: TimeInterval = 0.8
     private var silenceTimer: Timer?
 
     init() {
@@ -252,8 +295,10 @@ final class SpeechService: ObservableObject {
             request.requiresOnDeviceRecognition = true
         }
         self.request = request
-        sink.attach(request)
+        // 直前の音声も渡して、張り替え直後の話し始めを落とさない
+        sink.attach(request, withPreroll: true)
         segmentText = ""
+        interim = ""      // 前のタスクの認識中テキストを画面に残さない
 
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             // コールバックは任意スレッド。値だけ取り出してから画面側へ渡す
@@ -316,22 +361,36 @@ final class SpeechService: ObservableObject {
         silenceTimer = nil
 
         let closing = request
-        // 最終結果が届かなかったときの保険。届けばそちらを優先する
-        lastClosedText = segmentText
+
+        // 最終結果が返るまで数百ミリ秒かかる。その間に画面から文が消えてちらつかないよう、
+        // いま持っているテキストで先に1行積んでおき、最終結果が届いたら差し替える
+        lastClosedText = segmentText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !lastClosedText.isEmpty { transcript += lastClosedText + "\n" }
 
         startRecognitionTask()   // 先に次を張って、音声を途切れさせない
         closing?.endAudio()      // そのうえで古い方を締める
     }
 
-    /// 締めた古いタスクの最終結果を確定分に積む
+    /// 締めた古いタスクの最終結果を受け取る。
+    /// 先に積んでおいた暫定の行を、iOSが返した最終結果に差し替える。
     private func commitClosed(_ text: String?) {
-        let fromTask = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let result = fromTask.isEmpty
-            ? lastClosedText.trimmingCharacters(in: .whitespacesAndNewlines)
-            : fromTask
+        let final = (text ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let provisional = lastClosedText
         lastClosedText = ""
-        guard !result.isEmpty else { return }
-        transcript += result + "\n"
+
+        guard !provisional.isEmpty else {
+            // 暫定の行を積んでいないケース（空のまま締まった等）
+            if !final.isEmpty { transcript += final + "\n" }
+            return
+        }
+        // 最終結果が空、または暫定と同じなら、積んだままでよい
+        guard !final.isEmpty, final != provisional else { return }
+
+        if let range = transcript.range(of: provisional + "\n", options: .backwards) {
+            transcript.replaceSubrange(range, with: final + "\n")
+        } else {
+            transcript += final + "\n"
+        }
     }
 
     /// 現在のセグメントを確定分へ移す
