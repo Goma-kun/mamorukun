@@ -4,7 +4,7 @@ import Foundation
 struct GeminiClient {
 
     /// モデルは全機能でこれに統一する（拡張機能・Web版と揃える）
-    static let model = "gemini-2.5-flash"
+    static let model = "gemini-3.6-flash"
 
     private static let endpoint = URL(
         string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
@@ -56,7 +56,10 @@ struct GeminiClient {
     /// 単発のプロンプトを投げる
     ///
     /// - Parameter disableThinking: 清書のように考える必要のない用途では true にする。
-    ///   拡張機能版と同じく `thinkingBudget: 0` を送って待ち時間を減らす。
+    ///   拡張機能版と同じく `thinkingLevel: "low"` を送って待ち時間を減らす。
+    ///
+    ///   **`thinkingBudget: 0` は gemini-3 系が 400 で拒否する**（2026-08-08に実測）。
+    ///   2.5 系の書き方をそのまま持ってくると、清書だけが動かなくなる。
     static func generate(_ prompt: String, disableThinking: Bool = false) async throws -> String {
         try await generate([Message(role: .user, text: prompt)], disableThinking: disableThinking)
     }
@@ -79,7 +82,7 @@ struct GeminiClient {
             ] }
         ]
         if disableThinking {
-            body["generationConfig"] = ["thinkingConfig": ["thinkingBudget": 0]]
+            body["generationConfig"] = ["thinkingConfig": ["thinkingLevel": "low"]]
             body["tools"] = []
         }
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
