@@ -22,6 +22,14 @@ let recognitionAlive = false;
 let transcript     = '';
 let history        = [];
 
+// 英語学習モード（独り言モード）
+let mode           = 'clean';   // 'clean'（清書） | 'english'（英語学習）
+let enSessions     = [];        // 過去のセッション（新しい順）
+let enRecurring    = [];        // 繰り返し出ている指摘
+let enLatest       = null;      // 画面に出している直近のフィードバック
+let enBusy         = false;
+let enError        = '';
+
 
 // ============================================================
 // 音声認識の言語
@@ -45,12 +53,25 @@ function langLabel(lang) {
 // ストレージ
 // ============================================================
 async function loadStorage() {
-  const d = await chrome.storage.local.get(['mamoru_transcript', 'mamoru_gemini_key', 'mamoru_history', 'mamoru_lang']);
+  const d = await chrome.storage.local.get([
+    'mamoru_transcript', 'mamoru_gemini_key', 'mamoru_history', 'mamoru_lang',
+    'mamoru_mode', 'en_sessions', 'en_recurring',
+  ]);
   transcript = d.mamoru_transcript || '';
   geminiKey  = d.mamoru_gemini_key || '';
   history    = d.mamoru_history    || [];
   // 未設定ならブラウザの言語から推測（対応外は日本語）
   recogLang  = d.mamoru_lang || DEFAULT_LANG;
+
+  // 前回のモードで開く（開いてすぐ話せる状態にするため）
+  mode        = d.mamoru_mode === 'english' ? 'english' : 'clean';
+  enSessions  = Array.isArray(d.en_sessions)  ? d.en_sessions  : [];
+  enRecurring = Array.isArray(d.en_recurring) ? d.en_recurring : [];
+  // 直近のフィードバックは履歴の先頭から戻す（全文が残っているものだけ）
+  const last = enSessions[0];
+  enLatest = last && !last.folded
+    ? { corrected_text: last.corrected_text || '', issues: last.issues || [], recurring: [], recognition_doubt: last.recognition_doubt || [], good: last.good || '' }
+    : null;
 }
 
 function saveTranscript() {
@@ -79,29 +100,45 @@ function addToHistory(t, c) {
 // ============================================================
 const settingsBtn    = document.getElementById('settings-btn');
 const tabTranscript  = document.getElementById('tab-transcript');
+const tabEnglish     = document.getElementById('tab-english');
 const tabHistory     = document.getElementById('tab-history');
 const panelTranscript = document.getElementById('panel-transcript');
+const panelEnglish   = document.getElementById('panel-english');
 const panelHistory   = document.getElementById('panel-history');
 const transcriptLines = document.getElementById('transcript-lines');
 const interimLine    = document.getElementById('interim-line');
+const enLive         = document.getElementById('en-live');
+const enFeedback     = document.getElementById('en-feedback');
 const toggleBtn      = document.getElementById('toggle-btn');
 
 // ============================================================
 // パネル切り替え
 // ============================================================
 function switchPanel(id) {
-  [tabTranscript, tabHistory].forEach(t => t.classList.remove('active'));
+  [tabTranscript, tabEnglish, tabHistory].forEach(t => t.classList.remove('active'));
   panelTranscript.style.display = 'none';
+  panelEnglish.style.display    = 'none';
   panelHistory.style.display    = 'none';
 
   if (id === 'transcript') {
     panelTranscript.style.display = 'block';
     tabTranscript.classList.add('active');
+  } else if (id === 'english') {
+    panelEnglish.style.display = 'block';
+    tabEnglish.classList.add('active');
+    renderEnglish();
   } else if (id === 'history') {
     panelHistory.style.display = 'block';
     tabHistory.classList.add('active');
     renderHistory();
   }
+}
+
+// モードは「ログ」「英語」タブを押したときだけ変わる。
+// 履歴タブや録音開始によるパネル移動では変えない（次に開いたとき同じモードで開くため）
+function setMode(m) {
+  mode = m;
+  chrome.storage.local.set({ mamoru_mode: m });
 }
 
 // ============================================================
@@ -138,6 +175,9 @@ function scrollTranscriptToBottom() {
 // ============================================================
 function renderHistory() {
   panelHistory.innerHTML = '';
+
+  // 英語学習モードのときは英語のセッション記録を出す
+  if (mode === 'english') { renderEnglishHistory(); return; }
 
   if (history.length === 0) {
     const empty = document.createElement('div');
@@ -188,7 +228,8 @@ function startRecording() {
   recognition = new SR();
   recognition.continuous     = true;
   recognition.interimResults = true;
-  recognition.lang           = recogLang;
+  // 英語学習モードのときだけ英語で聞く。設定（mamoru_lang）自体は書き換えない
+  recognition.lang           = mode === 'english' ? englishRecogLang() : recogLang;
 
   recognition.onstart = () => {
     recognitionAlive = true;
@@ -234,7 +275,15 @@ function onRecordingStarted() {
   isRecording = true;
   toggleBtn.textContent = T('btnStop');
   toggleBtn.className = 'recording';
-  switchPanel('transcript');
+
+  if (mode === 'english') {
+    enLatest = null;
+    enError  = '';
+    enLive.textContent = transcript;
+    switchPanel('english');
+  } else {
+    switchPanel('transcript');
+  }
 }
 
 function onRecordingStopped() {
@@ -249,6 +298,14 @@ function onRecordingStopped() {
     saveTranscript();
   }
   interimLine.textContent = '';
+
+  // 英語学習モードは清書・自動コピー・自動クリアを走らせない
+  // （フィードバックを読み終わる前に画面が消えてしまうため）
+  if (mode === 'english') {
+    enLive.textContent = transcript;
+    if (transcript.trim()) runEnglishFeedback();
+    return;
+  }
 
   if (geminiKey && transcript.trim()) {
     runClean();
@@ -271,6 +328,10 @@ function onResult(interim, final) {
     interimLine.textContent = '';
     appendTranscriptLine(final);
     saveTranscript();
+  }
+  if (mode === 'english') {
+    enLive.textContent = transcript + interim;
+    panelEnglish.scrollTop = panelEnglish.scrollHeight;
   }
 }
 
@@ -409,6 +470,496 @@ async function runClean() {
 }
 
 // ============================================================
+// 英語学習モード（独り言モード）
+// ============================================================
+
+// Gemini へ渡すシステム指示。
+// 音声は Gemini に届いていないため、発音には一切触れさせない。
+// 触れさせるとテキストからの推測でもっともらしい嘘が返り、学習用途では有害になる。
+const EN_SYSTEM_PROMPT = `あなたは英語学習者の「独り言」練習を見るコーチです。
+学習者が英語で 3〜5 分ほど独り言を話し、その音声認識結果があなたに渡されます。
+
+## 重要な前提
+
+- あなたに届いているのは音声認識を通したテキストです。音声は届いていません。
+- したがって **発音については一切言及しないでください。**
+- 音声認識の誤りと、学習者本人の誤りは区別してください。
+  文脈から見て明らかに聞き取り違いと分かる箇所（例：綴りは似ているが文脈に合わない語）は、
+  文法や語彙の誤りとして扱わず、recognition_doubt に入れてください。
+
+## 見る観点（この 4 つだけ）
+
+1. 不自然な言い回しと、その自然な代替
+2. 語彙の選択（意味は通るが、その文脈ではより適切な語がある場合）
+3. 文法の誤り
+4. 繰り返し出ている癖（過去の指摘が渡されている場合はそれと照合する）
+
+## 指摘の量
+
+- 指摘は最大 5 件まで。多いと読まれません。
+- 影響の大きいものから順に並べてください。
+- 些細な誤り（冠詞の揺れ程度で意味が変わらないもの）は、他に指摘がないときだけ挙げてください。
+
+## 出力
+
+以下の JSON だけを返してください。前置き、説明、コードフェンスは付けないでください。
+
+{
+  "corrected_text": "修正版の全文。学習者が音読練習に使えるよう、自然な英語に整える",
+  "issues": [
+    {
+      "type": "phrasing | vocabulary | grammar",
+      "original": "学習者が言った表現",
+      "suggestion": "代わりの表現",
+      "reason": "なぜそちらが良いかを日本語で 1〜2 文"
+    }
+  ],
+  "recurring": [
+    "過去にも指摘された内容のうち、今回も出たものを日本語で 1 行ずつ"
+  ],
+  "recognition_doubt": [
+    "音声認識の誤りと思われる箇所。原文の該当部分をそのまま入れる"
+  ],
+  "good": "今回よく書けていた点を日本語で 1 文。無理に褒めず、該当がなければ空文字にする"
+}`;
+
+// ===== 英語学習モードのロジック（ここから）=====
+// このブロックは test/english_test.mjs が切り出して Node で検証する。
+// 拡張機能版と Web 版（public/index.html）で同じ内容を保つこと。
+// 実行環境固有の API（chrome.*・localStorage）と DOM には触れないこと。
+
+const EN_KEEP_FULL      = 30;  // 全文で残すセッション数。これより古いものは指摘だけに畳む
+const EN_KEEP_TOTAL     = 400; // 畳んだものも含めた保持上限
+const EN_RECURRING_MIN  = 2;   // 何回出たら「繰り返し」として Gemini に渡すか
+const EN_RECURRING_SEND = 5;   // Gemini に渡す繰り返し指摘の件数
+
+const EN_TYPES = ['phrasing', 'vocabulary', 'grammar'];
+
+// Gemini はコードフェンスや前置きを付けて返すことがあるので、
+// 最初の { から対応する } までを取り出してから解釈する。取れなければ null。
+function extractJsonObject(raw) {
+  if (typeof raw !== 'string') return null;
+  const start = raw.indexOf('{');
+  if (start < 0) return null;
+
+  let depth = 0, inStr = false, esc = false;
+  for (let i = start; i < raw.length; i++) {
+    const c = raw[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (c === '\\') esc = true;
+      else if (c === '"') inStr = false;
+      continue;
+    }
+    if (c === '"') { inStr = true; continue; }
+    if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return raw.slice(start, i + 1);
+  }
+  return null;
+}
+
+function asStringArray(v) {
+  if (!Array.isArray(v)) return [];
+  return v.map(x => (typeof x === 'string' ? x.trim() : '')).filter(Boolean);
+}
+
+function asText(v) {
+  return typeof v === 'string' ? v.trim() : '';
+}
+
+// 応答を、表示と保存が前提にできる形に揃える。読み取れなければ null を返す。
+function parseFeedback(raw) {
+  const json = extractJsonObject(raw);
+  if (json === null) return null;
+
+  let data;
+  try { data = JSON.parse(json); } catch { return null; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+  const issues = Array.isArray(data.issues) ? data.issues : [];
+  return {
+    corrected_text: asText(data.corrected_text),
+    issues: issues
+      .map(it => {
+        const type = asText(it && it.type).toLowerCase();
+        return {
+          type:       EN_TYPES.includes(type) ? type : 'phrasing',
+          original:   asText(it && it.original),
+          suggestion: asText(it && it.suggestion),
+          reason:     asText(it && it.reason),
+        };
+      })
+      .filter(it => it.original && it.suggestion),
+    recurring:         asStringArray(data.recurring),
+    recognition_doubt: asStringArray(data.recognition_doubt),
+    good:              asText(data.good),
+  };
+}
+
+// 指摘を1行の文字列にする。これが繰り返し判定のキーにもなる
+function recurringText(issue) {
+  return `${issue.original} → ${issue.suggestion}`;
+}
+
+function recurringKey(text) {
+  return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+// 今回の指摘を繰り返しリストへ反映する。
+// 1回目は count:1 で控えるだけで、EN_RECURRING_MIN 回に達したものが Gemini に渡る対象になる。
+function promoteRecurring(prev, issues, today) {
+  const list  = (Array.isArray(prev) ? prev : []).map(r => ({ ...r }));
+  const index = new Map(list.map((r, i) => [recurringKey(r.text), i]));
+  const seen  = new Set();
+
+  for (const issue of (issues || [])) {
+    const text = recurringText(issue);
+    const key  = recurringKey(text);
+    if (!key || seen.has(key)) continue;   // 同じセッション内の重複は1回と数える
+    seen.add(key);
+
+    const at = index.get(key);
+    if (at === undefined) {
+      index.set(key, list.length);
+      list.push({ text, count: 1, last_seen: today });
+    } else {
+      list[at].count    = (list[at].count || 0) + 1;
+      list[at].last_seen = today;
+    }
+  }
+  return list;
+}
+
+// Gemini に渡すのは「2回以上出たもの」の上位だけ。履歴の全文は渡さない
+function topRecurring(list, limit = EN_RECURRING_SEND, min = EN_RECURRING_MIN) {
+  return (Array.isArray(list) ? list : [])
+    .filter(r => (r.count || 0) >= min)
+    .sort((a, b) => (b.count - a.count) || String(a.text).localeCompare(String(b.text)))
+    .slice(0, limit);
+}
+
+// 直近 EN_KEEP_FULL 件は全文、それ以前は transcript と corrected_text を捨てて
+// issues の type と suggestion だけ残す。保存のたびに走らせる
+function foldSessions(sessions, keepFull = EN_KEEP_FULL, keepTotal = EN_KEEP_TOTAL) {
+  const list = Array.isArray(sessions) ? sessions : [];
+  return list.slice(0, keepTotal).map((s, i) => {
+    if (i < keepFull || s.folded) return s;
+    return {
+      id: s.id,
+      folded: true,
+      issues: (s.issues || []).map(it => ({ type: it.type, suggestion: it.suggestion })),
+    };
+  });
+}
+
+// Gemini へ渡すユーザーメッセージ。過去のセッション全文は渡さない
+function buildEnglishUserMessage(transcript, recurring) {
+  const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
+  return `## 今回の独り言（音声認識結果）
+${String(transcript).trim()}
+
+## これまでに繰り返し指摘されている点
+${lines.length ? lines.join('\n') : 'なし'}`;
+}
+// ===== 英語学習モードのロジック（ここまで）=====
+
+function englishRecogLang() {
+  // 設定が en-GB などならそれを尊重する。それ以外（日本語など）は en-US で聞く
+  return recogLang.startsWith('en') ? recogLang : 'en-US';
+}
+
+function todayStamp() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+async function runEnglishFeedback() {
+  const text = transcript.trim();
+  if (!text) return;
+  if (!geminiKey) { renderEnglish(); showToast(T('enNoKey'), 'info'); return; }
+
+  enBusy  = true;
+  enError = '';
+  renderEnglish();
+
+  const userMessage = buildEnglishUserMessage(text, topRecurring(enRecurring));
+
+  try {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${geminiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: EN_SYSTEM_PROMPT }] },
+          contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+          generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
+          tools: []
+        })
+      }
+    );
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      const msg = data?.error?.message || '';
+      // 403 + "denied access" はキーの誤りではなく、プロジェクトに無料枠が割り当てられていないケース
+      if (res.status === 403 && /denied access/i.test(msg)) throw new Error(T('cleanErrDenied'));
+      throw new Error(msg || T('unknownError'));
+    }
+
+    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    const fb  = parseFeedback(raw);
+    // JSON として読めないものは表示しない（前置きや回答をそのまま出すと嘘を教えることになる）
+    if (!fb) throw new Error(T('enParseError'));
+
+    enSessions.unshift({
+      id:             new Date().toISOString(),
+      transcript:     text,
+      corrected_text: fb.corrected_text,
+      issues:         fb.issues,
+      good:           fb.good,
+    });
+    enSessions  = foldSessions(enSessions);
+    enRecurring = promoteRecurring(enRecurring, fb.issues, todayStamp());
+    await chrome.storage.local.set({ en_sessions: enSessions, en_recurring: enRecurring });
+
+    enLatest = fb;
+    enBusy   = false;
+
+    // 次の録音のために書き起こしだけ空にする。フィードバックは読み終わるまで残す
+    transcript = '';
+    saveTranscript();
+    renderTranscript();
+    enLive.textContent = '';
+    renderEnglish();
+  } catch (err) {
+    // 失敗したときは書き起こしを消さない（話した内容を失わせない）
+    enBusy  = false;
+    enError = err.message;
+    renderEnglish();
+    showToast(T('enError') + err.message, 'error');
+  }
+}
+
+// ============================================================
+// 英語学習モードの表示
+// ============================================================
+function enNote(text, cls = '') {
+  const el = document.createElement('div');
+  el.className = 'en-note' + (cls ? ' ' + cls : '');
+  el.textContent = text;
+  return el;
+}
+
+function enSection(title) {
+  const sec = document.createElement('section');
+  sec.className = 'en-section';
+  const h = document.createElement('div');
+  h.className = 'en-section-title';
+  h.textContent = title;
+  sec.appendChild(h);
+  return sec;
+}
+
+function enTypeLabel(type) {
+  return T({ phrasing: 'typePhrasing', vocabulary: 'typeVocabulary', grammar: 'typeGrammar' }[type] || 'typePhrasing');
+}
+
+function renderEnglish() {
+  enFeedback.innerHTML = '';
+
+  if (enBusy)     { enFeedback.appendChild(enNote(T('enAnalyzing'))); return; }
+  if (!geminiKey) { enFeedback.appendChild(enNote(T('enNoKey'))); return; }
+  if (enError)    { enFeedback.appendChild(enNote(enError, 'en-error')); }
+
+  const fb = enLatest;
+  if (!fb) {
+    if (!enError) enFeedback.appendChild(enNote(T('enHint')));
+    enFeedback.appendChild(enNote(T('enNoPronunciation'), 'en-fineprint'));
+    return;
+  }
+
+  // 表示順は good → issues → recurring → corrected_text
+  if (fb.good) {
+    const sec = enSection(T('enGood'));
+    const p = document.createElement('p');
+    p.className = 'en-good';
+    p.textContent = fb.good;
+    sec.appendChild(p);
+    enFeedback.appendChild(sec);
+  }
+
+  {
+    const sec = enSection(T('enIssues'));
+    if (fb.issues.length === 0) {
+      sec.appendChild(enNote(T('enNoIssues')));
+    } else {
+      fb.issues.forEach(it => {
+        const card = document.createElement('div');
+        card.className = 'en-issue';
+
+        const badge = document.createElement('span');
+        badge.className = 'en-badge en-badge-' + it.type;
+        badge.textContent = enTypeLabel(it.type);
+
+        const swap = document.createElement('div');
+        swap.className = 'en-swap';
+        const from = document.createElement('span');
+        from.className = 'en-from';
+        from.textContent = it.original;
+        const arrow = document.createElement('span');
+        arrow.className = 'en-arrow';
+        arrow.textContent = '→';
+        const to = document.createElement('span');
+        to.className = 'en-to';
+        to.textContent = it.suggestion;
+        swap.append(from, arrow, to);
+
+        card.appendChild(badge);
+        card.appendChild(swap);
+        if (it.reason) {
+          const why = document.createElement('p');
+          why.className = 'en-reason';
+          why.textContent = it.reason;
+          card.appendChild(why);
+        }
+        sec.appendChild(card);
+      });
+    }
+    enFeedback.appendChild(sec);
+  }
+
+  if (fb.recurring.length > 0) {
+    const sec = enSection(T('enRecurring'));
+    const ul = document.createElement('ul');
+    ul.className = 'en-recurring';
+    fb.recurring.forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = r;
+      ul.appendChild(li);
+    });
+    sec.appendChild(ul);
+    enFeedback.appendChild(sec);
+  }
+
+  if (fb.corrected_text) {
+    const sec = enSection(T('enCorrected'));
+    const p = document.createElement('p');
+    p.className = 'en-corrected';
+    p.textContent = fb.corrected_text;
+    sec.appendChild(p);
+
+    const btn = document.createElement('button');
+    btn.className = 'history-copy-btn';
+    btn.textContent = T('btnCopy');
+    btn.addEventListener('click', () => {
+      // 清書モードと違い、末尾に目印（U+200B）は付けない。
+      // 付けると自動貼り付けツールが拾ってしまうため
+      navigator.clipboard.writeText(fb.corrected_text).then(() => {
+        btn.textContent = T('btnCopied');
+        setTimeout(() => { btn.textContent = T('btnCopy'); }, 1500);
+      }).catch(() => showToast(T('copyFailed'), 'error'));
+    });
+    sec.appendChild(btn);
+    enFeedback.appendChild(sec);
+  }
+
+  enFeedback.appendChild(enNote(T('enNoPronunciation'), 'en-fineprint'));
+}
+
+// ============================================================
+// 英語学習モードの履歴表示
+// ============================================================
+function renderEnglishHistory() {
+  const recurring = topRecurring(enRecurring);
+  if (recurring.length > 0) {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+
+    const meta = document.createElement('div');
+    meta.className = 'history-meta';
+    meta.textContent = T('enRecurring');
+    card.appendChild(meta);
+
+    const ul = document.createElement('ul');
+    ul.className = 'en-recurring';
+    recurring.forEach(r => {
+      const li = document.createElement('li');
+      li.textContent = `${r.text}（${T('enTimes', String(r.count))}）`;
+      ul.appendChild(li);
+    });
+    card.appendChild(ul);
+    panelHistory.appendChild(card);
+  }
+
+  if (enSessions.length === 0) {
+    panelHistory.appendChild(enNote(T('enHistoryEmpty')));
+    return;
+  }
+
+  enSessions.forEach(s => {
+    const card = document.createElement('div');
+    card.className = 'history-card';
+
+    const meta = document.createElement('div');
+    meta.className = 'history-meta';
+    const when = new Date(s.id);
+    const label = isNaN(when) ? String(s.id)
+      : when.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    meta.textContent = `${label}　${T('enIssueCount', String((s.issues || []).length))}`;
+    card.appendChild(meta);
+
+    if (s.folded) {
+      const body = document.createElement('div');
+      body.className = 'history-body';
+      const lines = (s.issues || []).map(it => it.suggestion).filter(Boolean);
+      body.textContent = lines.length ? lines.join(' / ') : T('enFolded');
+      card.appendChild(body);
+      panelHistory.appendChild(card);
+      return;
+    }
+
+    const body = document.createElement('div');
+    body.className = 'history-body';
+    const text = s.corrected_text || s.transcript || '';
+    body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+    card.appendChild(body);
+
+    // 修正版だけでなく、何を直したのかも履歴から見返せるようにする。
+    // コピーは従来どおり修正版だけにして、音読用の使い方は変えない。
+    if ((s.issues || []).length > 0) {
+      const title = document.createElement('div');
+      title.className = 'en-section-title';
+      title.textContent = T('enIssues');
+      card.appendChild(title);
+
+      const issues = document.createElement('ul');
+      issues.className = 'en-recurring';
+      s.issues.forEach(it => {
+        const li = document.createElement('li');
+        li.textContent = `${it.original} → ${it.suggestion}${it.reason ? ` — ${it.reason}` : ''}`;
+        issues.appendChild(li);
+      });
+      card.appendChild(issues);
+    }
+
+    if (s.corrected_text) {
+      const btn = document.createElement('button');
+      btn.className = 'history-copy-btn';
+      btn.textContent = T('btnCopy');
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(s.corrected_text).then(() => {
+          btn.textContent = T('btnCopied');
+          setTimeout(() => { btn.textContent = T('btnCopy'); }, 1500);
+        }).catch(() => showToast(T('copyFailed'), 'error'));
+      });
+      card.appendChild(btn);
+    }
+    panelHistory.appendChild(card);
+  });
+}
+
+// ============================================================
 // 自動クリア
 // ============================================================
 function autoClear() {
@@ -458,6 +1009,7 @@ function showToast(msg, type = 'info') {
 chrome.storage.onChanged.addListener((changes) => {
   if (changes.mamoru_gemini_key) {
     geminiKey = changes.mamoru_gemini_key.newValue || '';
+    if (mode === 'english' && panelEnglish.style.display !== 'none') renderEnglish();
   }
   // 設定画面で言語を変えたら即反映（録音中の場合は次回の録音から）
   if (changes.mamoru_lang) {
@@ -475,8 +1027,20 @@ toggleBtn.addEventListener('click', () => {
 });
 
 settingsBtn.addEventListener('click', () => chrome.runtime.openOptionsPage());
-tabTranscript.addEventListener('click', () => switchPanel('transcript'));
-tabHistory.addEventListener('click',    () => switchPanel('history'));
+
+// 録音中のモード切り替えは受け付けない（聞き取る言語も停止後の処理も変わってしまうため）
+tabTranscript.addEventListener('click', () => {
+  if (isRecording) { showToast(T('enModeLocked'), 'info'); return; }
+  setMode('clean');
+  switchPanel('transcript');
+});
+tabEnglish.addEventListener('click', () => {
+  if (isRecording) { showToast(T('enModeLocked'), 'info'); return; }
+  enError = '';   // 前回のエラーはタブを開き直した時点で消す
+  setMode('english');
+  switchPanel('english');
+});
+tabHistory.addEventListener('click', () => switchPanel('history'));
 
 // ============================================================
 // 初期化
@@ -484,7 +1048,7 @@ tabHistory.addEventListener('click',    () => switchPanel('history'));
 document.addEventListener('DOMContentLoaded', async () => {
   applyI18n();
   await loadStorage();
-  panelTranscript.style.display = 'block';
-  panelHistory.style.display    = 'none';
   renderTranscript();
+  // 前回のモードのまま開く。「開く → 話す」の間に操作を挟ませない
+  switchPanel(mode === 'english' ? 'english' : 'transcript');
 });
