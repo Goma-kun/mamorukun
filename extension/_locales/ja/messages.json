@@ -14,6 +14,8 @@
   "historyEmpty":    { "message": "履歴はまだありません" },
   "historyCleaned":  { "message": "　✏️ 清書あり" },
   "historyLogOnly":  { "message": "　🎙️ ログのみ" },
+  "btnExpand":         { "message": "全文" },
+  "btnCollapse":       { "message": "閉じる" },
   "btnCopy":         { "message": "📋 コピー" },
   "btnCopied":       { "message": "✓ コピー済" },
   "copyFailed":      { "message": "コピーに失敗しました" },
