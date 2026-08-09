@@ -80,7 +80,9 @@ async function handleChatProxy(request, env) {
         ...(payload.tools === undefined
           ? { tools: [{ googleSearch: {} }] }
           : payload.tools.length > 0 ? { tools: payload.tools } : {}),
-        systemInstruction: {
+        // 呼び出し側が systemInstruction を送ってきたらそれを使う（英語学習モードがこれを使う）。
+        // 送ってこない場合は従来どおりの指示にする（清書・AI応答の挙動は変わらない）。
+        systemInstruction: payload.systemInstruction ?? {
           parts: [{ text: "参考リンクやURLは絶対に出力しないでください。回答は本文のみにしてください。" }],
         },
       }),

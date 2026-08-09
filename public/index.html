@@ -63,6 +63,37 @@
     .history-copy-btn { align-self: flex-end; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 8px; color: #38bdf8; font-size: 12px; font-weight: 700; padding: 6px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .history-copy-btn:active { background: rgba(56,189,248,0.25); }
 
+    /* ── 英語学習パネル ── */
+    #panel-english { padding: 12px; }
+    #panel-english::-webkit-scrollbar { width: 4px; }
+    #panel-english::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #en-live { color: #cbd5e1; font-size: 14px; line-height: 1.7; white-space: pre-wrap; word-break: break-word; padding-bottom: 8px; }
+    #en-live:not(:empty) { border-bottom: 1px solid #1e293b; margin-bottom: 12px; }
+    #en-feedback { display: flex; flex-direction: column; gap: 12px; }
+    .en-note { color: #64748b; font-size: 13px; line-height: 1.7; text-align: center; padding: 20px 10px; }
+    .en-note.en-error { color: #f87171; text-align: left; padding: 10px; }
+    .en-note.en-fineprint { font-size: 12px; color: #475569; padding: 4px 10px 10px; }
+    .en-section { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 9px; }
+    .en-section-title { color: #64748b; font-size: 12px; font-weight: 700; }
+    .en-good { margin: 0; color: #4ade80; font-size: 13px; line-height: 1.7; }
+    .en-issue { display: flex; flex-direction: column; gap: 5px; padding: 10px 0; border-top: 1px solid #334155; }
+    .en-section .en-issue:first-of-type { border-top: none; padding-top: 0; }
+    .en-badge { align-self: flex-start; font-size: 11px; font-weight: 700; border-radius: 6px; padding: 2px 7px; background: rgba(148,163,184,0.15); color: #94a3b8; }
+    .en-badge-vocabulary { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .en-badge-grammar    { background: rgba(251,146,60,0.15); color: #fb923c; }
+    .en-swap { font-size: 14px; line-height: 1.7; word-break: break-word; }
+    .en-from  { color: #f87171; text-decoration: line-through; }
+    .en-arrow { color: #64748b; padding: 0 6px; }
+    .en-to    { color: #4ade80; font-weight: 700; }
+    .en-reason { margin: 0; color: #94a3b8; font-size: 12px; line-height: 1.7; }
+    .en-recurring { margin: 0; padding-left: 20px; color: #cbd5e1; font-size: 13px; line-height: 1.8; }
+    .en-doubt { margin: 0; padding-left: 20px; color: #94a3b8; font-size: 13px; line-height: 1.8; }
+    .en-corrected {
+      margin: 0; color: #e2e8f0; font-size: 15px; line-height: 1.9;
+      white-space: pre-wrap; word-break: break-word;
+      -webkit-user-select: text; user-select: text;
+    }
+
     /* ── ヘルプデスク：チャット・要約パネル ── */
     #panel-chat, #panel-summary { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
     .ai-message { background: #1e1b4b; border-left: 4px solid #818cf8; padding: 12px; border-radius: 8px; }
@@ -214,7 +245,7 @@
 <body>
   <div id="wrapper">
     <header id="header">
-      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.4.5</span></h1>
+      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.1</span></h1>
       <button id="settings-btn">⚙️</button>
     </header>
 
@@ -228,8 +259,13 @@
         <div id="transcript-lines"></div>
         <div id="interim-line"></div>
       </div>
-      <!-- 履歴（メモモード） -->
+      <!-- 履歴（メモモード・英語学習モード） -->
       <div id="panel-history" class="panel"></div>
+      <!-- 英語学習モード -->
+      <div id="panel-english" class="panel">
+        <div id="en-live"></div>
+        <div id="en-feedback"></div>
+      </div>
       <!-- AI回答（ヘルプデスクモード） -->
       <div id="panel-chat" class="panel"></div>
       <!-- 要約（ヘルプデスクモード） -->
@@ -269,6 +305,10 @@
       <button class="mode-btn" id="mode-hd-btn">
         🏢 ヘルプデスクモード
         <span class="mode-desc">AIチャット・要約・ログ保存。業務サポート向け。</span>
+      </button>
+      <button class="mode-btn" id="mode-en-btn">
+        📘 英語学習モード（独り言）
+        <span class="mode-desc">英語で独り言を話すと、言い回し・語彙・文法のフィードバックが返ります。発音の評価はしません。</span>
       </button>
 
       <h2 style="margin-top:20px">音声認識の言語</h2>
@@ -311,7 +351,8 @@
     function setToken(v) { localStorage.setItem('mamoru_token', v.trim()); }
 
     // GASと同じ { success, text } 形式で返すラッパー
-    async function callAI(contents) {
+    // opts で systemInstruction と tools を渡せる（省略時は Worker 側の既定が使われる）
+    async function callAI(contents, opts = {}) {
       const token = getToken();
       if (!token) {
         return { success: false, error: '合言葉が未設定です。⚙️ 設定から入力してください。' };
@@ -319,7 +360,7 @@
       const res = await fetch(WORKERS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-App-Token': token },
-        body: JSON.stringify({ contents })
+        body: JSON.stringify({ contents, ...opts })
       });
       const data = await res.json();
       if (res.status === 401) {
@@ -445,6 +486,13 @@ ${text}
     let history        = [];
     let pendingClean   = ''; // 清書済みテキスト（コピー待ち）
 
+    // 英語学習モード（独り言モード）
+    let enSessions  = [];   // 過去のセッション（新しい順）
+    let enRecurring = [];   // 繰り返し出ている指摘
+    let enLatest    = null; // 画面に出している直近のフィードバック
+    let enBusy      = false;
+    let enError     = '';
+
     // ヘルプデスク用
     let aiChatContext  = [];
     let chatHistory    = '';
@@ -458,6 +506,20 @@ ${text}
       try { history = JSON.parse(localStorage.getItem('mamoru_history') || '[]'); } catch(e) { history = []; }
       try { aiChatContext = JSON.parse(localStorage.getItem('mamoru_aiContext') || '[]'); } catch(e) { aiChatContext = []; }
       chatHistory = localStorage.getItem('mamoru_chatHistory') || '';
+
+      try { enSessions  = JSON.parse(localStorage.getItem('en_sessions')  || '[]'); } catch(e) { enSessions  = []; }
+      try { enRecurring = JSON.parse(localStorage.getItem('en_recurring') || '[]'); } catch(e) { enRecurring = []; }
+      if (!Array.isArray(enSessions))  enSessions  = [];
+      if (!Array.isArray(enRecurring)) enRecurring = [];
+      // 直近のフィードバックは履歴の先頭から戻す（全文が残っているものだけ）
+      const last = enSessions[0];
+      enLatest = last && !last.folded
+        ? { corrected_text: last.corrected_text || '', issues: last.issues || [], recurring: [], recognition_doubt: last.recognition_doubt || [], good: last.good || '' }
+        : null;
+    }
+    function saveEnglish() {
+      localStorage.setItem('en_sessions',  JSON.stringify(enSessions));
+      localStorage.setItem('en_recurring', JSON.stringify(enRecurring));
     }
     function saveTranscript() { localStorage.setItem('mamoru_transcript', transcript); }
     function saveHistory()    { localStorage.setItem('mamoru_history', JSON.stringify(history)); }
@@ -487,6 +549,9 @@ ${text}
     const cleanText     = document.getElementById('clean-overlay-text');
     const cleanCopyBtn  = document.getElementById('clean-copy-btn');
     const settingsOverlay = document.getElementById('settings-overlay');
+    const panelEnglish  = document.getElementById('panel-english');
+    const enLive        = document.getElementById('en-live');
+    const enFeedbackEl  = document.getElementById('en-feedback');
 
     // ============================================================
     // モード初期化
@@ -494,14 +559,23 @@ ${text}
     function initMode() {
       tabBar.innerHTML = '';
 
+      const modeBtns = { memo: 'mode-memo-btn', helpdesk: 'mode-hd-btn', english: 'mode-en-btn' };
+      for (const [m, id] of Object.entries(modeBtns)) {
+        document.getElementById(id).classList.toggle('active', m === currentMode);
+      }
+
       if (currentMode === 'memo') {
         tabBar.style.gridTemplateColumns = '1fr 1fr';
         addTab('tab-transcript', '🎙️', 'ログ', 'transcript');
         addTab('tab-history',    '🕐', '履歴', 'history');
         hdInputArea.style.display = 'none';
         hdSubBtns.style.display   = 'none';
-        document.getElementById('mode-memo-btn').classList.add('active');
-        document.getElementById('mode-hd-btn').classList.remove('active');
+      } else if (currentMode === 'english') {
+        tabBar.style.gridTemplateColumns = '1fr 1fr';
+        addTab('tab-english', '📘', '独り言', 'english');
+        addTab('tab-history', '🕐', '履歴', 'history');
+        hdInputArea.style.display = 'none';
+        hdSubBtns.style.display   = 'none';
       } else {
         tabBar.style.gridTemplateColumns = '1fr 1fr 1fr';
         addTab('tab-transcript', '🎙️', 'ログ',   'transcript');
@@ -509,11 +583,10 @@ ${text}
         addTab('tab-summary',    '📄', '要約',   'summary');
         hdInputArea.style.display = 'flex';
         hdSubBtns.style.display   = 'flex';
-        document.getElementById('mode-hd-btn').classList.add('active');
-        document.getElementById('mode-memo-btn').classList.remove('active');
       }
 
-      switchPanel('transcript');
+      // 英語学習モードは開いた時点で話し始められるよう、英語パネルから始める
+      switchPanel(currentMode === 'english' ? 'english' : 'transcript');
     }
 
     function addTab(id, icon, label, panel) {
@@ -532,16 +605,17 @@ ${text}
     function switchPanel(id) {
       activePanel = id;
       tabBar.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-      [panelTranscript, panelHistory, panelChat, panelSummary].forEach(p => p.style.display = 'none');
+      [panelTranscript, panelHistory, panelChat, panelSummary, panelEnglish].forEach(p => p.style.display = 'none');
 
-      const panelMap = { transcript: panelTranscript, history: panelHistory, chat: panelChat, summary: panelSummary };
-      const tabMap   = { transcript: 'tab-transcript', history: 'tab-history', chat: 'tab-chat', summary: 'tab-summary' };
+      const panelMap = { transcript: panelTranscript, history: panelHistory, chat: panelChat, summary: panelSummary, english: panelEnglish };
+      const tabMap   = { transcript: 'tab-transcript', history: 'tab-history', chat: 'tab-chat', summary: 'tab-summary', english: 'tab-english' };
 
       if (panelMap[id]) panelMap[id].style.display = 'block';
       const tab = document.getElementById(tabMap[id]);
       if (tab) tab.classList.add('active');
 
       if (id === 'history') renderHistory();
+      if (id === 'english') renderEnglish();
     }
 
     // ============================================================
@@ -573,6 +647,8 @@ ${text}
     // ============================================================
     function renderHistory() {
       panelHistory.innerHTML = '';
+      // 英語学習モードのときは英語のセッション記録を出す
+      if (currentMode === 'english') { renderEnglishHistory(); return; }
       if (!history.length) {
         const e = document.createElement('div');
         e.className = 'history-empty';
@@ -650,7 +726,9 @@ ${text}
 
       const rec = new SR();
       recognition = rec;
-      rec.continuous = true; rec.interimResults = true; rec.lang = recogLang;
+      rec.continuous = true; rec.interimResults = true;
+      // 英語学習モードのときだけ英語で聞く。設定（mamoru_lang）自体は書き換えない
+      rec.lang = currentMode === 'english' ? englishRecogLang() : recogLang;
 
       rec.onresult = (e) => {
         let interim = '', final = '';
@@ -660,6 +738,10 @@ ${text}
         }
         if (interim) { interimLine.textContent = interim; scrollToBottom(); }
         if (final) { transcript += final + '\n'; interimLine.textContent = ''; appendLine(final); saveTranscript(); }
+        if (currentMode === 'english') {
+          enLive.textContent = transcript + interim;
+          panelEnglish.scrollTop = panelEnglish.scrollHeight;
+        }
       };
 
       rec.onend = () => {
@@ -711,7 +793,14 @@ ${text}
       isRecording = true;
       toggleBtn.textContent = '■ 停止';
       toggleBtn.className = 'recording';
-      switchPanel('transcript');
+      if (currentMode === 'english') {
+        enLatest = null;
+        enError  = '';
+        enLive.textContent = transcript;
+        switchPanel('english');
+      } else {
+        switchPanel('transcript');
+      }
     }
 
     function onStopped() {
@@ -721,10 +810,13 @@ ${text}
       const pending = interimLine.textContent.trim();
       if (pending) { transcript += pending + '\n'; appendLine(pending); saveTranscript(); }
       interimLine.textContent = '';
+      if (currentMode === 'english') enLive.textContent = transcript;
       if (!transcript.trim()) return;
       // 画面オフ中の意図しない停止では清書しない（画面復帰で録音再開するため）
+      // 歩きながらポケットに入れた場合もここで止まる
       if (document.hidden || wasRecording) return;
       if (currentMode === 'memo') runCleanMemo();
+      else if (currentMode === 'english') runEnglishFeedback();
       // ヘルプデスクモードは停止時に自動清書しない
     }
 
@@ -766,6 +858,484 @@ ${text}
     function autoClear() {
       transcript = ''; saveTranscript();
       renderTranscript(); switchPanel('transcript');
+    }
+
+    // ============================================================
+    // 英語学習モード（独り言モード）
+    // ============================================================
+
+    // Gemini へ渡すシステム指示。
+    // 音声は Gemini に届いていないため、発音には一切触れさせない。
+    // 触れさせるとテキストからの推測でもっともらしい嘘が返り、学習用途では有害になる。
+    const EN_SYSTEM_PROMPT = `あなたは英語学習者の「独り言」練習を見るコーチです。
+学習者が英語で 3〜5 分ほど独り言を話し、その音声認識結果があなたに渡されます。
+
+## 重要な前提
+
+- あなたに届いているのは音声認識を通したテキストです。音声は届いていません。
+- したがって **発音については一切言及しないでください。**
+- 音声認識の誤りと、学習者本人の誤りは区別してください。
+  文脈から見て明らかに聞き取り違いと分かる箇所（例：綴りは似ているが文脈に合わない語）は、
+  文法や語彙の誤りとして扱わず、recognition_doubt に入れてください。
+
+## 見る観点（この 4 つだけ）
+
+1. 不自然な言い回しと、その自然な代替
+2. 語彙の選択（意味は通るが、その文脈ではより適切な語がある場合）
+3. 文法の誤り
+4. 繰り返し出ている癖（過去の指摘が渡されている場合はそれと照合する）
+
+## 指摘の量
+
+- 指摘は最大 5 件まで。多いと読まれません。
+- 影響の大きいものから順に並べてください。
+- 些細な誤り（冠詞の揺れ程度で意味が変わらないもの）は、他に指摘がないときだけ挙げてください。
+
+## 出力
+
+以下の JSON だけを返してください。前置き、説明、コードフェンスは付けないでください。
+
+{
+  "corrected_text": "修正版の全文。学習者が音読練習に使えるよう、自然な英語に整える",
+  "issues": [
+    {
+      "type": "phrasing | vocabulary | grammar",
+      "original": "学習者が言った表現",
+      "suggestion": "代わりの表現",
+      "reason": "なぜそちらが良いかを日本語で 1〜2 文"
+    }
+  ],
+  "recurring": [
+    "過去にも指摘された内容のうち、今回も出たものを日本語で 1 行ずつ"
+  ],
+  "recognition_doubt": [
+    "音声認識の誤りと思われる箇所。原文の該当部分をそのまま入れる"
+  ],
+  "good": "今回よく書けていた点を日本語で 1 文。無理に褒めず、該当がなければ空文字にする"
+}`;
+
+    // ===== 英語学習モードのロジック（ここから）=====
+    // このブロックは test/english_test.mjs が切り出して Node で検証する。
+    // 拡張機能版と Web 版（public/index.html）で同じ内容を保つこと。
+    // 実行環境固有の API（chrome.*・localStorage）と DOM には触れないこと。
+
+    const EN_KEEP_FULL      = 30;  // 全文で残すセッション数。これより古いものは指摘だけに畳む
+    const EN_KEEP_TOTAL     = 400; // 畳んだものも含めた保持上限
+    const EN_RECURRING_MIN  = 2;   // 何回出たら「繰り返し」として Gemini に渡すか
+    const EN_RECURRING_SEND = 5;   // Gemini に渡す繰り返し指摘の件数
+
+    const EN_TYPES = ['phrasing', 'vocabulary', 'grammar'];
+
+    // Gemini はコードフェンスや前置きを付けて返すことがあるので、
+    // 最初の { から対応する } までを取り出してから解釈する。取れなければ null。
+    function extractJsonObject(raw) {
+      if (typeof raw !== 'string') return null;
+      const start = raw.indexOf('{');
+      if (start < 0) return null;
+
+      let depth = 0, inStr = false, esc = false;
+      for (let i = start; i < raw.length; i++) {
+        const c = raw[i];
+        if (inStr) {
+          if (esc) esc = false;
+          else if (c === '\\') esc = true;
+          else if (c === '"') inStr = false;
+          continue;
+        }
+        if (c === '"') { inStr = true; continue; }
+        if (c === '{') depth++;
+        else if (c === '}' && --depth === 0) return raw.slice(start, i + 1);
+      }
+      return null;
+    }
+
+    function asStringArray(v) {
+      if (!Array.isArray(v)) return [];
+      return v.map(x => (typeof x === 'string' ? x.trim() : '')).filter(Boolean);
+    }
+
+    function asText(v) {
+      return typeof v === 'string' ? v.trim() : '';
+    }
+
+    // 応答を、表示と保存が前提にできる形に揃える。読み取れなければ null を返す。
+    function parseFeedback(raw) {
+      const json = extractJsonObject(raw);
+      if (json === null) return null;
+
+      let data;
+      try { data = JSON.parse(json); } catch { return null; }
+      if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+      const issues = Array.isArray(data.issues) ? data.issues : [];
+      return {
+        corrected_text: asText(data.corrected_text),
+        issues: issues
+          .map(it => {
+            const type = asText(it && it.type).toLowerCase();
+            return {
+              type:       EN_TYPES.includes(type) ? type : 'phrasing',
+              original:   asText(it && it.original),
+              suggestion: asText(it && it.suggestion),
+              reason:     asText(it && it.reason),
+            };
+          })
+          .filter(it => it.original && it.suggestion),
+        recurring:         asStringArray(data.recurring),
+        recognition_doubt: asStringArray(data.recognition_doubt),
+        good:              asText(data.good),
+      };
+    }
+
+    // 指摘を1行の文字列にする。これが繰り返し判定のキーにもなる
+    function recurringText(issue) {
+      return `${issue.original} → ${issue.suggestion}`;
+    }
+
+    function recurringKey(text) {
+      return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    // 今回の指摘を繰り返しリストへ反映する。
+    // 1回目は count:1 で控えるだけで、EN_RECURRING_MIN 回に達したものが Gemini に渡る対象になる。
+    function promoteRecurring(prev, issues, today) {
+      const list  = (Array.isArray(prev) ? prev : []).map(r => ({ ...r }));
+      const index = new Map(list.map((r, i) => [recurringKey(r.text), i]));
+      const seen  = new Set();
+
+      for (const issue of (issues || [])) {
+        const text = recurringText(issue);
+        const key  = recurringKey(text);
+        if (!key || seen.has(key)) continue;   // 同じセッション内の重複は1回と数える
+        seen.add(key);
+
+        const at = index.get(key);
+        if (at === undefined) {
+          index.set(key, list.length);
+          list.push({ text, count: 1, last_seen: today });
+        } else {
+          list[at].count    = (list[at].count || 0) + 1;
+          list[at].last_seen = today;
+        }
+      }
+      return list;
+    }
+
+    // Gemini に渡すのは「2回以上出たもの」の上位だけ。履歴の全文は渡さない
+    function topRecurring(list, limit = EN_RECURRING_SEND, min = EN_RECURRING_MIN) {
+      return (Array.isArray(list) ? list : [])
+        .filter(r => (r.count || 0) >= min)
+        .sort((a, b) => (b.count - a.count) || String(a.text).localeCompare(String(b.text)))
+        .slice(0, limit);
+    }
+
+    // 直近 EN_KEEP_FULL 件は全文、それ以前は transcript と corrected_text を捨てて
+    // issues の type と suggestion だけ残す。保存のたびに走らせる
+    function foldSessions(sessions, keepFull = EN_KEEP_FULL, keepTotal = EN_KEEP_TOTAL) {
+      const list = Array.isArray(sessions) ? sessions : [];
+      return list.slice(0, keepTotal).map((s, i) => {
+        if (i < keepFull || s.folded) return s;
+        return {
+          id: s.id,
+          folded: true,
+          issues: (s.issues || []).map(it => ({ type: it.type, suggestion: it.suggestion })),
+        };
+      });
+    }
+
+    // Gemini へ渡すユーザーメッセージ。過去のセッション全文は渡さない
+    function buildEnglishUserMessage(transcript, recurring) {
+      const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
+      return `## 今回の独り言（音声認識結果）
+${String(transcript).trim()}
+
+## これまでに繰り返し指摘されている点
+${lines.length ? lines.join('\n') : 'なし'}`;
+    }
+    // ===== 英語学習モードのロジック（ここまで）=====
+
+    function englishRecogLang() {
+      // 設定が en-GB などならそれを尊重する。それ以外（日本語など）は en-US で聞く
+      return recogLang.startsWith('en') ? recogLang : 'en-US';
+    }
+
+    function todayStamp() {
+      const d = new Date();
+      const p = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    }
+
+    async function runEnglishFeedback() {
+      const text = transcript.trim();
+      if (!text) return;
+
+      enBusy  = true;
+      enError = '';
+      renderEnglish();
+      showToast('🧠 フィードバックを作成中...', 'info');
+
+      const userMessage = buildEnglishUserMessage(text, topRecurring(enRecurring));
+
+      try {
+        // Google検索ツールは要らないので tools は空で送る（そのぶん課金も減る）
+        const data = await callAI(
+          [{ role: 'user', parts: [{ text: userMessage }] }],
+          { systemInstruction: { parts: [{ text: EN_SYSTEM_PROMPT }] }, tools: [] }
+        );
+        if (!data.success) throw new Error(data.error);
+
+        const fb = parseFeedback(data.text);
+        // JSON として読めないものは表示しない（前置きや回答をそのまま出すと嘘を教えることになる）
+        if (!fb) throw new Error('AIの応答を読み取れませんでした。もう一度お試しください。');
+
+        enSessions.unshift({
+          id:                new Date().toISOString(),
+          transcript:        text,
+          corrected_text:    fb.corrected_text,
+          issues:            fb.issues,
+          recognition_doubt: fb.recognition_doubt,
+          good:              fb.good,
+        });
+        enSessions  = foldSessions(enSessions);
+        enRecurring = promoteRecurring(enRecurring, fb.issues, todayStamp());
+        saveEnglish();
+
+        enLatest = fb;
+        enBusy   = false;
+
+        // 次の録音のために書き起こしだけ空にする。フィードバックは読み終わるまで残す
+        transcript = '';
+        saveTranscript();
+        renderTranscript();
+        enLive.textContent = '';
+        renderEnglish();
+        panelEnglish.scrollTop = 0;
+      } catch (err) {
+        // 失敗したときは書き起こしを消さない（話した内容を失わせない）
+        enBusy  = false;
+        enError = err.message;
+        renderEnglish();
+        showToast('フィードバックのエラー: ' + err.message, 'error');
+      }
+    }
+
+    // ── 英語学習モードの表示 ──
+    function enNote(text, cls = '') {
+      const el = document.createElement('div');
+      el.className = 'en-note' + (cls ? ' ' + cls : '');
+      el.textContent = text;
+      return el;
+    }
+
+    function enSection(title) {
+      const sec = document.createElement('section');
+      sec.className = 'en-section';
+      const h = document.createElement('div');
+      h.className = 'en-section-title';
+      h.textContent = title;
+      sec.appendChild(h);
+      return sec;
+    }
+
+    function enList(items, cls) {
+      const ul = document.createElement('ul');
+      ul.className = cls;
+      items.forEach(t => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        ul.appendChild(li);
+      });
+      return ul;
+    }
+
+    const EN_TYPE_LABEL = { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' };
+    const EN_FINEPRINT = '※ 音声はAIに送っていないため、発音の評価は行いません。テキストの内容だけを見ています。';
+
+    function renderEnglish() {
+      enFeedbackEl.innerHTML = '';
+
+      if (enBusy)      { enFeedbackEl.appendChild(enNote('🧠 フィードバックを作成中...')); return; }
+      if (!getToken()) { enFeedbackEl.appendChild(enNote('合言葉が未設定です。⚙️ 設定から入力してください。')); return; }
+      if (enError)     { enFeedbackEl.appendChild(enNote(enError, 'en-error')); }
+
+      const fb = enLatest;
+      if (!fb) {
+        if (!enError) enFeedbackEl.appendChild(enNote('「▶ 開始」を押して、英語で独り言を話してください。停止するとフィードバックが出ます。'));
+        enFeedbackEl.appendChild(enNote(EN_FINEPRINT, 'en-fineprint'));
+        return;
+      }
+
+      // 表示順は good → issues → recurring → corrected_text
+      if (fb.good) {
+        const sec = enSection('よかった点');
+        const p = document.createElement('p');
+        p.className = 'en-good';
+        p.textContent = fb.good;
+        sec.appendChild(p);
+        enFeedbackEl.appendChild(sec);
+      }
+
+      {
+        const sec = enSection('指摘');
+        if (fb.issues.length === 0) {
+          sec.appendChild(enNote('今回の指摘はありません。'));
+        } else {
+          fb.issues.forEach(it => {
+            const card = document.createElement('div');
+            card.className = 'en-issue';
+
+            const badge = document.createElement('span');
+            badge.className = 'en-badge en-badge-' + it.type;
+            badge.textContent = EN_TYPE_LABEL[it.type] || EN_TYPE_LABEL.phrasing;
+
+            const swap = document.createElement('div');
+            swap.className = 'en-swap';
+            const from = document.createElement('span');
+            from.className = 'en-from';
+            from.textContent = it.original;
+            const arrow = document.createElement('span');
+            arrow.className = 'en-arrow';
+            arrow.textContent = '→';
+            const to = document.createElement('span');
+            to.className = 'en-to';
+            to.textContent = it.suggestion;
+            swap.append(from, arrow, to);
+
+            card.appendChild(badge);
+            card.appendChild(swap);
+            if (it.reason) {
+              const why = document.createElement('p');
+              why.className = 'en-reason';
+              why.textContent = it.reason;
+              card.appendChild(why);
+            }
+            sec.appendChild(card);
+          });
+        }
+        enFeedbackEl.appendChild(sec);
+      }
+
+      if (fb.recurring.length > 0) {
+        const sec = enSection('繰り返し出ている点');
+        sec.appendChild(enList(fb.recurring, 'en-recurring'));
+        enFeedbackEl.appendChild(sec);
+      }
+
+      // iPhone の音声認識は Mac の Chrome より精度が落ちるので、聞き取りが怪しい箇所を出す。
+      // 「発音が違う」とは言わせない（言えない）。認識結果の事実だけを見せる
+      if (fb.recognition_doubt.length > 0) {
+        const sec = enSection('聞き取りが怪しい箇所');
+        sec.appendChild(enList(fb.recognition_doubt, 'en-doubt'));
+        sec.appendChild(enNote('音声認識がこう聞き取った箇所です。指摘としては数えていません。', 'en-fineprint'));
+        enFeedbackEl.appendChild(sec);
+      }
+
+      if (fb.corrected_text) {
+        const sec = enSection('修正版（音読用）');
+        const p = document.createElement('p');
+        p.className = 'en-corrected';
+        p.textContent = fb.corrected_text;
+        sec.appendChild(p);
+
+        const btn = document.createElement('button');
+        btn.className = 'history-copy-btn';
+        btn.textContent = '📋 コピー';
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(fb.corrected_text).then(() => {
+            btn.textContent = '✓ コピー済';
+            setTimeout(() => { btn.textContent = '📋 コピー'; }, 1500);
+          }).catch(() => {
+            // iOS Safari でコピーに失敗したときは選択してもらう
+            const range = document.createRange();
+            range.selectNodeContents(p);
+            const sel = window.getSelection();
+            sel.removeAllRanges(); sel.addRange(range);
+            showToast('テキストを選択しました。長押しでコピーしてください', 'info');
+          });
+        });
+        sec.appendChild(btn);
+        enFeedbackEl.appendChild(sec);
+      }
+
+      enFeedbackEl.appendChild(enNote(EN_FINEPRINT, 'en-fineprint'));
+    }
+
+    function renderEnglishHistory() {
+      const recurring = topRecurring(enRecurring);
+      if (recurring.length > 0) {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+        const meta = document.createElement('div');
+        meta.className = 'history-meta';
+        meta.textContent = '繰り返し出ている点';
+        card.appendChild(meta);
+        card.appendChild(enList(recurring.map(r => `${r.text}（${r.count} 回）`), 'en-recurring'));
+        panelHistory.appendChild(card);
+      }
+
+      if (enSessions.length === 0) {
+        panelHistory.appendChild(enNote('英語学習の記録はまだありません'));
+        return;
+      }
+
+      enSessions.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'history-card';
+
+        const meta = document.createElement('div');
+        meta.className = 'history-meta';
+        const when = new Date(s.id);
+        const label = isNaN(when) ? String(s.id)
+          : when.toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        meta.textContent = `${label}　指摘 ${(s.issues || []).length} 件`;
+        card.appendChild(meta);
+
+        const body = document.createElement('div');
+        body.className = 'history-body';
+        if (s.folded) {
+          const lines = (s.issues || []).map(it => it.suggestion).filter(Boolean);
+          body.textContent = lines.length ? lines.join(' / ') : '（古い記録：指摘のみ）';
+          card.appendChild(body);
+          panelHistory.appendChild(card);
+          return;
+        }
+
+        const text = s.corrected_text || s.transcript || '';
+        body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+        card.appendChild(body);
+
+        // 修正版だけでなく、何を直したのかも履歴から見返せるようにする。
+        // コピーは従来どおり修正版だけにして、音読用の使い方は変えない。
+        if ((s.issues || []).length > 0) {
+          const title = document.createElement('div');
+          title.className = 'en-section-title';
+          title.textContent = '指摘';
+          card.appendChild(title);
+
+          const issues = document.createElement('ul');
+          issues.className = 'en-recurring';
+          s.issues.forEach(it => {
+            const li = document.createElement('li');
+            li.textContent = `${it.original} → ${it.suggestion}${it.reason ? ` — ${it.reason}` : ''}`;
+            issues.appendChild(li);
+          });
+          card.appendChild(issues);
+        }
+
+        if (s.corrected_text) {
+          const btn = document.createElement('button');
+          btn.className = 'history-copy-btn';
+          btn.textContent = '📋 コピー';
+          btn.addEventListener('click', () => {
+            navigator.clipboard.writeText(s.corrected_text).then(() => {
+              btn.textContent = '✓ コピー済';
+              setTimeout(() => { btn.textContent = '📋 コピー'; }, 1500);
+            }).catch(() => showToast('コピーに失敗しました', 'error'));
+          });
+          card.appendChild(btn);
+        }
+        panelHistory.appendChild(card);
+      });
     }
 
     // ============================================================
@@ -854,6 +1424,12 @@ ${text}
     });
     document.getElementById('mode-hd-btn').addEventListener('click', () => {
       currentMode = 'helpdesk'; localStorage.setItem('mamoru_mode', 'helpdesk');
+      settingsOverlay.classList.remove('open');
+      initMode();
+    });
+    document.getElementById('mode-en-btn').addEventListener('click', () => {
+      currentMode = 'english'; localStorage.setItem('mamoru_mode', 'english');
+      enError = '';
       settingsOverlay.classList.remove('open');
       initMode();
     });
