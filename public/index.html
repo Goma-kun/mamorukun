@@ -56,6 +56,18 @@
 
     /* ── 履歴パネル ── */
     #panel-history { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+    .history-switch {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+      background: #0f172a; border: 1px solid #1e293b;
+      border-radius: 10px; padding: 4px; flex-shrink: 0;
+    }
+    .history-switch button {
+      background: none; border: none; border-radius: 8px;
+      color: #64748b; font-size: 13px; font-weight: 700;
+      padding: 9px 4px; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .history-switch button.active { background: #1e293b; color: #38bdf8; }
     .history-empty { color: #475569; font-size: 14px; text-align: center; padding: 40px 16px; }
     .history-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
     .history-meta { color: #64748b; font-size: 12px; font-weight: 700; }
@@ -246,7 +258,7 @@
 <body>
   <div id="wrapper">
     <header id="header">
-      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.3</span></h1>
+      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.4</span></h1>
       <button id="settings-btn">⚙️</button>
     </header>
 
@@ -493,6 +505,7 @@ ${text}
     let enLatest    = null; // 画面に出している直近のフィードバック
     let enBusy      = false;
     let enError     = '';
+    let historyView = 'memo';   // 履歴タブで見ている側（'memo' | 'english'）
 
     // ヘルプデスク用
     let aiChatContext  = [];
@@ -512,11 +525,9 @@ ${text}
       try { enRecurring = JSON.parse(localStorage.getItem('en_recurring') || '[]'); } catch(e) { enRecurring = []; }
       if (!Array.isArray(enSessions))  enSessions  = [];
       if (!Array.isArray(enRecurring)) enRecurring = [];
-      // 直近のフィードバックは履歴の先頭から戻す（全文が残っているものだけ）
-      const last = enSessions[0];
-      enLatest = last && !last.folded
-        ? { corrected_text: last.corrected_text || '', issues: last.issues || [], recurring: [], wanted_to_say: last.wanted_to_say || [], recognition_doubt: last.recognition_doubt || [], good: last.good || '' }
-        : null;
+      // 前回のフィードバックは戻さない。開いた時点では常に「話してください」の状態にする
+      enLatest = null;
+      historyView = currentMode === 'english' ? 'english' : 'memo';
     }
     function saveEnglish() {
       localStorage.setItem('en_sessions',  JSON.stringify(enSessions));
@@ -567,7 +578,7 @@ ${text}
 
       if (currentMode === 'memo') {
         tabBar.style.gridTemplateColumns = '1fr 1fr';
-        addTab('tab-transcript', '🎙️', 'ログ', 'transcript');
+        addTab('tab-transcript', '🎙️', 'メモ', 'transcript');
         addTab('tab-history',    '🕐', '履歴', 'history');
         hdInputArea.style.display = 'none';
         hdSubBtns.style.display   = 'none';
@@ -615,8 +626,18 @@ ${text}
       const tab = document.getElementById(tabMap[id]);
       if (tab) tab.classList.add('active');
 
-      if (id === 'history') renderHistory();
-      if (id === 'english') renderEnglish();
+      if (id === 'history') {
+        historyView = currentMode === 'english' ? 'english' : 'memo';   // 今いるモードの側を見せる
+        renderHistory();
+      }
+      if (id === 'english') {
+        // 開いた時点では常に「話してください」の状態にする。
+        // 前回のフィードバックが残っていると、何の画面か分からなくなるため。
+        // 読み返しは履歴タブから（指摘つきで全部残っている）
+        enLatest = null;
+        enError  = '';
+        renderEnglish();
+      }
     }
 
     // ============================================================
@@ -648,8 +669,30 @@ ${text}
     // ============================================================
     function renderHistory() {
       panelHistory.innerHTML = '';
-      // 英語学習モードのときは英語のセッション記録を出す
-      if (currentMode === 'english') { renderEnglishHistory(); return; }
+      panelHistory.appendChild(historySwitch());
+      if (historyView === 'english') { renderEnglishHistory(); return; }
+      renderMemoHistory();
+    }
+
+    // 「メモ／独り言」の切り替え。中身の性質が違うので、1か所にまとめつつ混ぜない
+    function historySwitch() {
+      const wrap = document.createElement('div');
+      wrap.className = 'history-switch';
+      [['memo', 'メモ'], ['english', '独り言']].forEach(([view, label]) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.className = historyView === view ? 'active' : '';
+        btn.addEventListener('click', () => {
+          if (historyView === view) return;
+          historyView = view;
+          renderHistory();
+        });
+        wrap.appendChild(btn);
+      });
+      return wrap;
+    }
+
+    function renderMemoHistory() {
       if (!history.length) {
         const e = document.createElement('div');
         e.className = 'history-empty';
@@ -1255,6 +1298,13 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
       const fb = enLatest;
       if (!fb) {
         if (!enError) enFeedbackEl.appendChild(enNote('「▶ 開始」を押して、英語で独り言を話してください。停止するとフィードバックが出ます。'));
+        // 話す前に、これまで繰り返し出ている癖を出しておく
+        const recurring = topRecurring(enRecurring, 3);
+        if (recurring.length > 0) {
+          const sec = enSection('繰り返し出ている点');
+          sec.appendChild(enList(recurring.map(r => `${r.text}（${r.count} 回）`), 'en-recurring'));
+          enFeedbackEl.appendChild(sec);
+        }
         enFeedbackEl.appendChild(enNote(EN_FINEPRINT, 'en-fineprint'));
         return;
       }
