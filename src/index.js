@@ -18,6 +18,28 @@ export default {
 };
 
 async function handleChatProxy(request, env) {
+  // 合言葉の確認。
+  // Gemini のキーはこの Worker 側に置いてあるので、誰でも叩ける状態にしておくと
+  // こちらの課金で使われてしまう。本人だけが通れるようにしている。
+  const expected = env.APP_TOKEN;
+  if (!expected) {
+    return json(
+      {
+        error: {
+          message:
+            "Server configuration error: APP_TOKEN is not set on this Worker.",
+        },
+      },
+      { status: 500 }
+    );
+  }
+  if (request.headers.get("X-App-Token") !== expected) {
+    return json(
+      { error: { message: "合言葉が違います。⚙️ 設定から入れ直してください。" } },
+      { status: 401 }
+    );
+  }
+
   let payload;
   try {
     payload = await request.json();
