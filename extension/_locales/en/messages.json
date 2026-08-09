@@ -4,7 +4,7 @@
   "actionTitle":    { "message": "Mamorukun" },
 
   "appTitle":     { "message": "🛡️ Mamorukun" },
-  "tabLog":       { "message": "Log" },
+  "tabLog":       { "message": "Memo" },
   "tabEnglish":   { "message": "Self-talk" },
   "tabHistory":   { "message": "History" },
   "btnStart":     { "message": "▶ Start" },
@@ -47,6 +47,7 @@
   "enWanted":          { "message": "What you tried to say" },
   "enDoubt":           { "message": "Possible misrecognitions" },
   "enDoubtNote":       { "message": "This is what speech recognition heard. It is not counted as your mistake." },
+  "historyOf":         { "message": "$WHAT$ history", "placeholders": { "what": { "content": "$1" } } },
   "enFolded":        { "message": "(older entry: suggestions only)" },
   "enIssueCount":    { "message": "$N$ suggestion(s)", "placeholders": { "n": { "content": "$1" } } },
   "enTimes":         { "message": "$N$ times", "placeholders": { "n": { "content": "$1" } } },

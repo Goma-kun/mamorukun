@@ -29,6 +29,7 @@ let enRecurring    = [];        // 繰り返し出ている指摘
 let enLatest       = null;      // 画面に出している直近のフィードバック
 let enBusy         = false;
 let enError        = '';
+let historyView    = 'clean';   // 履歴タブで見ている側（'clean' | 'english'）
 
 
 // ============================================================
@@ -67,11 +68,9 @@ async function loadStorage() {
   mode        = d.mamoru_mode === 'english' ? 'english' : 'clean';
   enSessions  = Array.isArray(d.en_sessions)  ? d.en_sessions  : [];
   enRecurring = Array.isArray(d.en_recurring) ? d.en_recurring : [];
-  // 直近のフィードバックは履歴の先頭から戻す（全文が残っているものだけ）
-  const last = enSessions[0];
-  enLatest = last && !last.folded
-    ? { corrected_text: last.corrected_text || '', issues: last.issues || [], recurring: [], wanted_to_say: last.wanted_to_say || [], recognition_doubt: last.recognition_doubt || [], good: last.good || '' }
-    : null;
+  // 前回のフィードバックは戻さない。開いた時点では常に「話してください」の状態にする
+  enLatest    = null;
+  historyView = mode;
 }
 
 function saveTranscript() {
@@ -126,10 +125,16 @@ function switchPanel(id) {
   } else if (id === 'english') {
     panelEnglish.style.display = 'block';
     tabEnglish.classList.add('active');
+    // 開いた時点では常に「話してください」の状態にする。
+    // 前回のフィードバックが残っていると、何の画面か分からなくなるため。
+    // 読み返しは履歴タブから（指摘つきで全部残っている）
+    enLatest = null;
+    enError  = '';
     renderEnglish();
   } else if (id === 'history') {
     panelHistory.style.display = 'block';
     tabHistory.classList.add('active');
+    historyView = mode;   // 開いたときは今いるモードの側を見せる
     renderHistory();
   }
 }
@@ -175,10 +180,31 @@ function scrollTranscriptToBottom() {
 // ============================================================
 function renderHistory() {
   panelHistory.innerHTML = '';
+  panelHistory.appendChild(historySwitch());
+  if (historyView === 'english') renderEnglishHistory();
+  else renderCleanHistory();
+}
 
-  // 英語学習モードのときは英語のセッション記録を出す
-  if (mode === 'english') { renderEnglishHistory(); return; }
+// 「メモ／独り言」の切り替え。中身の性質が違うので、1か所にまとめつつ混ぜない
+function historySwitch() {
+  const wrap = document.createElement('div');
+  wrap.className = 'history-switch';
 
+  [['clean', T('tabLog')], ['english', T('tabEnglish')]].forEach(([view, label]) => {
+    const btn = document.createElement('button');
+    btn.textContent = label;
+    btn.className = historyView === view ? 'active' : '';
+    btn.addEventListener('click', () => {
+      if (historyView === view) return;
+      historyView = view;
+      renderHistory();
+    });
+    wrap.appendChild(btn);
+  });
+  return wrap;
+}
+
+function renderCleanHistory() {
   if (history.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'history-empty';
@@ -867,6 +893,21 @@ function renderEnglish() {
   const fb = enLatest;
   if (!fb) {
     if (!enError) enFeedback.appendChild(enNote(T('enHint')));
+    // 話す前に、これまで繰り返し出ている癖を出しておく。
+    // 「今日はここに気をつけて話す」の materials になる
+    const recurring = topRecurring(enRecurring, 3);
+    if (recurring.length > 0) {
+      const sec = enSection(T('enRecurring'));
+      const ul = document.createElement('ul');
+      ul.className = 'en-recurring';
+      recurring.forEach(r => {
+        const li = document.createElement('li');
+        li.textContent = `${r.text}（${T('enTimes', String(r.count))}）`;
+        ul.appendChild(li);
+      });
+      sec.appendChild(ul);
+      enFeedback.appendChild(sec);
+    }
     enFeedback.appendChild(enNote(T('enNoPronunciation'), 'en-fineprint'));
     return;
   }

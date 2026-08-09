@@ -4,7 +4,7 @@
   "actionTitle":    { "message": "まもるくん" },
 
   "appTitle":     { "message": "🛡️ まもるくん" },
-  "tabLog":       { "message": "ログ" },
+  "tabLog":       { "message": "メモ" },
   "tabEnglish":   { "message": "独り言" },
   "tabHistory":   { "message": "履歴" },
   "btnStart":     { "message": "▶ 開始" },
@@ -47,6 +47,7 @@
   "enWanted":          { "message": "日本語で言いたかったこと" },
   "enDoubt":           { "message": "聞き取りが怪しい箇所" },
   "enDoubtNote":       { "message": "音声認識がこう聞き取った箇所です。あなたの誤りとしては数えていません。" },
+  "historyOf":         { "message": "$WHAT$ の記録", "placeholders": { "what": { "content": "$1" } } },
   "enFolded":        { "message": "（古い記録：指摘のみ）" },
   "enIssueCount":    { "message": "指摘 $N$ 件", "placeholders": { "n": { "content": "$1" } } },
   "enTimes":         { "message": "$N$ 回", "placeholders": { "n": { "content": "$1" } } },
