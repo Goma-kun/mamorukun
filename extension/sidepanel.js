@@ -652,6 +652,33 @@ function foldSessions(sessions, keepFull = EN_KEEP_FULL, keepTotal = EN_KEEP_TOT
   });
 }
 
+// 履歴からコピーするときの本文。修正版だけでなく、何をどう直されたのかも持ち出せるようにする。
+// （独り言タブのコピーは音読用なので修正版だけ。用途が違うので分けている）
+// 見出しは表示言語に合わせて呼び出し側から渡す
+function buildSessionText(session, labels) {
+  const s = session || {};
+  const L = labels || {};
+  const out = [];
+
+  if (s.corrected_text) out.push(`【${L.corrected}】\n${s.corrected_text}`);
+
+  const issues = s.issues || [];
+  if (issues.length > 0) {
+    const lines = issues.map((it, i) => {
+      // 畳んだ古い記録は suggestion しか残っていない
+      const head = it.original ? `${it.original}\n   → ${it.suggestion}` : `→ ${it.suggestion}`;
+      const type = L.types && L.types[it.type] ? `[${L.types[it.type]}] ` : '';
+      return `${i + 1}. ${type}${head}${it.reason ? `\n   ${it.reason}` : ''}`;
+    });
+    out.push(`【${L.issues}】\n${lines.join('\n\n')}`);
+  }
+
+  if (s.good) out.push(`【${L.good}】\n${s.good}`);
+  if (s.transcript) out.push(`【${L.said}】\n${s.transcript.trim()}`);
+
+  return out.join('\n\n');
+}
+
 // Gemini へ渡すユーザーメッセージ。過去のセッション全文は渡さない
 function buildEnglishUserMessage(transcript, recurring) {
   const lines = (recurring || []).map(r => `- ${r.text}（${r.count} 回）`);
@@ -915,6 +942,8 @@ function renderEnglishHistory() {
       const lines = (s.issues || []).map(it => it.suggestion).filter(Boolean);
       body.textContent = lines.length ? lines.join(' / ') : T('enFolded');
       card.appendChild(body);
+      const foldedBtn = enHistoryCopyBtn(s);
+      if (foldedBtn) card.appendChild(foldedBtn);
       panelHistory.appendChild(card);
       return;
     }
@@ -943,20 +972,40 @@ function renderEnglishHistory() {
       card.appendChild(issues);
     }
 
-    if (s.corrected_text) {
-      const btn = document.createElement('button');
-      btn.className = 'history-copy-btn';
-      btn.textContent = T('btnCopy');
-      btn.addEventListener('click', () => {
-        navigator.clipboard.writeText(s.corrected_text).then(() => {
-          btn.textContent = T('btnCopied');
-          setTimeout(() => { btn.textContent = T('btnCopy'); }, 1500);
-        }).catch(() => showToast(T('copyFailed'), 'error'));
-      });
-      card.appendChild(btn);
-    }
+    const btn = enHistoryCopyBtn(s);
+    if (btn) card.appendChild(btn);
     panelHistory.appendChild(card);
   });
+}
+
+// コピーの見出し。表示言語に合わせる
+function enCopyLabels() {
+  return {
+    corrected: T('enLabelCorrected'),
+    issues:    T('enIssues'),
+    good:      T('enGood'),
+    said:      T('enLabelSaid'),
+    types: { phrasing: T('typePhrasing'), vocabulary: T('typeVocabulary'), grammar: T('typeGrammar') },
+  };
+}
+
+// 履歴のコピーは指摘つき。あとから見返して使えるように、何を直されたのかも持ち出す
+function enHistoryCopyBtn(session) {
+  const text = buildSessionText(session, enCopyLabels());
+  if (!text) return null;
+
+  const btn = document.createElement('button');
+  btn.className = 'history-copy-btn';
+  btn.textContent = T('btnCopyWithIssues');
+  btn.addEventListener('click', () => {
+    // 清書モードと違い、末尾に目印（U+200B）は付けない。
+    // 付けると自動貼り付けツールが拾ってしまうため
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = T('btnCopied');
+      setTimeout(() => { btn.textContent = T('btnCopyWithIssues'); }, 1500);
+    }).catch(() => showToast(T('copyFailed'), 'error'));
+  });
+  return btn;
 }
 
 // ============================================================

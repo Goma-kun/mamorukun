@@ -245,7 +245,7 @@
 <body>
   <div id="wrapper">
     <header id="header">
-      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.1</span></h1>
+      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.2</span></h1>
       <button id="settings-btn">⚙️</button>
     </header>
 
@@ -827,7 +827,8 @@ ${text}
       showToast('✍️ 清書中...', 'info');
       const prompt = buildPrompt(recogLang, transcript);
       try {
-        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }]);
+        // 手元のログを整えるだけなので Google 検索ツールは要らない（そのぶん課金も減る）
+        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }], { tools: [] });
         if (!data.success) throw new Error(data.error);
         pendingClean = data.text || '';
         addToHistory(transcript, pendingClean);
@@ -1041,6 +1042,33 @@ ${text}
           issues: (s.issues || []).map(it => ({ type: it.type, suggestion: it.suggestion })),
         };
       });
+    }
+
+    // 履歴からコピーするときの本文。修正版だけでなく、何をどう直されたのかも持ち出せるようにする。
+    // （独り言タブのコピーは音読用なので修正版だけ。用途が違うので分けている）
+    // 見出しは表示言語に合わせて呼び出し側から渡す
+    function buildSessionText(session, labels) {
+      const s = session || {};
+      const L = labels || {};
+      const out = [];
+
+      if (s.corrected_text) out.push(`【${L.corrected}】\n${s.corrected_text}`);
+
+      const issues = s.issues || [];
+      if (issues.length > 0) {
+        const lines = issues.map((it, i) => {
+          // 畳んだ古い記録は suggestion しか残っていない
+          const head = it.original ? `${it.original}\n   → ${it.suggestion}` : `→ ${it.suggestion}`;
+          const type = L.types && L.types[it.type] ? `[${L.types[it.type]}] ` : '';
+          return `${i + 1}. ${type}${head}${it.reason ? `\n   ${it.reason}` : ''}`;
+        });
+        out.push(`【${L.issues}】\n${lines.join('\n\n')}`);
+      }
+
+      if (s.good) out.push(`【${L.good}】\n${s.good}`);
+      if (s.transcript) out.push(`【${L.said}】\n${s.transcript.trim()}`);
+
+      return out.join('\n\n');
     }
 
     // Gemini へ渡すユーザーメッセージ。過去のセッション全文は渡さない
@@ -1296,6 +1324,8 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
           const lines = (s.issues || []).map(it => it.suggestion).filter(Boolean);
           body.textContent = lines.length ? lines.join(' / ') : '（古い記録：指摘のみ）';
           card.appendChild(body);
+          const foldedBtn = enHistoryCopyBtn(s);
+          if (foldedBtn) card.appendChild(foldedBtn);
           panelHistory.appendChild(card);
           return;
         }
@@ -1322,20 +1352,36 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
           card.appendChild(issues);
         }
 
-        if (s.corrected_text) {
-          const btn = document.createElement('button');
-          btn.className = 'history-copy-btn';
-          btn.textContent = '📋 コピー';
-          btn.addEventListener('click', () => {
-            navigator.clipboard.writeText(s.corrected_text).then(() => {
-              btn.textContent = '✓ コピー済';
-              setTimeout(() => { btn.textContent = '📋 コピー'; }, 1500);
-            }).catch(() => showToast('コピーに失敗しました', 'error'));
-          });
-          card.appendChild(btn);
-        }
+        const btn = enHistoryCopyBtn(s);
+        if (btn) card.appendChild(btn);
         panelHistory.appendChild(card);
       });
+    }
+
+    // コピーの見出し
+    const EN_COPY_LABELS = {
+      corrected: '修正版',
+      issues:    '指摘',
+      good:      'よかった点',
+      said:      '話した内容（音声認識の結果）',
+      types:     EN_TYPE_LABEL,
+    };
+
+    // 履歴のコピーは指摘つき。あとから見返して使えるように、何を直されたのかも持ち出す
+    function enHistoryCopyBtn(session) {
+      const text = buildSessionText(session, EN_COPY_LABELS);
+      if (!text) return null;
+
+      const btn = document.createElement('button');
+      btn.className = 'history-copy-btn';
+      btn.textContent = '📋 コピー（指摘つき）';
+      btn.addEventListener('click', () => {
+        navigator.clipboard.writeText(text).then(() => {
+          btn.textContent = '✓ コピー済';
+          setTimeout(() => { btn.textContent = '📋 コピー（指摘つき）'; }, 1500);
+        }).catch(() => showToast('コピーに失敗しました', 'error'));
+      });
+      return btn;
     }
 
     // ============================================================
@@ -1356,6 +1402,8 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
       const trimmed = aiChatContext.slice(-10);
 
       try {
+        // ここだけ Google 検索ツールを残している。
+        // ヘルプデスクの質問はログの外（一般的な調べ物）に及ぶことがあるため
         const data = await callAI(trimmed);
         const reply = data.success ? data.text : 'エラー: ' + data.error;
         appendMsg(panelChat, 'AI', reply, 'ai-message');
@@ -1377,7 +1425,8 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
       showToast('📝 要約中...', 'info');
       const prompt = `以下のログの誤字脱字を修正し、重要なポイントを箇条書きで要約してください。\n\n${transcript}`;
       try {
-        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }]);
+        // 手元のログを整えるだけなので Google 検索ツールは要らない（そのぶん課金も減る）
+        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }], { tools: [] });
         panelSummary.innerHTML = '';
         appendMsg(panelSummary, '要約', data.success ? data.text : 'エラー: ' + data.error, 'ai-message');
       } catch(err) { showToast('エラー: ' + err.message, 'error'); }
@@ -1390,7 +1439,8 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
       const endTime = new Date().toLocaleString('ja-JP');
       const prompt = `以下の会話から報告書を作成してください（JSON不可）。\n開始: ${startTime} 終了: ${endTime}\n\nログ: ${transcript}\nチャット: ${chatHistory}`;
       try {
-        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }]);
+        // 手元のログを整えるだけなので Google 検索ツールは要らない（そのぶん課金も減る）
+        const data = await callAI([{ role: 'user', parts: [{ text: prompt }] }], { tools: [] });
         const content = data.success ? data.text : transcript;
         const blob = new Blob([content], { type: 'text/plain' });
         const a = document.createElement('a');
