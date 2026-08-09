@@ -95,6 +95,17 @@
       display: -webkit-box; -webkit-line-clamp: 4;
       -webkit-box-orient: vertical; overflow: hidden;
     }
+    /* 「全文」で畳みを解除する。コピーして貼らないと読めない状態を避けるため */
+    .history-body.expanded {
+      display: block; -webkit-line-clamp: unset; overflow: visible;
+    }
+    .history-expand-btn {
+      align-self: flex-start;
+      background: none; border: none; padding: 0;
+      color: #38bdf8; font-size: 11px; font-weight: 700;
+      cursor: pointer;
+    }
+    .history-expand-btn:hover { text-decoration: underline; }
     .history-copy-btn {
       align-self: flex-end;
       background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3);

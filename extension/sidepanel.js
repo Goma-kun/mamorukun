@@ -178,6 +178,30 @@ function scrollTranscriptToBottom() {
 // ============================================================
 // 履歴パネル表示
 // ============================================================
+
+// 履歴の本文。長いものは4行で畳んでおき、「全文」で開けるようにする。
+// 全文を見るのにコピーして貼り付ける必要があった状態を直したもの
+function historyBody(text) {
+  const body = document.createElement('div');
+  body.className = 'history-body';
+  body.textContent = text;
+  return body;
+}
+
+// カードを画面に入れたあとに呼ぶ。実際に畳まれているときだけボタンを出す
+function addExpandBtn(body) {
+  if (body.scrollHeight <= body.clientHeight + 1) return;
+
+  const btn = document.createElement('button');
+  btn.className = 'history-expand-btn';
+  btn.textContent = T('btnExpand');
+  btn.addEventListener('click', () => {
+    const open = body.classList.toggle('expanded');
+    btn.textContent = open ? T('btnCollapse') : T('btnExpand');
+  });
+  body.insertAdjacentElement('afterend', btn);
+}
+
 function renderHistory() {
   panelHistory.innerHTML = '';
   panelHistory.appendChild(historySwitch());
@@ -221,10 +245,8 @@ function renderCleanHistory() {
     meta.className = 'history-meta';
     meta.textContent = entry.date + (entry.cleaned ? T('historyCleaned') : T('historyLogOnly'));
 
-    const body = document.createElement('div');
-    body.className = 'history-body';
     const text = entry.cleaned || entry.transcript;
-    body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+    const body = historyBody(text);
 
     const copyBtn = document.createElement('button');
     copyBtn.className = 'history-copy-btn';
@@ -240,6 +262,7 @@ function renderCleanHistory() {
     card.appendChild(body);
     card.appendChild(copyBtn);
     panelHistory.appendChild(card);
+    addExpandBtn(body);
   });
 }
 
@@ -1018,21 +1041,17 @@ function renderEnglishHistory() {
     card.appendChild(meta);
 
     if (s.folded) {
-      const body = document.createElement('div');
-      body.className = 'history-body';
       const lines = (s.issues || []).map(it => it.suggestion).filter(Boolean);
-      body.textContent = lines.length ? lines.join(' / ') : T('enFolded');
+      const body = historyBody(lines.length ? lines.join(' / ') : T('enFolded'));
       card.appendChild(body);
       const foldedBtn = enHistoryCopyBtn(s);
       if (foldedBtn) card.appendChild(foldedBtn);
       panelHistory.appendChild(card);
+      addExpandBtn(body);
       return;
     }
 
-    const body = document.createElement('div');
-    body.className = 'history-body';
-    const text = s.corrected_text || s.transcript || '';
-    body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+    const body = historyBody(s.corrected_text || s.transcript || '');
     card.appendChild(body);
 
     // 修正版だけでなく、何を直したのかも履歴から見返せるようにする。
@@ -1056,6 +1075,7 @@ function renderEnglishHistory() {
     const btn = enHistoryCopyBtn(s);
     if (btn) card.appendChild(btn);
     panelHistory.appendChild(card);
+    addExpandBtn(body);
   });
 }
 

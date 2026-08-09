@@ -14,6 +14,8 @@
   "historyEmpty":    { "message": "No history yet" },
   "historyCleaned":  { "message": "  ✏️ Cleaned up" },
   "historyLogOnly":  { "message": "  🎙️ Log only" },
+  "btnExpand":         { "message": "Show all" },
+  "btnCollapse":       { "message": "Show less" },
   "btnCopy":         { "message": "📋 Copy" },
   "btnCopied":       { "message": "✓ Copied" },
   "copyFailed":      { "message": "Failed to copy" },

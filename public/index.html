@@ -51,8 +51,8 @@
     #panel-transcript::-webkit-scrollbar { width: 4px; }
     #panel-transcript::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     #transcript-lines { display: flex; flex-direction: column; gap: 6px; min-height: 20px; }
-    .transcript-line { margin: 0; padding: 5px 10px; border-left: 2px solid #334155; color: #cbd5e1; font-size: 14px; line-height: 1.7; word-break: break-all; }
-    #interim-line { padding: 5px 10px; margin-top: 6px; color: #475569; font-style: italic; font-size: 14px; line-height: 1.6; word-break: break-all; min-height: 6px; }
+    .transcript-line { margin: 0; padding: 5px 10px; border-left: 2px solid #334155; color: #cbd5e1; font-size: 14px; line-height: 1.7; word-break: normal; overflow-wrap: anywhere; }
+    #interim-line { padding: 5px 10px; margin-top: 6px; color: #475569; font-style: italic; font-size: 14px; line-height: 1.6; word-break: normal; overflow-wrap: anywhere; min-height: 6px; }
 
     /* ── 履歴パネル ── */
     #panel-history { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
@@ -71,7 +71,14 @@
     .history-empty { color: #475569; font-size: 14px; text-align: center; padding: 40px 16px; }
     .history-card { background: #1e293b; border: 1px solid #334155; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 7px; }
     .history-meta { color: #64748b; font-size: 12px; font-weight: 700; }
-    .history-body { color: #cbd5e1; font-size: 13px; line-height: 1.7; word-break: break-all; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    .history-body { color: #cbd5e1; font-size: 13px; line-height: 1.7; word-break: normal; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+    /* 「全文」で畳みを解除する。コピーして貼らないと読めない状態を避けるため */
+    .history-body.expanded { display: block; -webkit-line-clamp: unset; overflow: visible; }
+    .history-expand-btn {
+      align-self: flex-start; background: none; border: none; padding: 2px 0;
+      color: #38bdf8; font-size: 13px; font-weight: 700; cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
     .history-copy-btn { align-self: flex-end; background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); border-radius: 8px; color: #38bdf8; font-size: 12px; font-weight: 700; padding: 6px 14px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
     .history-copy-btn:active { background: rgba(56,189,248,0.25); }
 
@@ -111,7 +118,7 @@
     .ai-message { background: #1e1b4b; border-left: 4px solid #818cf8; padding: 12px; border-radius: 8px; }
     .user-message { background: #0f766e; border-left: 4px solid #2dd4bf; padding: 12px; border-radius: 8px; }
     .msg-label { font-size: 11px; font-weight: 700; opacity: 0.6; margin-bottom: 4px; }
-    .msg-body { font-size: 13px; line-height: 1.7; word-break: break-all; white-space: pre-wrap; }
+    .msg-body { font-size: 13px; line-height: 1.7; word-break: normal; overflow-wrap: anywhere; white-space: pre-wrap; }
 
     /* ── ヘルプデスク：入力エリア ── */
     #hd-input-area {
@@ -257,7 +264,7 @@
 <body>
   <div id="wrapper">
     <header id="header">
-      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.5</span></h1>
+      <h1 id="app-title">🛡️ まもるくん <span id="app-version" style="font-size:11px;font-weight:600;color:#fbbf24;background:rgba(251,191,36,0.15);padding:2px 6px;border-radius:6px;vertical-align:middle;">v1.5.6</span></h1>
       <button id="settings-btn">⚙️</button>
     </header>
 
@@ -666,6 +673,27 @@ ${text}
     // ============================================================
     // 履歴表示
     // ============================================================
+    // 履歴の本文。長いものは4行で畳んでおき、「全文」で開けるようにする
+    function historyBody(text) {
+      const body = document.createElement('div');
+      body.className = 'history-body';
+      body.textContent = text;
+      return body;
+    }
+
+    // カードを画面に入れたあとに呼ぶ。実際に畳まれているときだけボタンを出す
+    function addExpandBtn(body) {
+      if (body.scrollHeight <= body.clientHeight + 1) return;
+      const btn = document.createElement('button');
+      btn.className = 'history-expand-btn';
+      btn.textContent = '全文';
+      btn.addEventListener('click', () => {
+        const open = body.classList.toggle('expanded');
+        btn.textContent = open ? '閉じる' : '全文';
+      });
+      body.insertAdjacentElement('afterend', btn);
+    }
+
     function renderHistory() {
       panelHistory.innerHTML = '';
       panelHistory.appendChild(historySwitch());
@@ -705,10 +733,8 @@ ${text}
         const meta = document.createElement('div');
         meta.className = 'history-meta';
         meta.textContent = entry.date + (entry.cleaned ? '　✏️ 清書あり' : '　🎙️ ログのみ');
-        const body = document.createElement('div');
-        body.className = 'history-body';
         const text = entry.cleaned || entry.transcript;
-        body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+        const body = historyBody(text);
         const btn = document.createElement('button');
         btn.className = 'history-copy-btn';
         btn.textContent = '📋 コピー';
@@ -720,6 +746,7 @@ ${text}
         });
         card.appendChild(meta); card.appendChild(body); card.appendChild(btn);
         panelHistory.appendChild(card);
+        addExpandBtn(body);
       });
     }
 
@@ -1392,20 +1419,18 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
         meta.textContent = `${label}　指摘 ${(s.issues || []).length} 件`;
         card.appendChild(meta);
 
-        const body = document.createElement('div');
-        body.className = 'history-body';
         if (s.folded) {
           const lines = (s.issues || []).map(it => it.suggestion).filter(Boolean);
-          body.textContent = lines.length ? lines.join(' / ') : '（古い記録：指摘のみ）';
+          const body = historyBody(lines.length ? lines.join(' / ') : '（古い記録：指摘のみ）');
           card.appendChild(body);
           const foldedBtn = enHistoryCopyBtn(s);
           if (foldedBtn) card.appendChild(foldedBtn);
           panelHistory.appendChild(card);
+          addExpandBtn(body);
           return;
         }
 
-        const text = s.corrected_text || s.transcript || '';
-        body.textContent = text.slice(0, 200) + (text.length > 200 ? '…' : '');
+        const body = historyBody(s.corrected_text || s.transcript || '');
         card.appendChild(body);
 
         // 修正版だけでなく、何を直したのかも履歴から見返せるようにする。
@@ -1429,6 +1454,7 @@ ${lines.length ? lines.join('\n') : 'なし'}`;
         const btn = enHistoryCopyBtn(s);
         if (btn) card.appendChild(btn);
         panelHistory.appendChild(card);
+        addExpandBtn(body);
       });
     }
 
