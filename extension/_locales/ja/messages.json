@@ -44,7 +44,6 @@
   "btnCopyWithIssues": { "message": "📋 コピー（指摘つき）" },
   "enLabelCorrected":  { "message": "修正版" },
   "enLabelSaid":       { "message": "話した内容（音声認識の結果）" },
-  "enWanted":          { "message": "日本語で言いたかったこと" },
   "enDoubt":           { "message": "聞き取りが怪しい箇所" },
   "enDoubtNote":       { "message": "音声認識がこう聞き取った箇所です。あなたの誤りとしては数えていません。" },
   "historyOf":         { "message": "$WHAT$ の記録", "placeholders": { "what": { "content": "$1" } } },

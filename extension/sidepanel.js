@@ -544,29 +544,11 @@ take と get の選び違いなど）は、そのまま指摘して構いませ�
 3. 文法の誤り
 4. 繰り返し出ている癖（過去の指摘が渡されている場合はそれと照合する）
 
-## 英語で言えずに日本語のまま言った箇所（上の 4 観点とは別枠）
-
-学習者は、英語が出てこないときに日本語のまま口に出すことがあります。
-音声認識は英語として聞き取っているので、その部分は**日本語のローマ字音写や、
-意味の通らない英単語の並びとして届きます**（例：tanoshikatta、nante iu ndarou、
-「the no she kata」のように英単語へ誤変換されることもあります）。
-
-そういう箇所を見つけたら、その内容を英語でどう言えばよいかを wanted_to_say に入れてください。
-
-- **文脈から意味が取れるときだけ扱ってください。確信が持てないときは空配列にしてください。**
-  推測で埋めると、言ってもいないことを教えることになります。空で構いません。
-- これは issues には入れないでください（文法や語彙の誤りではありません）。
-- 単なる聞き取り違い（英語で言ったのに別の英単語になった）は、これではなく
-  recognition_doubt に入れてください。
-- corrected_text では、この箇所を提案した英語に置き換えて構いません。
-  音読したときに自然につながるようにしてください。
-
 ## 指摘の量
 
 - 指摘は最大 5 件まで。多いと読まれません。
 - 影響の大きいものから順に並べてください。
 - 些細な誤り（冠詞の揺れ程度で意味が変わらないもの）は、他に指摘がないときだけ挙げてください。
-- wanted_to_say はこの 5 件には数えません。
 
 ## 出力
 
@@ -584,13 +566,6 @@ take と get の選び違いなど）は、そのまま指摘して構いませ�
   ],
   "recurring": [
     "過去にも指摘された内容のうち、今回も出たものを日本語で 1 行ずつ"
-  ],
-  "wanted_to_say": [
-    {
-      "japanese": "英語が出てこず日本語のまま言ったと思われる内容（日本語で書く）",
-      "english": "英語での言い方",
-      "note": "使いどころや使い分けを日本語で 1 文。不要なら空文字"
-    }
   ],
   "recognition_doubt": [
     "音声認識の誤りと思われる箇所。原文の該当部分をそのまま入れる"
@@ -666,15 +641,6 @@ function parseFeedback(raw) {
       })
       .filter(it => it.original && it.suggestion),
     recurring:         asStringArray(data.recurring),
-    // 日本語のまま言った箇所への言い換え提案。
-    // 意味が取れなかったときは Gemini に空で返させているので、ここも空のまま通す
-    wanted_to_say: (Array.isArray(data.wanted_to_say) ? data.wanted_to_say : [])
-      .map(w => ({
-        japanese: asText(w && w.japanese),
-        english:  asText(w && w.english),
-        note:     asText(w && w.note),
-      }))
-      .filter(w => w.japanese && w.english),
     recognition_doubt: asStringArray(data.recognition_doubt),
     good:              asText(data.good),
   };
@@ -757,12 +723,6 @@ function buildSessionText(session, labels) {
     out.push(`【${L.issues}】\n${lines.join('\n\n')}`);
   }
 
-  const wanted = s.wanted_to_say || [];
-  if (wanted.length > 0) {
-    const lines = wanted.map(w => `・${w.japanese}\n   → ${w.english}${w.note ? `\n   ${w.note}` : ''}`);
-    out.push(`【${L.wanted}】\n${lines.join('\n\n')}`);
-  }
-
   if (s.good) out.push(`【${L.good}】\n${s.good}`);
   if (s.transcript) out.push(`【${L.said}】\n${s.transcript.trim()}`);
 
@@ -834,7 +794,6 @@ async function runEnglishFeedback() {
       transcript:     text,
       corrected_text: fb.corrected_text,
       issues:         fb.issues,
-      wanted_to_say:  fb.wanted_to_say,
       good:           fb.good,
     });
     enSessions  = foldSessions(enSessions);
@@ -959,41 +918,6 @@ function renderEnglish() {
         sec.appendChild(card);
       });
     }
-    enFeedback.appendChild(sec);
-  }
-
-  // 英語が出てこず日本語のまま言った箇所への言い換え。
-  // Gemini が意味を取れなかったときは空で返るので、そのときは何も出さない
-  if (fb.wanted_to_say.length > 0) {
-    const sec = enSection(T('enWanted'));
-    fb.wanted_to_say.forEach(w => {
-      const card = document.createElement('div');
-      card.className = 'en-issue';
-
-      const jp = document.createElement('div');
-      jp.className = 'en-wanted-jp';
-      jp.textContent = w.japanese;
-
-      const swap = document.createElement('div');
-      swap.className = 'en-swap';
-      const arrow = document.createElement('span');
-      arrow.className = 'en-arrow';
-      arrow.textContent = '→';
-      const to = document.createElement('span');
-      to.className = 'en-to';
-      to.textContent = w.english;
-      swap.append(arrow, to);
-
-      card.appendChild(jp);
-      card.appendChild(swap);
-      if (w.note) {
-        const note = document.createElement('p');
-        note.className = 'en-reason';
-        note.textContent = w.note;
-        card.appendChild(note);
-      }
-      sec.appendChild(card);
-    });
     enFeedback.appendChild(sec);
   }
 
@@ -1141,7 +1065,6 @@ function enCopyLabels() {
     corrected: T('enLabelCorrected'),
     issues:    T('enIssues'),
     good:      T('enGood'),
-    wanted:    T('enWanted'),
     said:      T('enLabelSaid'),
     types: { phrasing: T('typePhrasing'), vocabulary: T('typeVocabulary'), grammar: T('typeGrammar') },
   };

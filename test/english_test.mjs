@@ -37,7 +37,6 @@ const {
 
 const LABELS = {
   corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容（音声認識の結果）',
-  wanted: '日本語で言いたかったこと',
   types: { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' },
 };
 
@@ -237,45 +236,6 @@ console.log('== Gemini へ渡すユーザーメッセージ ==');
 }
 
 // ============================================================
-console.log('== 日本語のまま言った箇所への言い換え（wanted_to_say）==');
-{
-  const raw = JSON.stringify({
-    corrected_text: 'It was a lot of fun.',
-    issues: [],
-    wanted_to_say: [
-      { japanese: '楽しかった', english: 'It was a lot of fun.', note: 'fun は名詞なので a lot of を付けます。' },
-      { japanese: 'なんて言うんだろう', english: 'How do I put it?', note: '' },
-    ],
-  });
-  const fb = parseFeedback(raw);
-  check('件数',       fb.wanted_to_say.length, 2);
-  check('日本語',     fb.wanted_to_say[0].japanese, '楽しかった');
-  check('英語',       fb.wanted_to_say[0].english, 'It was a lot of fun.');
-  check('note なしでも通る', fb.wanted_to_say[1].note, '');
-}
-{
-  // 意味が取れなかったときは Gemini が空で返す。推測で埋めさせない設計なので、空で通ること
-  check('無ければ空配列', parseFeedback('{"corrected_text":"Hello."}').wanted_to_say, []);
-  check('空配列も空',     parseFeedback('{"wanted_to_say":[]}').wanted_to_say, []);
-}
-{
-  // 片方しか無いものは捨てる（英語だけ出されても学習者は何のことか分からない）
-  const fb = parseFeedback(JSON.stringify({
-    wanted_to_say: [
-      { japanese: '楽しかった' },
-      { english: 'It was fun.' },
-      { japanese: '嬉しかった', english: 'I was glad.' },
-    ],
-  }));
-  check('片方だけは捨てる', fb.wanted_to_say.length, 1);
-  check('残るのは両方あるもの', fb.wanted_to_say[0].japanese, '嬉しかった');
-}
-{
-  // 配列でないものを返してきても落ちない
-  check('配列でない', parseFeedback('{"wanted_to_say":"楽しかった"}').wanted_to_say, []);
-}
-
-// ============================================================
 console.log('== 履歴からのコピー（指摘つき）==');
 {
   const session = {
@@ -302,23 +262,6 @@ console.log('== 履歴からのコピー（指摘つき）==');
   // 貼り付け先で読める順序になっていること
   const order = ['【修正版】', '【指摘】', '【よかった点】', '【話した内容'].map(h => text.indexOf(h));
   check('見出しの順序', order.every((v, i) => i === 0 || v > order[i - 1]), true);
-  check('言い換えが無ければ見出しも出ない', text.includes('【日本語で言いたかったこと】'), false);
-}
-{
-  // 言い換えもコピーに含める
-  const text = buildSessionText({
-    corrected_text: 'It was a lot of fun.',
-    wanted_to_say: [
-      { japanese: '楽しかった', english: 'It was a lot of fun.', note: 'fun は名詞です。' },
-      { japanese: 'なんて言うんだろう', english: 'How do I put it?', note: '' },
-    ],
-    good: 'よく話せていました。',
-  }, LABELS);
-  check('言い換えの見出し',   text.includes('【日本語で言いたかったこと】'), true);
-  check('日本語と英語が並ぶ', text.includes('・楽しかった\n   → It was a lot of fun.'), true);
-  check('note が入る',        text.includes('fun は名詞です。'), true);
-  check('note なしでも壊れない', text.includes('・なんて言うんだろう\n   → How do I put it?'), true);
-  check('よかった点より前',   text.indexOf('【日本語で言いたかったこと】') < text.indexOf('【よかった点】'), true);
 }
 {
   // 畳んだ古い記録は suggestion しか残っていない
