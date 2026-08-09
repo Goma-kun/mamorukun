@@ -26,14 +26,19 @@ const blockWeb = extractBlock('public/index.html');
 const mod = new Function(
   `${blockExt}
    return { extractJsonObject, parseFeedback, recurringText, promoteRecurring,
-            topRecurring, foldSessions, buildEnglishUserMessage,
+            topRecurring, foldSessions, buildEnglishUserMessage, buildSessionText,
             EN_KEEP_FULL, EN_RECURRING_MIN, EN_RECURRING_SEND };`
 )();
 
 const {
   parseFeedback, promoteRecurring, topRecurring, foldSessions,
-  buildEnglishUserMessage, EN_KEEP_FULL, EN_RECURRING_MIN,
+  buildEnglishUserMessage, buildSessionText, EN_KEEP_FULL, EN_RECURRING_MIN,
 } = mod;
+
+const LABELS = {
+  corrected: '修正版', issues: '指摘', good: 'よかった点', said: '話した内容（音声認識の結果）',
+  types: { phrasing: '言い回し', vocabulary: '語彙', grammar: '文法' },
+};
 
 // インデントだけ揃えて比較する。片方だけ直して食い違ったまま出荷するのを防ぐ
 const normalize = s => s.split('\n').map(l => l.trimEnd().replace(/^\s+/, '')).join('\n').trim();
@@ -228,6 +233,51 @@ console.log('== Gemini へ渡すユーザーメッセージ ==');
   const msg = buildEnglishUserMessage('today text', topRecurring([]));
   check('過去の書き起こしを渡さない', msg.includes(sessions[0].transcript), false);
   check('過去の修正版を渡さない',     msg.includes(sessions[0].corrected_text), false);
+}
+
+// ============================================================
+console.log('== 履歴からのコピー（指摘つき）==');
+{
+  const session = {
+    id: '2026-08-09T13:38:00Z',
+    transcript: 'I go to park yesterday.',
+    corrected_text: 'I went to the park yesterday.',
+    issues: [
+      { type: 'grammar', original: 'I go to park yesterday', suggestion: 'I went to the park yesterday', reason: '過去の出来事なので過去形にします。' },
+      { type: 'vocabulary', original: 'develop my English', suggestion: 'improve my English', reason: '' },
+    ],
+    good: '最後まで話し切れていました。',
+  };
+  const text = buildSessionText(session, LABELS);
+
+  check('修正版が入る',        text.includes('【修正版】\nI went to the park yesterday.'), true);
+  check('指摘の見出しが入る',  text.includes('【指摘】'), true);
+  check('指摘に種類が付く',    text.includes('1. [文法] I go to park yesterday'), true);
+  check('修正の矢印が入る',    text.includes('→ I went to the park yesterday'), true);
+  check('理由が入る',          text.includes('過去の出来事なので過去形にします。'), true);
+  check('理由なしでも壊れない', text.includes('2. [語彙] develop my English'), true);
+  check('よかった点が入る',    text.includes('【よかった点】\n最後まで話し切れていました。'), true);
+  check('話した内容が入る',    text.includes('【話した内容（音声認識の結果）】\nI go to park yesterday.'), true);
+
+  // 貼り付け先で読める順序になっていること
+  const order = ['【修正版】', '【指摘】', '【よかった点】', '【話した内容'].map(h => text.indexOf(h));
+  check('見出しの順序', order.every((v, i) => i === 0 || v > order[i - 1]), true);
+}
+{
+  // 畳んだ古い記録は suggestion しか残っていない
+  const folded = { id: 'x', folded: true, issues: [{ type: 'grammar', suggestion: 'I went to the park' }] };
+  const text = buildSessionText(folded, LABELS);
+  check('畳んだ記録もコピーできる', text.includes('1. [文法] → I went to the park'), true);
+  check('無い項目は出さない',       text.includes('【修正版】'), false);
+}
+{
+  check('中身が無ければ空文字', buildSessionText({ id: 'x' }, LABELS), '');
+  check('null でも落ちない',    buildSessionText(null, LABELS), '');
+}
+{
+  // 指摘が無いセッションでも修正版だけは持ち出せる
+  const text = buildSessionText({ corrected_text: 'Hello.', issues: [] }, LABELS);
+  check('指摘ゼロなら見出しも出ない', text, '【修正版】\nHello.');
 }
 
 // ============================================================
