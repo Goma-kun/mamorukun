@@ -44,7 +44,6 @@
   "btnCopyWithIssues": { "message": "📋 Copy (with notes)" },
   "enLabelCorrected":  { "message": "Corrected" },
   "enLabelSaid":       { "message": "What you said (speech recognition)" },
-  "enWanted":          { "message": "What you tried to say" },
   "enDoubt":           { "message": "Possible misrecognitions" },
   "enDoubtNote":       { "message": "This is what speech recognition heard. It is not counted as your mistake." },
   "historyOf":         { "message": "$WHAT$ history", "placeholders": { "what": { "content": "$1" } } },
