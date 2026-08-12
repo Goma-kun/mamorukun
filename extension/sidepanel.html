@@ -37,9 +37,9 @@
     }
     .header-btn:hover { background: #334155; color: #e2e8f0; }
 
-    /* ── タブバー（ログ・英語・履歴） ── */
+    /* ── タブバー（ログ・英語・やること・履歴） ── */
     #tab-bar {
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-template-columns: repeat(4, 1fr);
       border-bottom: 1px solid #1e293b;
       flex-shrink: 0;
     }
@@ -210,6 +210,74 @@
     }
     .en-section .history-copy-btn { align-self: flex-end; }
 
+    /* ── やることパネル ── */
+    /* display は switchPanel が inline で切り替える（表示時は flex）。
+       ここで display を指定すると ID の詳細度が .panel { display:none } に勝ってしまう */
+    #panel-tasks {
+      overflow-y: auto;
+      padding: 10px;
+      flex-direction: column; gap: 8px;
+    }
+    #panel-tasks::-webkit-scrollbar { width: 4px; }
+    #panel-tasks::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    #tk-live {
+      color: #cbd5e1; font-size: 13px; line-height: 1.6;
+      white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
+    }
+    #tk-live:not(:empty) { border-bottom: 1px solid #1e293b; padding-bottom: 6px; }
+    #tk-stats {
+      color: #64748b; font-size: 11px; font-weight: 700;
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .tk-add-row { display: flex; gap: 6px; }
+    .tk-add-row input {
+      flex: 1; min-width: 0;
+      background: #1e293b; border: 1px solid #334155; border-radius: 8px;
+      color: #e2e8f0; font-size: 12px; padding: 6px 8px;
+      font-family: inherit;
+    }
+    .tk-add-row input:focus { outline: none; border-color: #38bdf8; }
+    #tk-list { display: flex; flex-direction: column; gap: 8px; }
+    .tk-section-title { color: #64748b; font-size: 11px; font-weight: 700; margin-top: 4px; }
+    .tk-card {
+      background: #1e293b; border: 1px solid #334155;
+      border-radius: 10px; padding: 9px 11px;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .tk-card.done { opacity: 0.55; }
+    .tk-card.done .tk-title { text-decoration: line-through; }
+    .tk-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .tk-chip {
+      font-size: 10px; font-weight: 700;
+      border-radius: 5px; padding: 1px 6px; border: none;
+      background: rgba(148,163,184,0.15); color: #94a3b8;
+    }
+    .tk-chip.today   { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .tk-chip.carried { background: rgba(251,146,60,0.15); color: #fb923c; }
+    .tk-chip.touched { background: rgba(74,222,128,0.15); color: #4ade80; }
+    .tk-title {
+      color: #e2e8f0; font-size: 13px; line-height: 1.5;
+      word-break: normal; overflow-wrap: anywhere;
+    }
+    .tk-first {
+      color: #94a3b8; font-size: 11px; line-height: 1.5;
+      word-break: normal; overflow-wrap: anywhere;
+    }
+    .tk-first b { color: #38bdf8; font-weight: 700; }
+    .tk-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tk-btn {
+      background: #0f172a; border: 1px solid #334155; color: #cbd5e1;
+      border-radius: 7px; padding: 4px 9px;
+      font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+    }
+    .tk-btn:hover { border-color: #38bdf8; color: #38bdf8; }
+    .tk-btn.timer-on { border-color: #fb923c; color: #fb923c; }
+    .tk-hint { color: #fb923c; font-size: 11px; line-height: 1.5; }
+    .tk-note {
+      color: #64748b; font-size: 12px; line-height: 1.6;
+      text-align: center; padding: 14px 8px;
+    }
+
     /* ── アクションバー ── */
     #action-bar {
       flex-shrink: 0;
@@ -264,13 +332,16 @@
       </div>
     </header>
 
-    <!-- タブバー：ログ・英語・履歴 -->
+    <!-- タブバー：ログ・英語・やること・履歴 -->
     <div id="tab-bar">
       <button id="tab-transcript" class="tab-btn active">
         <span class="icon">🎙️</span><span class="label" data-i18n="tabLog"></span>
       </button>
       <button id="tab-english" class="tab-btn">
         <span class="icon">📘</span><span class="label" data-i18n="tabEnglish"></span>
+      </button>
+      <button id="tab-tasks" class="tab-btn">
+        <span class="icon">✅</span><span class="label" data-i18n="tabTasks"></span>
       </button>
       <button id="tab-history" class="tab-btn">
         <span class="icon">🕐</span><span class="label" data-i18n="tabHistory"></span>
@@ -289,6 +360,17 @@
       <div id="panel-english" class="panel">
         <div id="en-live"></div>
         <div id="en-feedback"></div>
+      </div>
+
+      <!-- やることパネル -->
+      <div id="panel-tasks" class="panel">
+        <div id="tk-live"></div>
+        <div id="tk-stats"></div>
+        <div class="tk-add-row">
+          <input id="tk-input" type="text" data-i18n-placeholder="tkAddPlaceholder">
+          <button id="tk-add-btn" class="header-btn" data-i18n="tkAddBtn"></button>
+        </div>
+        <div id="tk-list"></div>
       </div>
 
       <!-- 履歴パネル -->
