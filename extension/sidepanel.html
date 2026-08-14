@@ -22,6 +22,13 @@
       border-bottom: 1px solid #1e293b;
       flex-shrink: 0;
     }
+    .title-wrap { display: flex; align-items: center; gap: 8px; }
+    #ver-badge {
+      font-size: 11px; font-weight: 700;
+      background: #facc15; color: #0f172a;
+      border-radius: 8px; padding: 1px 7px;
+    }
+    #ver-badge:empty { display: none; }
     #app-title {
       font-size: 15px; font-weight: 800;
       color: #38bdf8;
@@ -258,7 +265,10 @@
   <div id="wrapper">
     <!-- ヘッダー -->
     <header id="header">
-      <h1 id="app-title" data-i18n="appTitle"></h1>
+      <div class="title-wrap">
+        <h1 id="app-title" data-i18n="appTitle"></h1>
+        <span id="ver-badge"></span>
+      </div>
       <div class="header-btns">
         <button id="settings-btn" class="header-btn" data-i18n-title="settingsTip">⚙️</button>
       </div>
