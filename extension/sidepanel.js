@@ -1202,3 +1202,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 前回のモードのまま開く。「開く → 話す」の間に操作を挟ませない
   switchPanel(mode === 'english' ? 'english' : 'transcript');
 });
+
+// ヘッダーのバージョンバッジ。manifest の版をそのまま出す（表示と実体をずらさない）
+const verBadge = document.getElementById('ver-badge');
+if (verBadge && typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getManifest) {
+  verBadge.textContent = 'v' + chrome.runtime.getManifest().version;
+}
