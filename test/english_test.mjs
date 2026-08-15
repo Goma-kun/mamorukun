@@ -1,5 +1,5 @@
 // 英語学習モードのロジックをそのまま切り出して検証する。
-// 拡張機能版（extension/sidepanel.js）と Web 版（public/index.html）は同じブロックを持つので、
+// 拡張機能版（extension/english-core.js）と Web 版（public/index.html）は同じブロックを持つので、
 // 両方から切り出して突き合わせ、同じテストを拡張機能版に対して回す。
 // マーカーコメントで囲んだ部分だけを取り出すので、本体のコードは変えずに済む。
 //   実行: node test/english_test.mjs
@@ -20,7 +20,7 @@ function extractBlock(relPath) {
   return src.slice(start, end);
 }
 
-const blockExt = extractBlock('extension/sidepanel.js');
+const blockExt = extractBlock('extension/english-core.js');
 const blockWeb = extractBlock('public/index.html');
 
 const mod = new Function(
