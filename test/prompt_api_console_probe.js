@@ -82,9 +82,10 @@ async function nanoStep0() {
   console.log('availability(日本語入出力):', availJa);
   console.log('availability(英語入力→日英出力):', availEnJa);
 
-  const params = await LanguageModel.params();
+  // Chrome 151 の Web 露出には LanguageModel.params() が無い（実測 2026-08-16）。
+  // ある環境（拡張コンテキスト等）ではそのまま出す
+  const params = typeof LanguageModel.params === 'function' ? await LanguageModel.params() : 'params() 未提供';
   console.log('params():', params);
-  // defaultTemperature / maxTemperature / defaultTopK / maxTopK
 
   __nano.results.step0 = { avail, availJa, availEnJa, params };
   return __nano.results.step0;
@@ -104,8 +105,10 @@ async function nanoStep1_download() {
       },
     })
   );
-  console.log('セッション作成OK。inputQuota =', session.inputQuota, 'tokens');
-  __nano.results.step1 = { inputQuota: session.inputQuota };
+  // Chrome 151 では inputQuota → contextWindow に改名されている
+  const quota = session.contextWindow ?? session.inputQuota;
+  console.log('セッション作成OK。コンテキスト上限 =', quota, 'tokens');
+  __nano.results.step1 = { contextWindow: quota };
   session.destroy();
   return __nano.results.step1;
 }
@@ -155,8 +158,9 @@ async function nanoCleanJa(text, cfgLabel, createOpts) {
       session.prompt(`次の文字起こしを整形してください。\n===テキスト===\n${text}\n===ここまで===`)
     );
     console.log(`── 清書結果 [${cfgLabel}] ──\n${out}`);
-    console.log(`(消費 ${session.inputUsage} / ${session.inputQuota} tokens)`);
-    return { label: cfgLabel, output: out, inputUsage: session.inputUsage };
+    const usage = session.contextUsage ?? session.inputUsage;
+    console.log(`(消費 ${usage} / ${session.contextWindow ?? session.inputQuota} tokens)`);
+    return { label: cfgLabel, output: out, contextUsage: usage };
   } finally {
     session.destroy();
   }
@@ -173,11 +177,10 @@ async function nanoStep2_cleanJa(text = NANO_JA_SAMPLE) {
 // temperature と topK は create 時にしか渡せず、必ずセットで指定する仕様。
 // 整形タスクは創造性が不要なので、低温のほうが「勝手な要約・意訳」が減るはず、の検証
 async function nanoStep2b_compare(text = NANO_JA_SAMPLE) {
-  const p = await LanguageModel.params();
   const configs = [
-    ['default',            {}],
-    ['temp0.1/topK1',      { temperature: 0.1, topK: 1 }],
-    ['temp1.0/topK' + p.defaultTopK, { temperature: 1.0, topK: p.defaultTopK }],
+    ['default',       {}],
+    ['temp0.1/topK1', { temperature: 0.1, topK: 1 }],
+    ['temp1.0/topK3', { temperature: 1.0, topK: 3 }],
   ];
   const out = [];
   for (const [label, opts] of configs) {
@@ -251,7 +254,7 @@ async function nanoReviewEn(text, label, promptOpts) {
     } catch {
       console.warn('✗ JSON.parse 失敗（この壊れ方が responseConstraint の要否判断の材料になる）');
     }
-    return { label, raw, parsed, inputUsage: session.inputUsage };
+    return { label, raw, parsed, contextUsage: session.contextUsage ?? session.inputUsage };
   } finally {
     session.destroy();
   }
