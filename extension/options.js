@@ -13,6 +13,9 @@ function applyI18n() {
 
 const langSelect       = document.getElementById('lang-select');
 const langStatus       = document.getElementById('lang-status');
+const engineSelect     = document.getElementById('engine-select');
+const engineStatus     = document.getElementById('engine-status');
+const engineAvailEl    = document.getElementById('engine-availability');
 const apiKeyInput      = document.getElementById('api-key-input');
 const saveBtn          = document.getElementById('save-btn');
 const testBtn          = document.getElementById('test-btn');
@@ -49,9 +52,24 @@ async function loadKey() {
   apiKeyInput.value = hasKey ? mamoru_gemini_key : '';
   apiKeyInput.placeholder = hasKey ? T('placeholderSaved') : T('placeholderKey');
 
-  tierLabel.innerHTML = hasKey
-    ? `${T('tierFull')} <span class="tier-badge tier2">${T('badgeCleanOn')}</span>`
-    : `${T('tierBasic')} <span class="tier-badge tier1">${T('badgeNoKey')}</span>`;
+  renderTierLabel();
+}
+
+// 上部の「現在のモード」。サイドパネル側の selectAiProvider と同じ順で判定して、
+// 表示と実際の動きがズレないようにする（キー無しでも端末内 AI が動くなら、そう表示する）
+async function renderTierLabel() {
+  const d = await chrome.storage.local.get(['mamoru_gemini_key', 'mamoru_engine']);
+  const hasKey = !!d.mamoru_gemini_key;
+  const nanoOk = (await nanoAvailabilityOpt()) === 'available';
+  const preferNano = d.mamoru_engine === 'nano';
+
+  if (nanoOk && (preferNano || !hasKey)) {
+    tierLabel.innerHTML = `${T('tierNano')} <span class="tier-badge tier2">${T('badgeNano')}</span>`;
+  } else if (hasKey) {
+    tierLabel.innerHTML = `${T('tierFull')} <span class="tier-badge tier2">${T('badgeCleanOn')}</span>`;
+  } else {
+    tierLabel.innerHTML = `${T('tierBasic')} <span class="tier-badge tier1">${T('badgeNoKey')}</span>`;
+  }
 }
 
 saveBtn.addEventListener('click', async () => {
@@ -117,6 +135,69 @@ testBtn.addEventListener('click', async () => {
   }
 });
 
+// ── AIエンジン（清書・添削に使うAI） ──
+// Chrome 内蔵 AI（Prompt API / Gemini Nano）の利用可否は端末ごとに違うので、ここで見せる
+async function nanoAvailabilityOpt() {
+  if (typeof LanguageModel === 'undefined') return 'unavailable';
+  try { return await LanguageModel.availability(); } catch { return 'unavailable'; }
+}
+
+function showEngineStatus(msg, type) {
+  engineStatus.textContent = msg;
+  engineStatus.className   = 'status-' + type;
+  engineStatus.style.display = 'block';
+}
+
+async function loadEngine() {
+  const { mamoru_engine } = await chrome.storage.local.get('mamoru_engine');
+  engineSelect.value = mamoru_engine === 'nano' ? 'nano' : 'auto';
+
+  const s = await nanoAvailabilityOpt();
+  engineAvailEl.textContent =
+    s === 'available' ? T('engineNanoReady')
+    : (s === 'downloadable' || s === 'downloading') ? T('engineNanoDownload')
+    : T('engineNanoNo');
+}
+
+engineSelect.addEventListener('change', async () => {
+  await chrome.storage.local.set({ mamoru_engine: engineSelect.value });
+  showEngineStatus(T('engineSetTo'), 'ok');
+  setTimeout(() => { engineStatus.style.display = 'none'; }, 2000);
+  renderTierLabel();
+
+  // 端末内 AI を選んでモデルが未DLなら、この操作（クリック）を起点にDLを始める。
+  // モデルDLを伴う create() はユーザー操作が必須のため、裏で勝手には始められない
+  if (engineSelect.value === 'nano') {
+    const s = await nanoAvailabilityOpt();
+    if (s === 'downloadable' || s === 'downloading') startNanoDownload();
+  }
+});
+
+let nanoDlRunning = false;
+async function startNanoDownload() {
+  if (nanoDlRunning || typeof LanguageModel === 'undefined') return;
+  nanoDlRunning = true;
+  showEngineStatus(T('engineDownloading') + ' 0%', 'testing');
+  try {
+    const session = await LanguageModel.create({
+      monitor(m) {
+        m.addEventListener('downloadprogress', (e) => {
+          showEngineStatus(T('engineDownloading') + ' ' + Math.round(e.loaded * 100) + '%', 'testing');
+        });
+      },
+    });
+    session.destroy();
+    showEngineStatus(T('engineDownloadDone'), 'ok');
+    engineAvailEl.textContent = T('engineNanoReady');
+    renderTierLabel();
+  } catch (err) {
+    // 進まない・失敗するケースの実例あり（Chrome の再起動で直る）。案内込みで出す
+    showEngineStatus(T('engineDownloadFail') + (err.message || err), 'error');
+  } finally {
+    nanoDlRunning = false;
+  }
+}
+
 // ── 音声認識の言語 ──
 // 未設定ならブラウザの言語から推測し、以後は選んだ言語を優先する
 async function loadLang() {
@@ -136,4 +217,4 @@ langSelect.addEventListener('change', async () => {
   setTimeout(() => { langStatus.style.display = 'none'; }, 2000);
 });
 
-document.addEventListener('DOMContentLoaded', () => { applyI18n(); loadKey(); loadLang(); });
+document.addEventListener('DOMContentLoaded', () => { applyI18n(); loadKey(); loadLang(); loadEngine(); });

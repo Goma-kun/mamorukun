@@ -1,116 +1,382 @@
 {
-  "extName":        { "message": "Mamorukun" },
-  "extDescription": { "message": "Real-time speech-to-text with AI cleanup. Recognizes 11 languages. Add a Gemini API key to auto-polish your transcript." },
-  "actionTitle":    { "message": "Mamorukun" },
-
-  "appTitle":     { "message": "🛡️ Mamorukun" },
-  "tabLog":       { "message": "Memo" },
-  "tabEnglish":   { "message": "Self-talk" },
-  "tabHistory":   { "message": "History" },
-  "btnStart":     { "message": "▶ Start" },
-  "btnStop":      { "message": "■ Stop" },
-  "settingsTip":  { "message": "Settings" },
-
-  "historyEmpty":    { "message": "No history yet" },
-  "historyCleaned":  { "message": "  ✏️ Cleaned up" },
-  "historyLogOnly":  { "message": "  🎙️ Log only" },
-  "btnExpand":         { "message": "Show all" },
-  "btnCollapse":       { "message": "Show less" },
-  "btnCopy":         { "message": "📋 Copy" },
-  "btnCopied":       { "message": "✓ Copied" },
-  "copyFailed":      { "message": "Failed to copy" },
-  "toastCopied":     { "message": "📋 Copied" },
-  "speechUnavailable": { "message": "Speech recognition is not available" },
-  "speechError":     { "message": "Speech recognition error: " },
-  "noApiKey":        { "message": "⚠️ Skipped AI cleanup — no API key. You can add one in ⚙️ Settings." },
-  "cleaning":        { "message": "✍️ Cleaning up..." },
-  "cleanedAndCopied":{ "message": "✅ Cleaned up and copied" },
-  "cleanedManual":   { "message": "Cleanup done (copy it manually)" },
-  "cleanError":      { "message": "Cleanup error: " },
-  "cleanErrDenied":  { "message": "⚠️ This project cannot use the Gemini API (see ⚙️ Settings for details)" },
-  "langChanged":     { "message": "🌐 Language changed (applies from the next recording)" },
-
-  "enHint":          { "message": "Press \"▶ Start\" and talk to yourself in English. Feedback appears when you stop." },
-  "enNoKey":         { "message": "Self-talk mode needs a Gemini API key (add one in ⚙️ Settings)" },
-  "enAnalyzing":     { "message": "🧠 Preparing feedback..." },
-  "enError":         { "message": "Feedback error: " },
-  "enParseError":    { "message": "Could not read the AI response. Please try again." },
-  "enGood":          { "message": "What went well" },
-  "enIssues":        { "message": "Suggestions" },
-  "enNoIssues":      { "message": "Nothing to flag this time." },
-  "enRecurring":     { "message": "Recurring patterns" },
-  "enCorrected":     { "message": "Corrected version (for reading aloud)" },
-  "enNoPronunciation": { "message": "Note: your audio is never sent to the AI, so pronunciation is not assessed. Only the text is reviewed." },
-  "enModeLocked":    { "message": "You cannot switch modes while recording" },
-  "enHistoryEmpty":  { "message": "No self-talk sessions yet" },
-  "btnCopyWithIssues": { "message": "📋 Copy (with notes)" },
-  "enLabelCorrected":  { "message": "Corrected" },
-  "enLabelSaid":       { "message": "What you said (speech recognition)" },
-  "enDoubt":           { "message": "Possible misrecognitions" },
-  "enDoubtNote":       { "message": "This is what speech recognition heard. It is not counted as your mistake." },
-  "historyOf":         { "message": "$WHAT$ history", "placeholders": { "what": { "content": "$1" } } },
-  "enFolded":        { "message": "(older entry: suggestions only)" },
-  "enIssueCount":    { "message": "$N$ suggestion(s)", "placeholders": { "n": { "content": "$1" } } },
-  "enTimes":         { "message": "$N$ times", "placeholders": { "n": { "content": "$1" } } },
-  "typePhrasing":    { "message": "Phrasing" },
-  "typeVocabulary":  { "message": "Vocabulary" },
-  "typeGrammar":     { "message": "Grammar" },
-
-  "optTitle":     { "message": "Mamorukun Settings" },
-  "optHeading":   { "message": "⚙️ Mamorukun Settings" },
-  "currentMode":  { "message": "Current mode:" },
-  "checking":     { "message": "Checking..." },
-
-  "secLanguage":  { "message": "Speech recognition language" },
-  "labelLang":    { "message": "Language to recognize" },
-  "langNote":     { "message": "Choose the language you speak. Your speech is transcribed in that language, and the AI cleanup uses it too." },
-  "langNoteLearn":{ "message": "Using it to learn a language:" },
-  "langNoteLearnBody": { "message": "Keep the interface in your own language and switch only this setting. For example, set it to English to transcribe English practice." },
-
-  "secApiKey":    { "message": "Gemini API key (unlocks AI cleanup)" },
-  "keySaved":     { "message": "✓ API key saved" },
-  "labelApiKey":  { "message": "API key" },
-  "placeholderSaved": { "message": "(saved)" },
-  "placeholderKey":   { "message": "Paste your API key" },
-  "btnSave":      { "message": "Save" },
-  "btnTest":      { "message": "Test connection" },
-  "btnDelete":    { "message": "Delete" },
-  "linkGetKey":   { "message": "🔗 Get an API key in Google Cloud Console" },
-
-  "howToGet":     { "message": "How to get one:" },
-  "howToGetBody": { "message": "Open Google Cloud Console → select or create a project → \"Credentials\" → \"Create API key\" → copy it into the field above → Save." },
-  "jpNotice":     { "message": "⚠️ Note for users in Japan:" },
-  "jpNoticeBody1":{ "message": "Free API keys issued through Google AI Studio (aistudio.google.com) may be rate-limited when accessed from Japan." },
-  "jpNoticeBody2":{ "message": "If that happens, set up a billing account in Google Cloud Console and issue the key there. Linking a billing account moves the project out of the free tier, so you are charged for what you use (typically well under a dollar a month for light use)." },
-  "budgetNote":   { "message": "If you are worried about spending, you can set a budget alert in Google Cloud." },
-  "budgetLink":   { "message": "🔗 How to set a budget alert" },
-  "security":     { "message": "🔒 About security:" },
-  "securityBody": { "message": "Your API key is stored only inside your Chrome and is never sent to any external server. Please still keep the following in mind." },
-  "securityLi1":  { "message": "Do not share your API key with anyone" },
-  "securityLi2":  { "message": "If it leaks, you can revoke it immediately in Google AI Studio" },
-  "securityLi3":  { "message": "If you share this device with others, we recommend deleting the key after use" },
-
-  "secTiers":     { "message": "Feature levels" },
-  "tier1Title":   { "message": "📝 Transcription only (no API key)" },
-  "tier1Body":    { "message": "Real-time speech-to-text, copy, and clear. Works as a zero-setup memo tool." },
-  "tier2Title":   { "message": "✨ Transcription + AI cleanup (with API key)" },
-  "tier2Body":    { "message": "Gemini cleans up your transcript automatically when you stop recording — removing fillers, adding punctuation, and tidying spoken language. You can review and copy it any time from the cleanup tab." },
-
-  "tierFull":     { "message": "Transcription + AI cleanup" },
-  "tierBasic":    { "message": "Transcription only" },
-  "badgeCleanOn": { "message": "✨ Cleanup ON" },
-  "badgeNoKey":   { "message": "No API key" },
-  "enterKey":     { "message": "Please enter an API key" },
-  "savedOk":      { "message": "✓ Saved" },
-  "confirmDelete":{ "message": "Delete it for sure?" },
-  "keyDeleted":   { "message": "API key deleted" },
-  "enterOrSaveFirst": { "message": "Please enter or save an API key first" },
-  "testing":      { "message": "⏳ Testing connection..." },
-  "testOk":       { "message": "✓ Connected. Your API key works." },
-  "unknownError": { "message": "Unknown error" },
-  "errDenied":    { "message": "This project is not allowed to access the Gemini API. Open the API key list in Google AI Studio and check the \"Billing tier\" column — if it says \"Unavailable\", no free tier has been assigned to the project. (Your API key itself is fine.)" },
-  "errKeyInvalid":{ "message": "The API key is not valid. Copy the key again and paste it into the field above." },
-  "errorPrefix":  { "message": "✗ Error: " },
-  "networkError": { "message": "✗ Network error: " },
-  "langSetTo":    { "message": "✓ Set to $LABEL$", "placeholders": { "label": { "content": "$1" } } }
+  "extName": {
+    "message": "Mamorukun"
+  },
+  "extDescription": {
+    "message": "Real-time speech-to-text with AI cleanup. Recognizes 11 languages. Add a Gemini API key to auto-polish your transcript."
+  },
+  "actionTitle": {
+    "message": "Mamorukun"
+  },
+  "appTitle": {
+    "message": "🛡️ Mamorukun"
+  },
+  "tabLog": {
+    "message": "Memo"
+  },
+  "tabEnglish": {
+    "message": "Self-talk"
+  },
+  "tabHistory": {
+    "message": "History"
+  },
+  "btnStart": {
+    "message": "▶ Start"
+  },
+  "btnStop": {
+    "message": "■ Stop"
+  },
+  "settingsTip": {
+    "message": "Settings"
+  },
+  "historyEmpty": {
+    "message": "No history yet"
+  },
+  "historyCleaned": {
+    "message": "  ✏️ Cleaned up"
+  },
+  "historyLogOnly": {
+    "message": "  🎙️ Log only"
+  },
+  "btnExpand": {
+    "message": "Show all"
+  },
+  "btnCollapse": {
+    "message": "Show less"
+  },
+  "btnCopy": {
+    "message": "📋 Copy"
+  },
+  "btnCopied": {
+    "message": "✓ Copied"
+  },
+  "copyFailed": {
+    "message": "Failed to copy"
+  },
+  "toastCopied": {
+    "message": "📋 Copied"
+  },
+  "speechUnavailable": {
+    "message": "Speech recognition is not available"
+  },
+  "speechError": {
+    "message": "Speech recognition error: "
+  },
+  "noApiKey": {
+    "message": "⚠️ Skipped AI cleanup — no API key. You can add one in ⚙️ Settings."
+  },
+  "cleaning": {
+    "message": "✍️ Cleaning up..."
+  },
+  "cleanedAndCopied": {
+    "message": "✅ Cleaned up and copied"
+  },
+  "cleanedManual": {
+    "message": "Cleanup done (copy it manually)"
+  },
+  "cleanError": {
+    "message": "Cleanup error: "
+  },
+  "cleanErrDenied": {
+    "message": "⚠️ This project cannot use the Gemini API (see ⚙️ Settings for details)"
+  },
+  "langChanged": {
+    "message": "🌐 Language changed (applies from the next recording)"
+  },
+  "enHint": {
+    "message": "Press \"▶ Start\" and talk to yourself in English. Feedback appears when you stop."
+  },
+  "enNoKey": {
+    "message": "Self-talk mode needs a Gemini API key (add one in ⚙️ Settings)"
+  },
+  "enAnalyzing": {
+    "message": "🧠 Preparing feedback..."
+  },
+  "enError": {
+    "message": "Feedback error: "
+  },
+  "enParseError": {
+    "message": "Could not read the AI response. Please try again."
+  },
+  "enGood": {
+    "message": "What went well"
+  },
+  "enIssues": {
+    "message": "Suggestions"
+  },
+  "enNoIssues": {
+    "message": "Nothing to flag this time."
+  },
+  "enRecurring": {
+    "message": "Recurring patterns"
+  },
+  "enCorrected": {
+    "message": "Corrected version (for reading aloud)"
+  },
+  "enNoPronunciation": {
+    "message": "Note: your audio is never sent to the AI, so pronunciation is not assessed. Only the text is reviewed."
+  },
+  "enModeLocked": {
+    "message": "You cannot switch modes while recording"
+  },
+  "enHistoryEmpty": {
+    "message": "No self-talk sessions yet"
+  },
+  "btnCopyWithIssues": {
+    "message": "📋 Copy (with notes)"
+  },
+  "enLabelCorrected": {
+    "message": "Corrected"
+  },
+  "enLabelSaid": {
+    "message": "What you said (speech recognition)"
+  },
+  "enDoubt": {
+    "message": "Possible misrecognitions"
+  },
+  "enDoubtNote": {
+    "message": "This is what speech recognition heard. It is not counted as your mistake."
+  },
+  "historyOf": {
+    "message": "$WHAT$ history",
+    "placeholders": {
+      "what": {
+        "content": "$1"
+      }
+    }
+  },
+  "enFolded": {
+    "message": "(older entry: suggestions only)"
+  },
+  "enIssueCount": {
+    "message": "$N$ suggestion(s)",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "enTimes": {
+    "message": "$N$ times",
+    "placeholders": {
+      "n": {
+        "content": "$1"
+      }
+    }
+  },
+  "typePhrasing": {
+    "message": "Phrasing"
+  },
+  "typeVocabulary": {
+    "message": "Vocabulary"
+  },
+  "typeGrammar": {
+    "message": "Grammar"
+  },
+  "optTitle": {
+    "message": "Mamorukun Settings"
+  },
+  "optHeading": {
+    "message": "⚙️ Mamorukun Settings"
+  },
+  "currentMode": {
+    "message": "Current mode:"
+  },
+  "checking": {
+    "message": "Checking..."
+  },
+  "secLanguage": {
+    "message": "Speech recognition language"
+  },
+  "labelLang": {
+    "message": "Language to recognize"
+  },
+  "langNote": {
+    "message": "Choose the language you speak. Your speech is transcribed in that language, and the AI cleanup uses it too."
+  },
+  "langNoteLearn": {
+    "message": "Using it to learn a language:"
+  },
+  "langNoteLearnBody": {
+    "message": "Keep the interface in your own language and switch only this setting. For example, set it to English to transcribe English practice."
+  },
+  "secApiKey": {
+    "message": "Gemini API key (unlocks AI cleanup)"
+  },
+  "keySaved": {
+    "message": "✓ API key saved"
+  },
+  "labelApiKey": {
+    "message": "API key"
+  },
+  "placeholderSaved": {
+    "message": "(saved)"
+  },
+  "placeholderKey": {
+    "message": "Paste your API key"
+  },
+  "btnSave": {
+    "message": "Save"
+  },
+  "btnTest": {
+    "message": "Test connection"
+  },
+  "btnDelete": {
+    "message": "Delete"
+  },
+  "linkGetKey": {
+    "message": "🔗 Get an API key in Google Cloud Console"
+  },
+  "howToGet": {
+    "message": "How to get one:"
+  },
+  "howToGetBody": {
+    "message": "Open Google Cloud Console → select or create a project → \"Credentials\" → \"Create API key\" → copy it into the field above → Save."
+  },
+  "jpNotice": {
+    "message": "⚠️ Note for users in Japan:"
+  },
+  "jpNoticeBody1": {
+    "message": "Free API keys issued through Google AI Studio (aistudio.google.com) may be rate-limited when accessed from Japan."
+  },
+  "jpNoticeBody2": {
+    "message": "If that happens, set up a billing account in Google Cloud Console and issue the key there. Linking a billing account moves the project out of the free tier, so you are charged for what you use (typically well under a dollar a month for light use)."
+  },
+  "budgetNote": {
+    "message": "If you are worried about spending, you can set a budget alert in Google Cloud."
+  },
+  "budgetLink": {
+    "message": "🔗 How to set a budget alert"
+  },
+  "security": {
+    "message": "🔒 About security:"
+  },
+  "securityBody": {
+    "message": "Your API key is stored only inside your Chrome and is never sent to any external server. Please still keep the following in mind."
+  },
+  "securityLi1": {
+    "message": "Do not share your API key with anyone"
+  },
+  "securityLi2": {
+    "message": "If it leaks, you can revoke it immediately in Google AI Studio"
+  },
+  "securityLi3": {
+    "message": "If you share this device with others, we recommend deleting the key after use"
+  },
+  "secTiers": {
+    "message": "Feature levels"
+  },
+  "tier1Title": {
+    "message": "📝 Transcription only (no API key)"
+  },
+  "tier1Body": {
+    "message": "Real-time speech-to-text, copy, and clear. Works as a zero-setup memo tool."
+  },
+  "tier2Title": {
+    "message": "✨ Transcription + AI cleanup (with API key)"
+  },
+  "tier2Body": {
+    "message": "Gemini cleans up your transcript automatically when you stop recording — removing fillers, adding punctuation, and tidying spoken language. You can review and copy it any time from the cleanup tab."
+  },
+  "tierFull": {
+    "message": "Transcription + AI cleanup"
+  },
+  "tierBasic": {
+    "message": "Transcription only"
+  },
+  "badgeCleanOn": {
+    "message": "✨ Cleanup ON"
+  },
+  "badgeNoKey": {
+    "message": "No API key"
+  },
+  "enterKey": {
+    "message": "Please enter an API key"
+  },
+  "savedOk": {
+    "message": "✓ Saved"
+  },
+  "confirmDelete": {
+    "message": "Delete it for sure?"
+  },
+  "keyDeleted": {
+    "message": "API key deleted"
+  },
+  "enterOrSaveFirst": {
+    "message": "Please enter or save an API key first"
+  },
+  "testing": {
+    "message": "⏳ Testing connection..."
+  },
+  "testOk": {
+    "message": "✓ Connected. Your API key works."
+  },
+  "unknownError": {
+    "message": "Unknown error"
+  },
+  "errDenied": {
+    "message": "This project is not allowed to access the Gemini API. Open the API key list in Google AI Studio and check the \"Billing tier\" column — if it says \"Unavailable\", no free tier has been assigned to the project. (Your API key itself is fine.)"
+  },
+  "errKeyInvalid": {
+    "message": "The API key is not valid. Copy the key again and paste it into the field above."
+  },
+  "errorPrefix": {
+    "message": "✗ Error: "
+  },
+  "networkError": {
+    "message": "✗ Network error: "
+  },
+  "langSetTo": {
+    "message": "✓ Set to $LABEL$",
+    "placeholders": {
+      "label": {
+        "content": "$1"
+      }
+    }
+  },
+  "secEngine": {
+    "message": "AI Engine"
+  },
+  "labelEngine": {
+    "message": "AI used for cleanup & feedback"
+  },
+  "engineAuto": {
+    "message": "Auto (Gemini API if a key is set)"
+  },
+  "engineNano": {
+    "message": "Prefer on-device AI (Gemini Nano)"
+  },
+  "engineNote": {
+    "message": "On-device AI works offline and free, with no API key. Accuracy may be lower than the Gemini API."
+  },
+  "engineSetTo": {
+    "message": "AI engine saved"
+  },
+  "engineNanoReady": {
+    "message": "On-device AI is available on this device"
+  },
+  "engineNanoDownload": {
+    "message": "On-device AI is supported (the model will be downloaded on first use)"
+  },
+  "engineNanoNo": {
+    "message": "On-device AI is not available on this device"
+  },
+  "engineDownloading": {
+    "message": "Downloading the on-device AI model…"
+  },
+  "engineDownloadDone": {
+    "message": "Download complete. On-device AI is ready"
+  },
+  "engineDownloadFail": {
+    "message": "Could not start the download (restart Chrome if it stalls): "
+  },
+  "enNanoNote": {
+    "message": "Processed with on-device AI (Gemini Nano)"
+  },
+  "tierNano": {
+    "message": "On-device AI cleanup & feedback (no key needed)"
+  },
+  "badgeNano": {
+    "message": "On-device AI"
+  }
 }

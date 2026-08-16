@@ -39,7 +39,7 @@
       outline: none; transition: border-color 0.15s; cursor: pointer;
     }
     select:focus { border-color: #6366f1; }
-    #lang-status {
+    #lang-status, #engine-status {
       margin-top: 10px; padding: 8px 12px;
       border-radius: 8px; font-size: 12px; font-weight: 600;
       display: none;
@@ -129,6 +129,24 @@
       <p class="note">
         <span data-i18n="langNote"></span><br>
         <strong data-i18n="langNoteLearn"></strong><span data-i18n="langNoteLearnBody"></span>
+      </p>
+    </div>
+
+    <!-- AIエンジン（清書・添削に使うAI） -->
+    <div class="section">
+      <h2 data-i18n="secEngine"></h2>
+
+      <label for="engine-select" data-i18n="labelEngine"></label>
+      <select id="engine-select">
+        <option value="auto" data-i18n="engineAuto"></option>
+        <option value="nano" data-i18n="engineNano"></option>
+      </select>
+
+      <div id="engine-status"></div>
+
+      <p class="note">
+        <span data-i18n="engineNote"></span><br>
+        <strong id="engine-availability"></strong>
       </p>
     </div>
 

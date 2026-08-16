@@ -16,14 +16,17 @@
 // 依存: english-core.js（parseFeedback / buildEnglishUserMessage）を先に読み込むこと
 
 // ------------------------------------------------------------
-// Tier の選び方
+// Tier の選び方（2026-08-16 実機検証を経て接続。検証ログは Obsidian 参照）
 // ------------------------------------------------------------
-// 現状の既定動作は従来と同じ: Gemini キーがあれば Tier 2、無ければ null（AI なし）。
-// Prompt API の検証（test/prompt_api_console_probe.js）の結果を見てから、
-// ここに nanoAvailability() を組み込んで「使える端末では Tier 1.5 を既定」に切り替える。
-// 切り替えはこの関数だけ直せば、清書・英語添削の全経路に効く。
-function selectAiProvider({ geminiKey }) {
+// engine（設定画面の「AIエンジン」・storage の mamoru_engine）:
+//   'auto'（既定）… キーがあれば Tier 2（Gemini）、無ければ Nano が使えるなら Tier 1.5
+//   'nano'        … Nano が使える端末では常に Tier 1.5（Gemini との比較・試用向け）
+// nanoState は起動時に nanoAvailability() で取った値を渡す（'available' 以外は Nano を使わない）
+function selectAiProvider({ geminiKey, engine = 'auto', nanoState = 'unavailable' }) {
+  const nanoOk = nanoState === 'available';
+  if (engine === 'nano' && nanoOk) return createNanoProvider();
   if (geminiKey) return createGeminiProvider(geminiKey);
+  if (nanoOk) return createNanoProvider();
   return null;
 }
 
@@ -254,14 +257,37 @@ function createGeminiProvider(key) {
 // ============================================================
 // Tier 1.5: Chrome 内蔵 AI（Prompt API / Gemini Nano）
 // ============================================================
-// ※ まだどこからも既定では呼ばれない（selectAiProvider が返さない）。
-//    test/prompt_api_console_probe.js の検証結果を見てから既定化を判断し、
-//    プロンプトと temperature / topK も検証結果に合わせて調整する。
-//    制約: Chrome 148+・初回はモデルDLあり・コンテキスト約9000トークン。
+// 2026-08-16 の実機検証（Chrome 151 / M3 / 16GB）で確定した注意点:
+// - LanguageModel.params() は無い。トークンは contextUsage / contextWindow（実測 9216）
+// - モデル DL を伴う create() はユーザー操作必須 → 設定画面の切り替え操作を起点にする
+// - 清書は既定 params が最良（temperature を下げると逆に文体が常体に書き換わる）
+// - 添削は「suggestion は必ず英語」を明記しないと日本語訳に化ける
+// - 初回セッション作成が約 16 秒 → ベースセッションを使い回し、clone() して使う
 
 async function nanoAvailability() {
   if (typeof LanguageModel === 'undefined') return 'unavailable';
   try { return await LanguageModel.availability(); } catch { return 'unavailable'; }
+}
+
+// ベースセッションの使い回し。毎回 create すると初回 16 秒級のロードが走るため、
+// 種類ごとに 1 本作って保持し、リクエストごとに clone() を使い捨てる
+// （clone なら会話履歴が積もらず、コンテキストも汚れない）
+const nanoCache = { clean: null, review: null };
+
+async function nanoPrompt(kind, createOpts, input, promptOpts) {
+  if (!nanoCache[kind]) nanoCache[kind] = await LanguageModel.create(createOpts);
+  const base = nanoCache[kind];
+  const session = base.clone ? await base.clone() : base;
+  try {
+    return await session.prompt(input, promptOpts);
+  } catch (err) {
+    // 失敗したベースは捨てて、次回作り直す
+    try { base.destroy(); } catch {}
+    nanoCache[kind] = null;
+    throw err;
+  } finally {
+    if (session !== base) { try { session.destroy(); } catch {} }
+  }
 }
 
 // 小型モデル向けに短く強く。長い禁止事項リストは Nano には効きにくいので、
@@ -284,6 +310,24 @@ const NANO_JA_CLEAN_SYSTEM = `あなたは音声認識テキストの整形ツ�
 例2（言い直しの整理）:
 入力: あの、新しい機能を、機能のことをずっと考えてて、なんか、いいアイデアが出た
 出力: 新しい機能のことをずっと考えていて、いいアイデアが出た。`;
+
+// Nano 用の添削指示。Tier 2 の EN_SYSTEM_PROMPT と違い、小型モデル向けに短く、
+// 「suggestion は必ず英語」を最優先ルールにしてある（書かないと日本語訳に化ける。実測）
+const EN_SYSTEM_PROMPT_NANO = `あなたは英語学習者の「独り言」を添削するコーチです。音声認識されたテキストが渡されます。
+
+CRITICAL RULES:
+- "corrected_text" と "suggestion" は必ず英語で書く。日本語訳を書いてはいけない
+- "reason" と "good" は日本語で 1 文
+- "type" は phrasing / vocabulary / grammar のどれか 1 つだけ
+- 発音には一切触れない（音声は届いていない）
+- 指摘は最大 5 件。影響の大きい順
+- 文脈に合わないほど不自然な語は音声認識の化けなので、指摘にせず recognition_doubt に原文のまま入れる
+
+正しい issue の例:
+{"type":"grammar","original":"I could not concentrate to development","suggestion":"I could not concentrate on development","reason":"concentrate は前置詞 on を取ります。"}
+
+次の JSON オブジェクトだけを返す（前置き・コードフェンス禁止）:
+{"corrected_text":"...","issues":[{"type":"...","original":"...","suggestion":"...","reason":"..."}],"recurring":[],"recognition_doubt":[],"good":"..."}`;
 
 // parseFeedback が受け取れる形をそのままスキーマにしたもの（responseConstraint 用）
 const NANO_REVIEW_SCHEMA = {
@@ -316,42 +360,28 @@ function createNanoProvider() {
     id: 'nano',
 
     async cleanUp(text, lang) {
-      // 日本語以外の清書品質は未検証なので、まず日本語だけに限定する
+      // 清書品質を実機検証済みなのは日本語のみ。他言語はまず対象外にする
       if (!lang.startsWith('ja')) {
         const err = new Error('nano: unsupported language'); err.code = 'unsupported'; throw err;
       }
-      const session = await LanguageModel.create({
+      // temperature / topK は指定しない（既定が最良。低温は文体を常体に書き換える。実測）
+      const out = await nanoPrompt('clean', {
         initialPrompts:  [{ role: 'system', content: NANO_JA_CLEAN_SYSTEM }],
         expectedInputs:  [{ type: 'text', languages: ['ja'] }],
         expectedOutputs: [{ type: 'text', languages: ['ja'] }],
-      });
-      try {
-        const out = await session.prompt(
-          `次の文字起こしを整形してください。\n===テキスト===\n${text}\n===ここまで===`
-        );
-        return out.trim();
-      } finally {
-        session.destroy();
-      }
+      }, `次の文字起こしを整形してください。\n===テキスト===\n${text}\n===ここまで===`);
+      return out.trim();
     },
 
     async reviewEnglish(text, recurring) {
-      const session = await LanguageModel.create({
-        initialPrompts:  [{ role: 'system', content: EN_SYSTEM_PROMPT }],
+      const raw = await nanoPrompt('review', {
+        initialPrompts:  [{ role: 'system', content: EN_SYSTEM_PROMPT_NANO }],
         expectedInputs:  [{ type: 'text', languages: ['en', 'ja'] }],
         expectedOutputs: [{ type: 'text', languages: ['ja', 'en'] }],
-      });
-      try {
-        const raw = await session.prompt(
-          buildEnglishUserMessage(text, recurring),
-          { responseConstraint: NANO_REVIEW_SCHEMA }
-        );
-        const fb = parseFeedback(raw);
-        if (!fb) { const err = new Error(''); err.code = 'parse'; throw err; }
-        return fb;
-      } finally {
-        session.destroy();
-      }
+      }, buildEnglishUserMessage(text, recurring), { responseConstraint: NANO_REVIEW_SCHEMA });
+      const fb = parseFeedback(raw);
+      if (!fb) { const err = new Error(''); err.code = 'parse'; throw err; }
+      return fb;
     },
   };
 }

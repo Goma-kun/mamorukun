@@ -17,6 +17,8 @@ function applyI18n() {
 let geminiKey      = '';
 let isRecording    = false;
 let recogLang      = 'ja-JP';   // 音声認識の言語（設定画面で変更可能）
+let enginePref     = 'auto';    // AIエンジン設定（'auto' | 'nano'。設定画面で変更可能）
+let nanoState      = 'unavailable'; // Chrome 内蔵 AI の利用可否（起動時に判定）
 let transcript     = '';
 let history        = [];
 
@@ -46,9 +48,10 @@ const DEFAULT_LANG = 'ja-JP';
 // ============================================================
 async function loadStorage() {
   // 設定（キー・言語・モード）はここで読む
-  const d = await chrome.storage.local.get(['mamoru_gemini_key', 'mamoru_lang', 'mamoru_mode']);
-  geminiKey = d.mamoru_gemini_key || '';
-  recogLang = d.mamoru_lang || DEFAULT_LANG;
+  const d = await chrome.storage.local.get(['mamoru_gemini_key', 'mamoru_lang', 'mamoru_mode', 'mamoru_engine']);
+  geminiKey  = d.mamoru_gemini_key || '';
+  recogLang  = d.mamoru_lang || DEFAULT_LANG;
+  enginePref = d.mamoru_engine === 'nano' ? 'nano' : 'auto';
   // 前回のモードで開く（開いてすぐ話せる状態にするため）
   mode      = d.mamoru_mode === 'english' ? 'english' : 'clean';
 
@@ -69,6 +72,11 @@ function saveTranscript() {
 
 function saveHistory() {
   HistoryStore.saveCleanHistory(history);
+}
+
+// いま使う AI プロバイダ。null なら AI なし（従来のキー無し挙動）
+function currentAi() {
+  return selectAiProvider({ geminiKey, engine: enginePref, nanoState });
 }
 
 function addToHistory(t, c) {
@@ -312,9 +320,9 @@ function onRecordingStopped() {
     return;
   }
 
-  if (geminiKey && transcript.trim()) {
+  if (currentAi() && transcript.trim()) {
     runClean();
-  } else if (!geminiKey && transcript.trim()) {
+  } else if (transcript.trim()) {
     addToHistory(transcript, '');
     navigator.clipboard.writeText(transcript + "​").then(() => {
       showToast(T('toastCopied'), 'ok');
@@ -348,14 +356,12 @@ function onResult(interim, final) {
 
 async function runClean() {
   if (!transcript.trim()) return;
-  if (!geminiKey) {
+  const ai = currentAi();
+  if (!ai) {
     showToast(T('noApiKey'), 'info');
     return;
   }
   showToast(T('cleaning'), 'info');
-
-  // Tier の選択は AI 呼び出し層に任せる（現状はキーがあれば Tier 2 = Gemini）
-  const ai = selectAiProvider({ geminiKey });
 
   try {
     const cleanedText = await ai.cleanUp(transcript, recogLang);
@@ -372,6 +378,15 @@ async function runClean() {
   } catch (err) {
     // 'denied' はキーの誤りではなく、プロジェクトに無料枠が割り当てられていないケース
     if (err.code === 'denied') { showToast(T('cleanErrDenied'), 'error'); return; }
+    if (err.code === 'unsupported') {
+      // 端末内 AI が扱えない言語は、AI なしのときと同じ動き（そのままコピー）に落とす
+      addToHistory(transcript, '');
+      navigator.clipboard.writeText(transcript + "​").then(() => {
+        showToast(T('toastCopied'), 'ok');
+        setTimeout(() => autoClear(), 800);
+      }).catch(() => {});
+      return;
+    }
     showToast(T('cleanError') + (err.message || T('unknownError')), 'error');
   }
 }
@@ -399,17 +414,17 @@ function todayStamp() {
 async function runEnglishFeedback() {
   const text = transcript.trim();
   if (!text) return;
-  if (!geminiKey) { renderEnglish(); showToast(T('enNoKey'), 'info'); return; }
+  const ai = currentAi();
+  if (!ai) { renderEnglish(); showToast(T('enNoKey'), 'info'); return; }
 
   enBusy  = true;
   enError = '';
   renderEnglish();
 
-  const ai = selectAiProvider({ geminiKey });
-
   try {
     // 応答の取得と JSON 解釈は AI 呼び出し層が行う。JSON として読めない応答はここまで来ない
     const fb = await ai.reviewEnglish(text, topRecurring(enRecurring));
+    fb.engineId = ai.id;   // 表示用（端末内 AI のときは注記を出す）
 
     enSessions.unshift({
       id:             new Date().toISOString(),
@@ -469,8 +484,8 @@ function enTypeLabel(type) {
 function renderEnglish() {
   enFeedback.innerHTML = '';
 
-  if (enBusy)     { enFeedback.appendChild(enNote(T('enAnalyzing'))); return; }
-  if (!geminiKey) { enFeedback.appendChild(enNote(T('enNoKey'))); return; }
+  if (enBusy)      { enFeedback.appendChild(enNote(T('enAnalyzing'))); return; }
+  if (!currentAi()) { enFeedback.appendChild(enNote(T('enNoKey'))); return; }
   if (enError)    { enFeedback.appendChild(enNote(enError, 'en-error')); }
 
   const fb = enLatest;
@@ -596,6 +611,10 @@ function renderEnglish() {
     enFeedback.appendChild(sec);
   }
 
+  // 端末内 AI で処理したときは明示する（API より精度が下がることがあるため）
+  if (fb.engineId === 'nano') {
+    enFeedback.appendChild(enNote(T('enNanoNote'), 'en-fineprint'));
+  }
   enFeedback.appendChild(enNote(T('enNoPronunciation'), 'en-fineprint'));
 }
 
@@ -767,6 +786,11 @@ chrome.storage.onChanged.addListener((changes) => {
     recogLang = changes.mamoru_lang.newValue || DEFAULT_LANG;
     if (recognizer.running) showToast(T('langChanged'), 'info');
   }
+  // 設定画面で AI エンジンを変えたら即反映。DL 直後の場合もあるので利用可否を取り直す
+  if (changes.mamoru_engine) {
+    enginePref = changes.mamoru_engine.newValue === 'nano' ? 'nano' : 'auto';
+    nanoAvailability().then(s => { nanoState = s; });
+  }
 });
 
 // ============================================================
@@ -798,7 +822,10 @@ tabHistory.addEventListener('click', () => switchPanel('history'));
 // ============================================================
 document.addEventListener('DOMContentLoaded', async () => {
   applyI18n();
+  // Chrome 内蔵 AI の利用可否。ロードを待たせないため並行で取る
+  const nanoCheck = nanoAvailability().then(s => { nanoState = s; });
   await loadStorage();
+  await nanoCheck;
   renderTranscript();
   // 前回のモードのまま開く。「開く → 話す」の間に操作を挟ませない
   switchPanel(mode === 'english' ? 'english' : 'transcript');
