@@ -789,7 +789,10 @@ chrome.storage.onChanged.addListener((changes) => {
   // 設定画面で AI エンジンを変えたら即反映。DL 直後の場合もあるので利用可否を取り直す
   if (changes.mamoru_engine) {
     enginePref = changes.mamoru_engine.newValue === 'nano' ? 'nano' : 'auto';
-    nanoAvailability().then(s => { nanoState = s; });
+    nanoAvailability().then(s => {
+      nanoState = s;
+      if (currentAi()?.id === 'nano') prewarmNano();
+    });
   }
 });
 
@@ -826,6 +829,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   const nanoCheck = nanoAvailability().then(s => { nanoState = s; });
   await loadStorage();
   await nanoCheck;
+  // Nano を使う見込みなら、この時点でモデルのロード（初回約16秒）を始めておく。
+  // 録音が終わってから待たせないための仕込み
+  if (currentAi()?.id === 'nano') prewarmNano();
   renderTranscript();
   // 前回のモードのまま開く。「開く → 話す」の間に操作を挟ませない
   switchPanel(mode === 'english' ? 'english' : 'transcript');
