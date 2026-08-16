@@ -271,12 +271,17 @@ async function nanoAvailability() {
 
 // ベースセッションの使い回し。毎回 create すると初回 16 秒級のロードが走るため、
 // 種類ごとに 1 本作って保持し、リクエストごとに clone() を使い捨てる
-// （clone なら会話履歴が積もらず、コンテキストも汚れない）
+// （clone なら会話履歴が積もらず、コンテキストも汚れない）。
+// キャッシュには Promise を入れる（プリウォームと本番が同時に走っても二重 create しない）
 const nanoCache = { clean: null, review: null };
 
+function nanoBase(kind, createOpts) {
+  if (!nanoCache[kind]) nanoCache[kind] = LanguageModel.create(createOpts);
+  return nanoCache[kind];
+}
+
 async function nanoPrompt(kind, createOpts, input, promptOpts) {
-  if (!nanoCache[kind]) nanoCache[kind] = await LanguageModel.create(createOpts);
-  const base = nanoCache[kind];
+  const base = await nanoBase(kind, createOpts);
   const session = base.clone ? await base.clone() : base;
   try {
     return await session.prompt(input, promptOpts);
@@ -288,6 +293,14 @@ async function nanoPrompt(kind, createOpts, input, promptOpts) {
   } finally {
     if (session !== base) { try { session.destroy(); } catch {} }
   }
+}
+
+// パネルを開いた時点で Nano を使う見込みなら、録音している間にロードを済ませておく。
+// 録音終了後に 16 秒待たせないための仕込み。失敗しても本番時に作り直すだけなので握りつぶす
+function prewarmNano() {
+  if (typeof LanguageModel === 'undefined') return;
+  nanoBase('clean', NANO_CLEAN_OPTS).catch(() => { nanoCache.clean = null; });
+  nanoBase('review', NANO_REVIEW_OPTS).catch(() => { nanoCache.review = null; });
 }
 
 // 小型モデル向けに短く強く。長い禁止事項リストは Nano には効きにくいので、
@@ -355,6 +368,19 @@ const NANO_REVIEW_SCHEMA = {
   },
 };
 
+// セッション作成オプション。nanoPrompt と prewarmNano で同じものを使う
+// temperature / topK は指定しない（既定が最良。低温は文体を常体に書き換える。実測）
+const NANO_CLEAN_OPTS = {
+  initialPrompts:  [{ role: 'system', content: NANO_JA_CLEAN_SYSTEM }],
+  expectedInputs:  [{ type: 'text', languages: ['ja'] }],
+  expectedOutputs: [{ type: 'text', languages: ['ja'] }],
+};
+const NANO_REVIEW_OPTS = {
+  initialPrompts:  [{ role: 'system', content: EN_SYSTEM_PROMPT_NANO }],
+  expectedInputs:  [{ type: 'text', languages: ['en', 'ja'] }],
+  expectedOutputs: [{ type: 'text', languages: ['ja', 'en'] }],
+};
+
 function createNanoProvider() {
   return {
     id: 'nano',
@@ -364,21 +390,14 @@ function createNanoProvider() {
       if (!lang.startsWith('ja')) {
         const err = new Error('nano: unsupported language'); err.code = 'unsupported'; throw err;
       }
-      // temperature / topK は指定しない（既定が最良。低温は文体を常体に書き換える。実測）
-      const out = await nanoPrompt('clean', {
-        initialPrompts:  [{ role: 'system', content: NANO_JA_CLEAN_SYSTEM }],
-        expectedInputs:  [{ type: 'text', languages: ['ja'] }],
-        expectedOutputs: [{ type: 'text', languages: ['ja'] }],
-      }, `次の文字起こしを整形してください。\n===テキスト===\n${text}\n===ここまで===`);
+      const out = await nanoPrompt('clean', NANO_CLEAN_OPTS,
+        `次の文字起こしを整形してください。\n===テキスト===\n${text}\n===ここまで===`);
       return out.trim();
     },
 
     async reviewEnglish(text, recurring) {
-      const raw = await nanoPrompt('review', {
-        initialPrompts:  [{ role: 'system', content: EN_SYSTEM_PROMPT_NANO }],
-        expectedInputs:  [{ type: 'text', languages: ['en', 'ja'] }],
-        expectedOutputs: [{ type: 'text', languages: ['ja', 'en'] }],
-      }, buildEnglishUserMessage(text, recurring), { responseConstraint: NANO_REVIEW_SCHEMA });
+      const raw = await nanoPrompt('review', NANO_REVIEW_OPTS,
+        buildEnglishUserMessage(text, recurring), { responseConstraint: NANO_REVIEW_SCHEMA });
       const fb = parseFeedback(raw);
       if (!fb) { const err = new Error(''); err.code = 'parse'; throw err; }
       return fb;
