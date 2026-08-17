@@ -44,9 +44,9 @@
     }
     .header-btn:hover { background: #334155; color: #e2e8f0; }
 
-    /* ── タブバー（ログ・英語・履歴） ── */
+    /* ── タブバー（メモ・履歴） ── */
     #tab-bar {
-      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      display: grid; grid-template-columns: 1fr 1fr;
       border-bottom: 1px solid #1e293b;
       flex-shrink: 0;
     }
@@ -69,21 +69,6 @@
     }
     #panel-history::-webkit-scrollbar { width: 4px; }
     #panel-history::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    /* 履歴の「メモ／独り言」切り替え */
-    .history-switch {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-      background: #0f172a; border: 1px solid #1e293b;
-      border-radius: 8px; padding: 3px;
-      flex-shrink: 0;
-    }
-    .history-switch button {
-      background: none; border: none; border-radius: 6px;
-      color: #64748b; font-size: 11px; font-weight: 700;
-      padding: 6px 4px; cursor: pointer; transition: all 0.15s;
-    }
-    .history-switch button:hover:not(.active) { color: #94a3b8; }
-    .history-switch button.active { background: #1e293b; color: #38bdf8; }
-
     .history-empty {
       color: #475569; font-size: 13px; text-align: center;
       padding: 32px 16px;
@@ -152,71 +137,6 @@
       min-height: 4px;
     }
 
-    /* ── 英語学習パネル ── */
-    #panel-english {
-      overflow-y: auto;
-      padding: 10px;
-    }
-    #panel-english::-webkit-scrollbar { width: 4px; }
-    #panel-english::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-    #en-live {
-      color: #cbd5e1; font-size: 13px; line-height: 1.6;
-      white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
-      padding: 0 0 6px;
-    }
-    #en-live:not(:empty) {
-      border-bottom: 1px solid #1e293b; margin-bottom: 10px;
-    }
-    #en-feedback { display: flex; flex-direction: column; gap: 10px; }
-    .en-note {
-      color: #64748b; font-size: 12px; line-height: 1.6;
-      text-align: center; padding: 16px 8px;
-    }
-    .en-note.en-error { color: #f87171; text-align: left; padding: 8px; }
-    .en-note.en-fineprint { font-size: 11px; color: #475569; padding: 4px 8px 8px; }
-    .en-section {
-      background: #1e293b; border: 1px solid #334155;
-      border-radius: 10px; padding: 10px 12px;
-      display: flex; flex-direction: column; gap: 8px;
-    }
-    .en-section-title { color: #64748b; font-size: 11px; font-weight: 700; }
-    .en-good { margin: 0; color: #4ade80; font-size: 12px; line-height: 1.6; }
-    .en-issue {
-      display: flex; flex-direction: column; gap: 4px;
-      padding: 8px 0; border-top: 1px solid #334155;
-    }
-    .en-section .en-issue:first-of-type { border-top: none; padding-top: 0; }
-    .en-badge {
-      align-self: flex-start;
-      font-size: 10px; font-weight: 700;
-      border-radius: 5px; padding: 1px 6px;
-      background: rgba(148,163,184,0.15); color: #94a3b8;
-    }
-    .en-badge-vocabulary { background: rgba(56,189,248,0.15); color: #38bdf8; }
-    .en-badge-grammar    { background: rgba(251,146,60,0.15); color: #fb923c; }
-    .en-swap {
-      font-size: 13px; line-height: 1.6;
-      word-break: normal; overflow-wrap: anywhere;
-    }
-    .en-from  { color: #f87171; text-decoration: line-through; }
-    .en-arrow { color: #64748b; padding: 0 5px; }
-    .en-to    { color: #4ade80; font-weight: 700; }
-    .en-reason { margin: 0; color: #94a3b8; font-size: 11px; line-height: 1.6; }
-    .en-doubt {
-      margin: 0; padding-left: 18px;
-      color: #94a3b8; font-size: 12px; line-height: 1.7;
-      word-break: normal; overflow-wrap: anywhere;
-    }
-    .en-recurring {
-      margin: 0; padding-left: 18px;
-      color: #cbd5e1; font-size: 12px; line-height: 1.7;
-    }
-    .en-corrected {
-      margin: 0; color: #e2e8f0; font-size: 13px; line-height: 1.7;
-      white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere;
-    }
-    .en-section .history-copy-btn { align-self: flex-end; }
-
     /* ── アクションバー ── */
     #action-bar {
       flex-shrink: 0;
@@ -256,8 +176,6 @@
       #toggle-btn { padding: 9px; font-size: 13px; }
       #panel-transcript { padding: 8px; }
       .transcript-line { font-size: 12px; }
-      #panel-english { padding: 8px; }
-      .en-swap, .en-corrected { font-size: 12px; }
     }
   </style>
 </head>
@@ -274,13 +192,10 @@
       </div>
     </header>
 
-    <!-- タブバー：ログ・英語・履歴 -->
+    <!-- タブバー：メモ・履歴 -->
     <div id="tab-bar">
       <button id="tab-transcript" class="tab-btn active">
         <span class="icon">🎙️</span><span class="label" data-i18n="tabLog"></span>
-      </button>
-      <button id="tab-english" class="tab-btn">
-        <span class="icon">📘</span><span class="label" data-i18n="tabEnglish"></span>
       </button>
       <button id="tab-history" class="tab-btn">
         <span class="icon">🕐</span><span class="label" data-i18n="tabHistory"></span>
@@ -295,12 +210,6 @@
         <div id="interim-line"></div>
       </div>
 
-      <!-- 英語学習パネル -->
-      <div id="panel-english" class="panel">
-        <div id="en-live"></div>
-        <div id="en-feedback"></div>
-      </div>
-
       <!-- 履歴パネル -->
       <div id="panel-history" class="panel"></div>
     </div>
@@ -311,8 +220,7 @@
     </div>
   </div>
 
-  <!-- 読み込み順に意味がある: 純ロジック → AI 呼び出し層 → 音声認識層 → 履歴層 → UI -->
-  <script src="english-core.js"></script>
+  <!-- 読み込み順に意味がある: AI 呼び出し層 → 音声認識層 → 履歴層 → UI -->
   <script src="ai-providers.js"></script>
   <script src="speech.js"></script>
   <script src="history-store.js"></script>

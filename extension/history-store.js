@@ -1,7 +1,8 @@
 // ============================================================
 // 履歴層。storage のキーと保存・読み出し・エクスポートをここに集約する。
-// 独り言モード（英語学習モード）のデータは en_ 接頭辞で独立していて、
-// 将来別プロダクトへ切り出すときは english-core.js とこのファイルを持っていけばよい
+// 独り言モード（英語学習モード）は v1.8.0 で単独の拡張機能「独り言」へ分離した。
+// 過去の独り言データ（en_ 接頭辞）はユーザーのデータなので消さずに残し、
+// exportEnglishJson で「独り言」拡張へ移行できるようにしてある
 // ============================================================
 const HistoryStore = (() => {
   const KEYS = {
@@ -36,8 +37,8 @@ const HistoryStore = (() => {
     });
   }
 
-  // 独り言モードのデータを JSON 文字列で書き出す。
-  // 画面はまだ無い。それまでは DevTools から await HistoryStore.exportEnglishJson() で取れる
+  // 過去の独り言データを JSON 文字列で書き出す（「独り言」拡張のインポートで読める形式）。
+  // 画面は無い。DevTools から await HistoryStore.exportEnglishJson() で取る
   async function exportEnglishJson() {
     const d = await load();
     return JSON.stringify({
