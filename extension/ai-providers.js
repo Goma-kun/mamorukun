@@ -5,15 +5,13 @@
 //   provider.id … 'local'（Tier 1: 正規表現整形）
 //               | 'nano'（Tier 1.5: Chrome 内蔵 AI / Prompt API）
 //               | 'gemini'（Tier 2: BYOK・従来どおり）
-//   provider.cleanUp(text, lang)            → Promise<string>   清書テキスト
-//   provider.reviewEnglish(text, recurring) → Promise<feedback> parseFeedback 済みの形
+//   provider.cleanUp(text, lang) → Promise<string> 清書テキスト
 //
 // 失敗は Error を投げる。err.code で UI 側が文言を出し分ける:
 //   'denied'      … Gemini 403（プロジェクトに無料枠が割り当てられていない）
-//   'parse'       … 応答が JSON として読めない
 //   'unsupported' … その Tier では提供していない機能・言語
 //
-// 依存: english-core.js（parseFeedback / buildEnglishUserMessage）を先に読み込むこと
+// 独り言（英語添削）は v1.8.0 で単独の拡張機能「独り言」へ分離した
 
 // ------------------------------------------------------------
 // Tier の選び方（2026-08-16 実機検証を経て接続。検証ログは Obsidian 参照）
@@ -126,82 +124,6 @@ ${text}
 ===END===`;
 }
 
-// ------------------------------------------------------------
-// 英語添削のシステム指示（Tier 1.5 / 2 共用）
-// ------------------------------------------------------------
-// 音声は届いていないため、発音には一切触れさせない。
-// 触れさせるとテキストからの推測でもっともらしい嘘が返り、学習用途では有害になる。
-const EN_SYSTEM_PROMPT = `あなたは英語学習者の「独り言」練習を見るコーチです。
-学習者が英語で 3〜5 分ほど独り言を話し、その音声認識結果があなたに渡されます。
-
-## 重要な前提
-
-- あなたに届いているのは音声認識を通したテキストです。音声は届いていません。
-- したがって **発音については一切言及しないでください。**
-- 音声認識の誤りと、学習者本人の誤りは区別してください。
-  文脈から見て明らかに聞き取り違いと分かる箇所（例：綴りは似ているが文脈に合わない語）は、
-  文法や語彙の誤りとして扱わず、recognition_doubt に入れてください。
-
-### 聞き取り違いを指摘に混ぜないための例
-
-音声認識は、文脈に合わない語へ大きく化けることがあります。
-**化けた語をそのまま「あなたの語彙の誤り」として指摘すると、言ってもいないことを
-教えることになります。** 以下は学習者の誤りではありません。
-
-例 1:
-認識結果: a lot of English speakers introduce yourself way to improve the English skills
-→ 意味が通らず、文脈上は recommend this way と言ったと考えられます。
-   語彙の誤りとして指摘せず、recognition_doubt に入れてください。
-
-例 2:
-認識結果: I would like to use french fries and extractions next time
-→ french fries（食べ物）は文脈に合いません。these expressions の聞き取り違いです。
-
-例 3:
-認識結果: I will definitely use this apple consistency consistency
-→ this app consistently の聞き取り違いです。同じ語の繰り返しも認識の癖です。
-
-判断の目安：**その語を実際に口に出したとは考えにくいほど文脈から外れている場合**は、
-学習者の誤りではなく聞き取り違いとして扱ってください。
-逆に、学習者が実際に言いそうな誤り（時制、冠詞、可算・不可算、前置詞、
-take と get の選び違いなど）は、そのまま指摘して構いません。
-
-## 見る観点（この 4 つだけ）
-
-1. 不自然な言い回しと、その自然な代替
-2. 語彙の選択（意味は通るが、その文脈ではより適切な語がある場合）
-3. 文法の誤り
-4. 繰り返し出ている癖（過去の指摘が渡されている場合はそれと照合する）
-
-## 指摘の量
-
-- 指摘は最大 5 件まで。多いと読まれません。
-- 影響の大きいものから順に並べてください。
-- 些細な誤り（冠詞の揺れ程度で意味が変わらないもの）は、他に指摘がないときだけ挙げてください。
-
-## 出力
-
-以下の JSON だけを返してください。前置き、説明、コードフェンスは付けないでください。
-
-{
-  "corrected_text": "修正版の全文。学習者が音読練習に使えるよう、自然な英語に整える",
-  "issues": [
-    {
-      "type": "phrasing | vocabulary | grammar",
-      "original": "学習者が言った表現",
-      "suggestion": "代わりの表現",
-      "reason": "なぜそちらが良いかを日本語で 1〜2 文"
-    }
-  ],
-  "recurring": [
-    "過去にも指摘された内容のうち、今回も出たものを日本語で 1 行ずつ"
-  ],
-  "recognition_doubt": [
-    "音声認識の誤りと思われる箇所。原文の該当部分をそのまま入れる"
-  ],
-  "good": "今回よく書けていた点を日本語で 1 文。無理に褒めず、該当がなければ空文字にする"
-}`;
-
 // ============================================================
 // Tier 2: Gemini API（BYOK・従来どおり）
 // ============================================================
@@ -238,19 +160,6 @@ function createGeminiProvider(key) {
         tools: []
       });
     },
-
-    async reviewEnglish(text, recurring) {
-      const raw = await call({
-        systemInstruction: { parts: [{ text: EN_SYSTEM_PROMPT }] },
-        contents: [{ role: 'user', parts: [{ text: buildEnglishUserMessage(text, recurring) }] }],
-        generationConfig: { thinkingConfig: { thinkingLevel: "low" } },
-        tools: []
-      });
-      // JSON として読めないものは返さない（前置きや回答をそのまま出すと嘘を教えることになる）
-      const fb = parseFeedback(raw);
-      if (!fb) { const err = new Error(''); err.code = 'parse'; throw err; }
-      return fb;
-    },
   };
 }
 
@@ -273,7 +182,7 @@ async function nanoAvailability() {
 // 種類ごとに 1 本作って保持し、リクエストごとに clone() を使い捨てる
 // （clone なら会話履歴が積もらず、コンテキストも汚れない）。
 // キャッシュには Promise を入れる（プリウォームと本番が同時に走っても二重 create しない）
-const nanoCache = { clean: null, review: null };
+const nanoCache = { clean: null };
 
 function nanoBase(kind, createOpts) {
   if (!nanoCache[kind]) nanoCache[kind] = LanguageModel.create(createOpts);
@@ -300,7 +209,6 @@ async function nanoPrompt(kind, createOpts, input, promptOpts) {
 function prewarmNano() {
   if (typeof LanguageModel === 'undefined') return;
   nanoBase('clean', NANO_CLEAN_OPTS).catch(() => { nanoCache.clean = null; });
-  nanoBase('review', NANO_REVIEW_OPTS).catch(() => { nanoCache.review = null; });
 }
 
 // 小型モデル向けに短く強く。長い禁止事項リストは Nano には効きにくいので、
@@ -324,63 +232,11 @@ const NANO_JA_CLEAN_SYSTEM = `あなたは音声認識テキストの整形ツ�
 入力: あの、新しい機能を、機能のことをずっと考えてて、なんか、いいアイデアが出た
 出力: 新しい機能のことをずっと考えていて、いいアイデアが出た。`;
 
-// Nano 用の添削指示。Tier 2 の EN_SYSTEM_PROMPT と違い、小型モデル向けに短く、
-// 「suggestion は必ず英語」を最優先ルールにしてある（書かないと日本語訳に化ける。実測）
-const EN_SYSTEM_PROMPT_NANO = `あなたは英語学習者の「独り言」を添削するコーチです。音声認識されたテキストが渡されます。
-
-CRITICAL RULES:
-- "corrected_text" と "suggestion" は必ず英語で書く。日本語訳を書いてはいけない
-- "reason" と "good" は日本語で 1 文
-- "type" は phrasing / vocabulary / grammar のどれか 1 つだけ
-- 発音には一切触れない（音声は届いていない）
-- 指摘は最大 5 件。影響の大きい順
-- 文脈に合わないほど不自然な語は音声認識の化けなので、指摘にせず recognition_doubt に原文のまま入れる
-
-正しい issue の例:
-{"type":"grammar","original":"I could not concentrate to development","suggestion":"I could not concentrate on development","reason":"concentrate は前置詞 on を取ります。"}
-
-次の JSON オブジェクトだけを返す（前置き・コードフェンス禁止）:
-{"corrected_text":"...","issues":[{"type":"...","original":"...","suggestion":"...","reason":"..."}],"recurring":[],"recognition_doubt":[],"good":"..."}`;
-
-// parseFeedback が受け取れる形をそのままスキーマにしたもの（responseConstraint 用）
-const NANO_REVIEW_SCHEMA = {
-  type: 'object',
-  required: ['corrected_text', 'issues'],
-  properties: {
-    corrected_text: { type: 'string' },
-    issues: {
-      type: 'array',
-      maxItems: 5,
-      items: {
-        type: 'object',
-        required: ['type', 'original', 'suggestion', 'reason'],
-        properties: {
-          type:       { type: 'string', enum: ['phrasing', 'vocabulary', 'grammar'] },
-          original:   { type: 'string' },
-          suggestion: { type: 'string' },
-          reason:     { type: 'string' },
-        },
-      },
-    },
-    recurring:         { type: 'array', items: { type: 'string' } },
-    recognition_doubt: { type: 'array', items: { type: 'string' } },
-    good:              { type: 'string' },
-  },
-};
-
-// セッション作成オプション。nanoPrompt と prewarmNano で同じものを使う
-// temperature / topK は指定しない（既定が最良。低温は文体を常体に書き換える。実測）
 const NANO_CLEAN_OPTS = {
   initialPrompts:  [{ role: 'system', content: NANO_JA_CLEAN_SYSTEM }],
   expectedInputs:  [{ type: 'text', languages: ['ja'] }],
   expectedOutputs: [{ type: 'text', languages: ['ja'] }],
 };
-const NANO_REVIEW_OPTS = {
-  initialPrompts:  [{ role: 'system', content: EN_SYSTEM_PROMPT_NANO }],
-  expectedInputs:  [{ type: 'text', languages: ['en', 'ja'] }],
-  expectedOutputs: [{ type: 'text', languages: ['ja', 'en'] }],
-};
-
 function createNanoProvider() {
   return {
     id: 'nano',
@@ -393,14 +249,6 @@ function createNanoProvider() {
       const out = await nanoPrompt('clean', NANO_CLEAN_OPTS,
         `次の文字起こしを整形してください。\n===テキスト===\n${text}\n===ここまで===`);
       return out.trim();
-    },
-
-    async reviewEnglish(text, recurring) {
-      const raw = await nanoPrompt('review', NANO_REVIEW_OPTS,
-        buildEnglishUserMessage(text, recurring), { responseConstraint: NANO_REVIEW_SCHEMA });
-      const fb = parseFeedback(raw);
-      if (!fb) { const err = new Error(''); err.code = 'parse'; throw err; }
-      return fb;
     },
   };
 }
@@ -421,10 +269,6 @@ function createLocalFormatter() {
         .replace(/、{2,}/g, '、')
         .replace(/[ \t]{2,}/g, ' ')
         .split('\n').map(l => l.trim()).filter(Boolean).join('\n');
-    },
-
-    async reviewEnglish() {
-      const err = new Error('local: review not supported'); err.code = 'unsupported'; throw err;
     },
   };
 }

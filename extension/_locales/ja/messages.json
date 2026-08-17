@@ -14,9 +14,6 @@
   "tabLog": {
     "message": "メモ"
   },
-  "tabEnglish": {
-    "message": "独り言"
-  },
   "tabHistory": {
     "message": "履歴"
   },
@@ -82,96 +79,6 @@
   },
   "langChanged": {
     "message": "🌐 言語設定を変更しました（次の録音から反映）"
-  },
-  "enHint": {
-    "message": "「▶ 開始」を押して、英語で独り言を話してください。停止するとフィードバックが出ます。"
-  },
-  "enNoKey": {
-    "message": "独り言モードには Gemini API キーが必要です（⚙️設定から登録できます）"
-  },
-  "enAnalyzing": {
-    "message": "🧠 フィードバックを作成中..."
-  },
-  "enError": {
-    "message": "フィードバックのエラー: "
-  },
-  "enParseError": {
-    "message": "AIの応答を読み取れませんでした。もう一度お試しください。"
-  },
-  "enGood": {
-    "message": "よかった点"
-  },
-  "enIssues": {
-    "message": "指摘"
-  },
-  "enNoIssues": {
-    "message": "今回の指摘はありません。"
-  },
-  "enRecurring": {
-    "message": "繰り返し出ている点"
-  },
-  "enCorrected": {
-    "message": "修正版（音読用）"
-  },
-  "enNoPronunciation": {
-    "message": "※ 音声はAIに送っていないため、発音の評価は行いません。テキストの内容だけを見ています。"
-  },
-  "enModeLocked": {
-    "message": "録音中はモードを切り替えられません"
-  },
-  "enHistoryEmpty": {
-    "message": "独り言の記録はまだありません"
-  },
-  "btnCopyWithIssues": {
-    "message": "📋 コピー（指摘つき）"
-  },
-  "enLabelCorrected": {
-    "message": "修正版"
-  },
-  "enLabelSaid": {
-    "message": "話した内容（音声認識の結果）"
-  },
-  "enDoubt": {
-    "message": "聞き取りが怪しい箇所"
-  },
-  "enDoubtNote": {
-    "message": "音声認識がこう聞き取った箇所です。あなたの誤りとしては数えていません。"
-  },
-  "historyOf": {
-    "message": "$WHAT$ の記録",
-    "placeholders": {
-      "what": {
-        "content": "$1"
-      }
-    }
-  },
-  "enFolded": {
-    "message": "（古い記録：指摘のみ）"
-  },
-  "enIssueCount": {
-    "message": "指摘 $N$ 件",
-    "placeholders": {
-      "n": {
-        "content": "$1"
-      }
-    }
-  },
-  "enTimes": {
-    "message": "$N$ 回",
-    "placeholders": {
-      "n": {
-        "content": "$1"
-      }
-    }
-  },
-  "typePhrasing": {
-    "message": "言い回し"
-  },
-  "typeVocabulary": {
-    "message": "語彙"
-  },
-  "typeGrammar": {
-    "message": "文法"
   },
   "optTitle": {
     "message": "まもるくん 設定"
@@ -338,7 +245,7 @@
     "message": "AIエンジン"
   },
   "labelEngine": {
-    "message": "清書・添削に使うAI"
+    "message": "清書に使うAI"
   },
   "engineAuto": {
     "message": "自動（APIキーがあれば Gemini API）"
@@ -370,11 +277,8 @@
   "engineDownloadFail": {
     "message": "ダウンロードを開始できませんでした（進まないときは Chrome を再起動してください）: "
   },
-  "enNanoNote": {
-    "message": "端末内AI（Gemini Nano）で処理しました"
-  },
   "tierNano": {
-    "message": "端末内AIで清書・添削（キー不要）"
+    "message": "端末内AIで清書（キー不要）"
   },
   "badgeNano": {
     "message": "端末内AI"

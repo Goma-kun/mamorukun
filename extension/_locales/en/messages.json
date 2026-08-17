@@ -14,9 +14,6 @@
   "tabLog": {
     "message": "Memo"
   },
-  "tabEnglish": {
-    "message": "Self-talk"
-  },
   "tabHistory": {
     "message": "History"
   },
@@ -82,96 +79,6 @@
   },
   "langChanged": {
     "message": "🌐 Language changed (applies from the next recording)"
-  },
-  "enHint": {
-    "message": "Press \"▶ Start\" and talk to yourself in English. Feedback appears when you stop."
-  },
-  "enNoKey": {
-    "message": "Self-talk mode needs a Gemini API key (add one in ⚙️ Settings)"
-  },
-  "enAnalyzing": {
-    "message": "🧠 Preparing feedback..."
-  },
-  "enError": {
-    "message": "Feedback error: "
-  },
-  "enParseError": {
-    "message": "Could not read the AI response. Please try again."
-  },
-  "enGood": {
-    "message": "What went well"
-  },
-  "enIssues": {
-    "message": "Suggestions"
-  },
-  "enNoIssues": {
-    "message": "Nothing to flag this time."
-  },
-  "enRecurring": {
-    "message": "Recurring patterns"
-  },
-  "enCorrected": {
-    "message": "Corrected version (for reading aloud)"
-  },
-  "enNoPronunciation": {
-    "message": "Note: your audio is never sent to the AI, so pronunciation is not assessed. Only the text is reviewed."
-  },
-  "enModeLocked": {
-    "message": "You cannot switch modes while recording"
-  },
-  "enHistoryEmpty": {
-    "message": "No self-talk sessions yet"
-  },
-  "btnCopyWithIssues": {
-    "message": "📋 Copy (with notes)"
-  },
-  "enLabelCorrected": {
-    "message": "Corrected"
-  },
-  "enLabelSaid": {
-    "message": "What you said (speech recognition)"
-  },
-  "enDoubt": {
-    "message": "Possible misrecognitions"
-  },
-  "enDoubtNote": {
-    "message": "This is what speech recognition heard. It is not counted as your mistake."
-  },
-  "historyOf": {
-    "message": "$WHAT$ history",
-    "placeholders": {
-      "what": {
-        "content": "$1"
-      }
-    }
-  },
-  "enFolded": {
-    "message": "(older entry: suggestions only)"
-  },
-  "enIssueCount": {
-    "message": "$N$ suggestion(s)",
-    "placeholders": {
-      "n": {
-        "content": "$1"
-      }
-    }
-  },
-  "enTimes": {
-    "message": "$N$ times",
-    "placeholders": {
-      "n": {
-        "content": "$1"
-      }
-    }
-  },
-  "typePhrasing": {
-    "message": "Phrasing"
-  },
-  "typeVocabulary": {
-    "message": "Vocabulary"
-  },
-  "typeGrammar": {
-    "message": "Grammar"
   },
   "optTitle": {
     "message": "Mamorukun Settings"
@@ -338,7 +245,7 @@
     "message": "AI Engine"
   },
   "labelEngine": {
-    "message": "AI used for cleanup & feedback"
+    "message": "AI used for cleanup"
   },
   "engineAuto": {
     "message": "Auto (Gemini API if a key is set)"
@@ -370,11 +277,8 @@
   "engineDownloadFail": {
     "message": "Could not start the download (restart Chrome if it stalls): "
   },
-  "enNanoNote": {
-    "message": "Processed with on-device AI (Gemini Nano)"
-  },
   "tierNano": {
-    "message": "On-device AI cleanup & feedback (no key needed)"
+    "message": "On-device AI cleanup (no key needed)"
   },
   "badgeNano": {
     "message": "On-device AI"
